@@ -22,4 +22,4 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 "set -e; cd /var/www/assistchat/www && git pull --ff-only origin master && docker ps --format '{{.ID}} {{.Ports}}' | awk '/0\\.0\\.0\\.0:8000->|:::8000->/ {print \\$1}' | xargs -r docker rm -f && docker compose -p www down --remove-orphans || true && docker compose -p assistchat down --remove-orphans || true && docker compose -p assistchat up -d --build"
+          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 "cd /var/www/assistchat/www && git pull --ff-only origin master && docker ps -q -f publish=8000 | xargs -r docker rm -f && docker compose down --remove-orphans && docker compose up -d --build"
