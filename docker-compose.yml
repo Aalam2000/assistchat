@@ -1,31 +1,30 @@
-version: "3.9"
 services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: assistchat-api
+    container_name: assistchat-web
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+
   db:
     image: postgres:16.9
-    restart: always
+    container_name: assistchat-db
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-    ports: ["5432:5432"]
-    volumes: ["db_data:/var/lib/postgresql/data"]
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: docker/app/Dockerfile
-    env_file: [.env]
-    ports: ["8000:8000"]
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./src:/app/src:ro
-
-volumes:
-  db_data:
+      interval: 5s
+      timeout: 3s
+      retries: 10
