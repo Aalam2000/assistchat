@@ -3,7 +3,7 @@ name: Deploy to Server
 on:
   push:
     branches:
-      - master   # Автодеплой только при пуше в master
+      - master  # Автодеплой только при пуше в master
 
 jobs:
   deploy:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up SSH key
         run: |
@@ -22,4 +22,4 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 "cd /var/www/assistchat/www && git pull --ff-only origin master && docker ps -q -f publish=8000 | xargs -r docker rm -f && docker compose down --remove-orphans && docker compose up -d --build"
+          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 "cd /var/www/assistchat/www && git fetch origin master && git reset --hard origin/master && docker compose down --remove-orphans && docker compose up -d --build && docker compose exec -T web alembic upgrade head"
