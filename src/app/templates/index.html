@@ -36,14 +36,24 @@
             <label for="author">Автор</label>
             <input id="author" name="author" placeholder="например: tester" required />
           </div>
+
           <div class="field" style="flex:3 1 360px">
             <label for="content">Сообщение</label>
             <textarea id="content" name="content" placeholder="Текст сообщения..." required></textarea>
           </div>
+
+          <label for="msg_status">Статус</label>
+          <select id="msg_status" name="status">
+            <option value="new" selected>new</option>
+            <option value="in_progress">in_progress</option>
+            <option value="done">done</option>
+          </select>
+
           <div class="field" style="flex:0 0 auto">
             <button id="submit-btn" type="submit">Записать</button>
           </div>
         </div>
+
         <div id="status" class="status"></div>
       </form>
     </div>
@@ -55,6 +65,7 @@
             <th>ID</th>
             <th>Автор</th>
             <th>Контент</th>
+            <th>Статус</th>
             <th>Создано</th>
           </tr>
         </thead>
@@ -65,6 +76,6 @@
     </div>
   </div>
 
-  <script src="/static/js/messages.js"></script>
+  <script src="/static/js/messages.js?v=local7"></script>
 </body>
 </html>
