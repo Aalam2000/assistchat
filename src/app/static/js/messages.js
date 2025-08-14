@@ -3,6 +3,7 @@
   const tbody = $("#messages-body");
   const form = $("#msg-form");
   const status = $("#status");
+  const statusSelect = $("#msg_status"); // селект из формы (id="msg_status" в index.html)
   const btn = $("#submit-btn");
 
   function setStatus(msg, isErr=false) {
@@ -12,20 +13,25 @@
 
   function tr(msg) {
     const tr = document.createElement("tr");
+
     const td = (t, cls) => {
       const d = document.createElement("td");
-      d.textContent = t;
+      d.textContent = (t ?? "").toString(); // гарантируем строку
       if (cls) d.className = cls;
       return d;
     };
+
+    // порядок ячеек: ID | Автор | Контент | Статус | Создано
     tr.append(
       td(msg.id, "mono"),
       td(msg.author),
       td(msg.content),
+      td(msg.status),                                     // <-- только значение, НЕ td(...)
       td(new Date(msg.ts).toLocaleString(), "mono"),
     );
     return tr;
   }
+
 
   async function loadMessages() {
     setStatus("Загружаю...");
@@ -51,10 +57,11 @@
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ author, content })
+        body: JSON.stringify({ author, content, status: statusSelect ? statusSelect.value : "new" })
       });
       if (!res.ok) throw new Error("Ошибка сохранения");
       $("#content").value = "";
+      if (statusSelect) statusSelect.value = "new";
       await loadMessages();
       setStatus("Сохранено");
     } catch (e) {
