@@ -1,15 +1,15 @@
-"""init messages
+"""init
 
-Revision ID: 91f0b6944262
+Revision ID: 3445eeab72f3
 Revises: 
-Create Date: 2025-08-12 15:48:37.816258
+Create Date: 2025-08-14 10:04:38.001975
 
 """
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '91f0b6944262'
+revision = '3445eeab72f3'
 down_revision = None
 branch_labels = None
 depends_on = None
