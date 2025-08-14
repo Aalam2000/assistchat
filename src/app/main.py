@@ -34,11 +34,13 @@ async def health():
 class MessageCreate(BaseModel):
     author: str
     content: str
+    status: str = "new"
 
 class MessageOut(BaseModel):
     id: str
     author: str
     content: str
+    status: str
     ts: str
 
 router = APIRouter(prefix="/api", tags=["messages"])
@@ -55,7 +57,7 @@ def list_messages(db: Session = Depends(get_session)):
     rows = db.execute(select(Message).order_by(Message.ts.desc())).scalars().all()
     return [
         MessageOut(
-            id=str(m.id), author=m.author, content=m.content, ts=m.ts.isoformat()
+            id=str(m.id), author=m.author, content=m.content, status=m.status, ts=m.ts.isoformat()
         )
         for m in rows
     ]
@@ -64,10 +66,10 @@ def list_messages(db: Session = Depends(get_session)):
 def create_message(payload: MessageCreate, db: Session = Depends(get_session)):
     if not payload.author or not payload.content:
         raise HTTPException(status_code=400, detail="author and content required")
-    m = Message(author=payload.author, content=payload.content)
+    m = Message(author=payload.author, content=payload.content, status=payload.status)
     db.add(m)
     db.commit()
     db.refresh(m)
-    return MessageOut(id=str(m.id), author=m.author, content=m.content, ts=m.ts.isoformat())
+    return MessageOut(id=str(m.id), author=m.author, content=m.content, status=m.status, ts=m.ts.isoformat())
 
 app.include_router(router)
