@@ -10,16 +10,8 @@
     html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:var(--text); background:var(--bg); }
     .container { max-width: 900px; margin: 40px auto; padding: 0 16px; }
     h1 { text-align:center; margin: 0 0 24px; font-size: 28px; }
-    .card { background:var(--card); border-radius:16px; box-shadow: 0 6px 24px rgba(0,0,0,.06); padding:16px; margin-bottom:16px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
-    .field { flex:1 1 240px; display:flex; flex-direction:column; }
-    label { font-size:12px; color:var(--muted); margin-bottom:6px; }
-    input, textarea { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; outline:none; }
-    textarea{min-height:72px; resize:vertical}
-    button { padding:12px 16px; background:var(--accent); color:#fff; border:none; border-radius:12px; cursor:pointer; font-weight:600; }
-    button:disabled{opacity:.6; cursor:not-allowed}
-    .status { min-height:18px; font-size:13px; color:var(--muted); margin-top:8px; }
-    table { width:100%; border-collapse:collapse; }
+    h2 { margin-top:32px; font-size:20px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; background:var(--card); border-radius:12px; overflow:hidden; box-shadow: 0 6px 24px rgba(0,0,0,.06); }
     thead th { text-align:left; font-size:12px; color:var(--muted); padding:10px; border-bottom:1px solid #e5e7eb; }
     tbody td { padding:10px; border-bottom:1px solid #f0f2f5; font-size:14px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#334155; }
@@ -27,55 +19,29 @@
 </head>
 <body>
   <div class="container">
-    <h1>Таблицы БД</h1>
+    <h1>Содержимое всех таблиц</h1>
 
-    <div class="card">
-      <form id="msg-form">
-        <div class="row">
-          <div class="field">
-            <label for="author">Автор</label>
-            <input id="author" name="author" placeholder="например: tester" required />
-          </div>
-
-          <div class="field" style="flex:3 1 360px">
-            <label for="content">Сообщение</label>
-            <textarea id="content" name="content" placeholder="Текст сообщения..." required></textarea>
-          </div>
-
-          <label for="msg_status">Статус</label>
-          <select id="msg_status" name="status">
-            <option value="new" selected>new</option>
-            <option value="in_progress">in_progress</option>
-            <option value="done">done</option>
-          </select>
-
-          <div class="field" style="flex:0 0 auto">
-            <button id="submit-btn" type="submit">Записать</button>
-          </div>
-        </div>
-
-        <div id="status" class="status"></div>
-      </form>
-    </div>
-
-    <div class="card">
+    {% for table, info in data.items() %}
+      <h2>Таблица: {{ table }}</h2>
       <table>
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Автор</th>
-            <th>Контент</th>
-            <th>Статус</th>
-            <th>Создано</th>
+            {% for col in info.columns %}
+              <th>{{ col }}</th>
+            {% endfor %}
           </tr>
         </thead>
-        <tbody id="messages-body">
-          <!-- наполняется JS -->
+        <tbody>
+          {% for row in info.rows %}
+            <tr>
+              {% for col in info.columns %}
+                <td>{{ row[col] if col in row._mapping else '' }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
         </tbody>
       </table>
-    </div>
+    {% endfor %}
   </div>
-
-  <script src="/static/js/messages.js?v=local7"></script>
 </body>
 </html>
