@@ -6,7 +6,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def db_url():
-    return os.getenv("DATABASE_URL")
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
+    user = os.getenv("DB_USER")
+    pwd  = os.getenv("DB_PASSWORD")
+    host = os.getenv("DB_HOST", "db")
+    port = os.getenv("DB_PORT", "5432")
+    name = os.getenv("DB_NAME")
+    return f"postgresql+psycopg://{user}:{pwd}@{host}:{port}/{name}"
 
 def toggle(phone, new_status):
     eng = create_engine(db_url(), future=True)
@@ -17,7 +25,6 @@ def toggle(phone, new_status):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python toggle_account.py <phone> <active|inactive>")
+        print("Usage: python scripts/toggle_account.py <phone> <active|inactive>")
         sys.exit(1)
     toggle(sys.argv[1], sys.argv[2])
-
