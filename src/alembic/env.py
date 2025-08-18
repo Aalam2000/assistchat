@@ -13,7 +13,7 @@ if config.config_file_name is not None:
 
 # Мета-данные моделей
 from src.models.base import Base  # noqa
-from src.models import message  # подключаем модели, чтобы попали в metadata
+from src.models import tg_account    # подключаем модели, чтобы попали в metadata
 target_metadata = Base.metadata
 
 # DATABASE_URL берём из ENV (его в контейнер передаёт docker-compose)

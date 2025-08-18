@@ -15,6 +15,20 @@ services:
       - db
     restart: unless-stopped
 
+  tg_user:
+    image: assistchat-api           # тот же образ, что у web (смотри docker compose ps)
+    command: python -u scripts/tg_user_dm_responder.py
+    env_file:
+      - ./.env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/app                     # поставь такой же volumes, как у web
+    restart: unless-stopped
+    # без ports — это не http-сервис
+
+
   db:
     image: postgres:16.9
     environment:
