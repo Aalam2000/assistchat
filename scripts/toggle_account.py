@@ -20,3 +20,4 @@ if __name__ == "__main__":
         print("Usage: python toggle_account.py <phone> <active|inactive>")
         sys.exit(1)
     toggle(sys.argv[1], sys.argv[2])
+
