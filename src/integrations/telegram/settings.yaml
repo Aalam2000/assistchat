@@ -1,0 +1,16 @@
+# Telegram settings (MVP, DM only)
+mode: polling            # polling | webhook
+reply_scope: dm_only     # dm_only | mentions_only | all
+
+limits:
+  max_input_chars: 2000
+  max_output_chars: 800
+  per_chat_cooldown_sec: 2   # анти-флуд на чат
+
+timeouts:
+  receive_sec: 30
+  send_sec: 30
+
+features:
+  allow_groups: false
+  allow_voice: false
