@@ -20,6 +20,10 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
 
-      - name: Deploy to server
+      - name: Deploy (migrate then start)
         run: |
-          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 "cd /var/www/assistchat/www && git fetch origin master && git reset --hard origin/master && docker compose down --remove-orphans && docker compose up -d --build && docker compose exec -T web alembic upgrade head"
+          docker compose pull
+          docker compose up -d db
+          docker compose run --rm migrate
+          docker compose up -d web tg_user
+          docker image prune -f
