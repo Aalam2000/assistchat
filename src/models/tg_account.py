@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Text, DateTime, Boolean, BigInteger, Integer, Enum, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from .base import Base  # твой Base уже есть :contentReference[oaicite:7]{index=7}
+from src.common.db import Base  # твой Base уже есть :contentReference[oaicite:7]{index=7}
 
 StatusEnum = Enum("new", "active", "paused", "blocked", "invalid", name="tg_account_status")
 ReplyPolicyEnum = Enum("dm_only", "mentions_only", "read_only", name="tg_account_reply_policy")
