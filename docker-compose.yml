@@ -1,3 +1,4 @@
+# docker-compose.yml
 name: assistchat
 services:
   web:
@@ -28,8 +29,7 @@ services:
       - sh
       - -c
       - >
-        alembic -x db_url=${DATABASE_URL:-postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}}
-        upgrade head
+        alembic upgrade head
     restart: "no"
 
 

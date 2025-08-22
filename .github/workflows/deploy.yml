@@ -13,18 +13,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
+      - name: Setup known_hosts
+        shell: bash
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy (build → migrate → start)
-        run: |
-          docker compose build web
-          docker compose up -d db
-          docker compose run --rm migrate
-          docker compose up -d web tg_user
-          docker image prune -f
-      
+      - name: Deploy on remote host (SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/assistchat/www
+
+            git pull --rebase
+
+            # Всегда парсим docker-compose с .env, чтобы были DB_*
+            docker compose --env-file .env pull db
+            docker compose --env-file .env build web
+
+            docker compose --env-file .env up -d db
+
+            # Ждём здоровья БД (healthcheck из docker-compose.yml)
+            DB_CID=$(docker compose --env-file .env ps -q db)
+            echo "Waiting for DB health..."
+            until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
+
+            # Прогоняем миграции
+            docker compose --env-file .env run --rm migrate
+
+            # Поднимаем приложения
+            docker compose --env-file .env up -d web tg_user
+
+            # Чистим висячие образы
+            docker image prune -f
