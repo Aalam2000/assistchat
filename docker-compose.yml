@@ -25,12 +25,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    entrypoint:
-      - sh
-      - -c
-      - >
-        alembic upgrade head
+    command: alembic upgrade head
     restart: "no"
+
 
 
   tg_user:
