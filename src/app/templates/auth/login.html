@@ -1,0 +1,61 @@
+<!-- src/app/templates/auth/login.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Вход | assistchat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/static/css/auth.css" rel="stylesheet" />
+</head>
+<body>
+  <main class="auth-wrap">
+    <div class="card">
+      <h1 class="title">assistchat</h1>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Вход</button>
+        <button class="tab-btn" data-tab="register">Регистрация</button>
+      </div>
+
+      <section class="tab-panel active" id="tab-login">
+        <form id="login-form" novalidate>
+          <label>
+            <span>Логин</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span>Пароль</span>
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="btn primary">Войти</button>
+          <p class="error" id="login-error"></p>
+        </form>
+      </section>
+
+      <section class="tab-panel" id="tab-register">
+        <form id="register-form" novalidate>
+          <label>
+            <span>Логин</span>
+            <input name="username" autocomplete="username" required />
+          </label>
+          <label>
+            <span>Email (необязательно)</span>
+            <input name="email" type="email" autocomplete="email" />
+          </label>
+          <label>
+            <span>Пароль</span>
+            <input name="password" type="password" autocomplete="new-password" required />
+          </label>
+          <button type="submit" class="btn">Зарегистрироваться</button>
+          <p class="error" id="register-error"></p>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth/tabs.js"></script>
+  <script src="/static/js/auth/login.js"></script>
+  <script src="/static/js/auth/register.js"></script>
+</body>
+</html>

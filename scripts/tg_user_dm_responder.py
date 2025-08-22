@@ -1,4 +1,5 @@
 # scripts/tg_user_dm_responder.py
+import time
 import os, sys, asyncio, uuid, re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +10,30 @@ from telethon.sessions import StringSession
 from telethon.tl.types import DocumentAttributeAudio
 from openai import OpenAI
 from telethon.tl import types
+from typing import cast
+from openai.types.chat import ChatCompletionMessageParam
+
+# В начало файла
+_sessions = {}  # хранение статусов { phone: bool }
+
+def toggle_session(phone: str) -> str:
+    """
+    Переключает состояние: если была активна -> выключает,
+    если выключена -> запускает.
+    Возвращает строку: "active" или "paused".
+    """
+    current = _sessions.get(phone, False)
+    new_state = not current
+    _sessions[phone] = new_state
+
+    if new_state:
+        print(f"[tg_user_dm_responder] Запуск сессии {phone}")
+        # тут запуск (если нужен — у тебя уже есть логика)
+    else:
+        print(f"[tg_user_dm_responder] Остановка сессии {phone}")
+        # тут остановка (если нужна логика)
+
+    return "active" if new_state else "paused"
 
 async def _resolve_peer(tg, peer_id: int):
     try:
@@ -46,7 +71,7 @@ def enforce_style(text: str) -> str:
         r"хорошего\s+дня.*",
     ]
     for pat in banned_tail_patterns:
-        t = re.sub(rf"(?:\s*[\.\!\?])?\s*({pat})\s*$", "", t, flags=re.IGNORECASE)
+        t = re.sub(rf"(?:\s*[.!?])?\s*({pat})\s*$", "", t, flags=re.IGNORECASE)
 
     # добавим финальную точку, если совсем без знака
     if not re.search(r"[.!?]$", t):
@@ -94,12 +119,17 @@ def is_voice_message(msg) -> bool:
         for attr in doc.attributes:
             if isinstance(attr, DocumentAttributeAudio) and getattr(attr, "voice", False):
                 return True
-        # некоторые клиенты шлют voice как обычный аудио; тоже считаем как голос
+        # некоторые клиенты шлют voice как "обычный аудио"; тоже считаем как голос
         return any(isinstance(attr, DocumentAttributeAudio) for attr in doc.attributes)
     except Exception:
         return False
 
-async def transcribe_if_needed(ai: OpenAI, tg_msg, tmp_dir: Path, stt_model: str) -> tuple[str, str|None]:
+async def transcribe_if_needed(
+    ai: OpenAI,
+    tg_msg,
+    tmp_dir: Path,
+    stt_model: str
+) -> tuple[str, str] | None:
     """
     Возвращает (text, msg_type). Если сообщение голосовое — расшифровывает через Whisper.
     msg_type: 'text' или 'voice'
@@ -151,21 +181,30 @@ async def main():
     # DB
     eng = create_engine(db_url(), future=True)
     q_acc = sql_text("""
-        SELECT id, app_id, app_hash, string_session
-        FROM tg_accounts
-        WHERE phone_e164 = :phone AND status = 'active' AND length(string_session) > 0
-        LIMIT 1
-    """)
-    with eng.begin() as conn:
-        row = conn.execute(q_acc, {"phone": phone}).mappings().first()
+                     SELECT id, app_id, app_hash, string_session
+                     FROM tg_accounts
+                     WHERE phone_e164 = :phone
+                       AND status = 'active'
+                       AND length(string_session) > 0 LIMIT 1
+                     """)
+
+    row = None
+    while not row:
+        with eng.begin() as conn:
+            row = conn.execute(q_acc, {"phone": phone}).mappings().first()
         if not row:
-            print("[ERROR] Active account with session not found. Run onboard_tg_session.py first.", file=sys.stderr); sys.exit(2)
-    account_id = row["id"]; api_id = int(row["app_id"]); api_hash = row["app_hash"]; session_str = row["string_session"]
+            print("[WARN] Active account with session not found. Waiting for activation...")
+            time.sleep(10)
+
+    account_id = row["id"]
+    api_id = int(row["app_id"])
+    api_hash = row["app_hash"]
+    session_str = row["string_session"]
 
     # Telegram
     tg = TelegramClient(StringSession(session_str), api_id, api_hash)
     await tg.connect()
-    # прогрев диалогов, чтобы закешировать InputEntity пользователей
+    # прогрев диалогов, чтобы "закешировать" InputEntity пользователей
     warm = 0
     async for _ in tg.iter_dialogs():
         warm += 1
@@ -223,7 +262,7 @@ async def main():
             try:
                 resp = client_ai.chat.completions.create(
                     model=model_name,
-                    messages=messages_payload,
+                    messages=cast(list[ChatCompletionMessageParam], messages_payload),
                     temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.2")),
                     max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "300")),
                 )
@@ -390,4 +429,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n[INFO] stopped by user"); sys.exit(0)
     except Exception as e:
-        print(f"[FATAL] {e}", file=sys.stderr); sys.exit(2)
+        print(f"[FATAL] {e}", file=sys.stderr) # sys.exit(2)

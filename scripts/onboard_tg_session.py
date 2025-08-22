@@ -45,7 +45,7 @@ async def run():
         row = conn.execute(q_sel, {"phone": phone}).mappings().first()
         if not row:
             print("[ERROR] tg_accounts: запись с таким телефоном не найдена. Сначала выполните seed.", file=sys.stderr)
-            sys.exit(2)
+            return   # sys.exit(2)
 
     api_id = int(row["app_id"])
     api_hash = row["app_hash"]
@@ -109,4 +109,4 @@ if __name__ == "__main__":
         sys.exit(130)
     except Exception as e:
         print(f"[FATAL] {e}", file=sys.stderr)
-        sys.exit(2)
+        # sys.exit(2)
