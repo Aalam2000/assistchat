@@ -20,10 +20,11 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
 
-      - name: Deploy (migrate then start)
+      - name: Deploy (build → migrate → start)
         run: |
-          docker compose pull
+          docker compose build web
           docker compose up -d db
           docker compose run --rm migrate
           docker compose up -d web tg_user
           docker image prune -f
+      
