@@ -1,0 +1,39 @@
+/* src/app/static/css/auth.css */
+/* Группы:
+   1) Layout
+   2) Card/Tabs
+   3) Forms
+   4) Buttons
+   5) Responsive
+*/
+
+/* 1) Layout */
+:root { --bg:#f6f8fb; --card:#fff; --text:#111; --muted:#6b7280; --accent:#2563eb; --danger:#b91c1c; }
+*{box-sizing:border-box}
+html, body { height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:var(--text); background:var(--bg); }
+
+.auth-wrap{ min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
+.title{ text-align:center; margin:0 0 12px; font-size:22px; }
+
+/* 2) Card/Tabs */
+.card{ width:100%; max-width:420px; background:var(--card); border-radius:16px; padding:20px; box-shadow:0 8px 30px rgba(0,0,0,.08); }
+.tabs{ display:flex; gap:8px; margin:8px 0 16px; }
+.tab-btn{ flex:1; border:1px solid #e5e7eb; background:#f9fafb; padding:10px; border-radius:8px; cursor:pointer; }
+.tab-btn.active{ background:#eef2ff; border-color:#c7d2fe; }
+.tab-panel{ display:none; }
+.tab-panel.active{ display:block; }
+
+/* 3) Forms */
+form{ display:flex; flex-direction:column; gap:12px; }
+label span{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+input{ width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; background:#fff; }
+.error{ color:var(--danger); min-height:20px; font-size:13px; }
+
+/* 4) Buttons */
+.btn{ padding:10px 12px; border:none; border-radius:8px; background:#e5e7eb; cursor:pointer; }
+.btn.primary{ background:var(--accent); color:#fff; }
+
+/* 5) Responsive */
+@media (max-width: 420px){
+  .card{ padding:16px; border-radius:12px; }
+}
