@@ -1,3 +1,4 @@
+<!-- src/app/templates/index.html-->
 <!doctype html>
 <html lang="ru">
 <head>
@@ -15,6 +16,10 @@
     thead th { text-align:left; font-size:12px; color:var(--muted); padding:10px; border-bottom:1px solid #e5e7eb; }
     tbody td { padding:10px; border-bottom:1px solid #f0f2f5; font-size:14px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; color:#334155; }
+    .btn { padding:4px 8px; font-size:12px; border:none; border-radius:4px; cursor:pointer; }
+    .btn-on { background:#2563eb; color:white; }
+    .btn-off { background:#9ca3af; color:white; }
+    form { display:inline; margin:0; }
   </style>
 </head>
 <body>
@@ -29,6 +34,9 @@
             {% for col in info.columns %}
               <th>{{ col }}</th>
             {% endfor %}
+            {% if table == "tg_accounts" %}
+              <th>Управление</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -37,11 +45,51 @@
               {% for col in info.columns %}
                 <td>{{ row[col] if col in row._mapping else '' }}</td>
               {% endfor %}
+              {% if table == "tg_accounts" %}
+                <td>
+                  <button class="toggle {{ 'on' if row['status']=='active' else 'off' }}"
+                          data-phone="{{ row['phone_e164'] }}">
+                    {{ 'Выключить' if row['status']=='active' else 'Включить' }}
+                  </button>
+                </td>
+              {% endif %}
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% endfor %}
   </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("button.toggle").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const phone = btn.dataset.phone;
+
+        // Отправляем POST на API
+        const resp = await fetch("/api/toggle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone })
+        });
+
+        const data = await resp.json();
+        if (data.status) {
+          // Меняем надпись и класс кнопки
+          if (data.status === "active") {
+            btn.textContent = "Выключить";
+            btn.classList.remove("off");
+            btn.classList.add("on");
+          } else {
+            btn.textContent = "Включить";
+            btn.classList.remove("on");
+            btn.classList.add("off");
+          }
+        }
+      });
+    });
+  });
+  </script>
+
 </body>
 </html>

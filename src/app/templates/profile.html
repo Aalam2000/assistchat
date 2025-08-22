@@ -1,0 +1,39 @@
+<!-- src/app/templates/profile.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Личный кабинет | assistchat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/static/css/profile.css" rel="stylesheet" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">assistchat</div>
+    <div class="user">
+      <span class="username">{{ username }}</span>
+      <span class="role">({{ role }})</span>
+      <button id="logout-btn" class="btn small">Выйти</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <section class="card">
+      <h2>Добро пожаловать, {{ username }}!</h2>
+      <p>Ваша роль: <strong>{{ role }}</strong></p>
+
+      <div class="grid">
+        <a class="tile" href="/tables">
+          <div class="tile-title">Таблицы БД</div>
+          <div class="tile-desc">Просмотр содержимого всех таблиц</div>
+        </a>
+        <!-- здесь в будущем добавите быстрые ссылки на ваши разделы -->
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/profile.js"></script>
+</body>
+</html>
