@@ -1,14 +1,11 @@
 """create users
-
 Revision ID: 6e79614b2f16
 Revises: 38ab48e15002
 Create Date: 2025-08-22 11:13:28.855710
-
 """
 
 from alembic import op
 import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision = "6e79614b2f16"
