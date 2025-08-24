@@ -5,12 +5,15 @@ import sys
 import asyncio
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends, Form
+from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 from starlette.middleware.sessions import SessionMiddleware
+
+import io, zipfile, tempfile
+from scripts.QR import generate_qr_with_logo
 
 from sqlalchemy import inspect, text, select
 from sqlalchemy.orm import sessionmaker, Session as SASession
@@ -225,3 +228,48 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
     )
+
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# QR: страница
+# ────────────────────────────────────────────────────────────────────────────────
+@app.get("/qr", response_class=HTMLResponse)
+async def qr_page(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    return templates.TemplateResponse("qr.html", {"request": request})
+
+# ────────────────────────────────────────────────────────────────────────────────
+# QR: API генерации (ZIP из PNG+PDF)
+# ────────────────────────────────────────────────────────────────────────────────
+@app.post("/api/qr/build")
+async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
+    if logo.content_type not in {"image/png","image/tiff","image/x-tiff"}:
+        return JSONResponse({"ok": False, "error": "LOGO_TYPE"}, status_code=400)
+    with tempfile.TemporaryDirectory() as tmp:
+        logo_path = f"{tmp}/{logo.filename}"
+        with open(logo_path, "wb") as f:
+            f.write(await logo.read())
+
+        png_path, pdf_path = generate_qr_with_logo(
+            url=text,
+            logo_path=logo_path,
+            out_dir=tmp,
+            file_stem="qr_with_logo",
+            qr_size_mm=30.0,
+            dpi=300,
+            logo_ratio=0.20,
+            white_pad_mm=2.0,
+            logo_has_alpha=True,
+            try_knockout_white=False,
+        )
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            import os
+            z.write(png_path, arcname=os.path.basename(png_path))
+            z.write(pdf_path, arcname=os.path.basename(pdf_path))
+        mem.seek(0)
+        return StreamingResponse(mem, media_type="application/zip",
+                                 headers={"X-File-Name":"qr_with_logo"})
