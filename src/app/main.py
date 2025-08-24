@@ -241,6 +241,30 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
         return RedirectResponse(url="/auth/login", status_code=302)
     return templates.TemplateResponse("qr.html", {"request": request, "username": user.username})
 
+
+@app.get("/ai", response_class=HTMLResponse)
+def ai_page(request: Request):
+    user = getattr(request.state, "user", None)
+    ctx = {
+        "request": request,
+        "username": getattr(user, "username", "Гость"),
+        "role": getattr(user, "role", "user"),
+    }
+    return templates.TemplateResponse("ai.html", ctx)
+
+
+
+@app.get("/callcenter", response_class=HTMLResponse)
+def callcenter_page(request: Request):
+    user = getattr(request.state, "user", None)
+    ctx = {
+        "request": request,
+        "username": getattr(user, "username", "Гость"),
+        "role": getattr(user, "role", "user"),
+    }
+    return templates.TemplateResponse("callcenter.html", ctx)
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # QR: API генерации (ZIP из PNG+PDF)
 # ────────────────────────────────────────────────────────────────────────────────
