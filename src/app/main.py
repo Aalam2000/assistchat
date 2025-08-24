@@ -31,6 +31,32 @@ sys.path.append(str(BASE_DIR.parent.parent / "tg_user"))
 
 app = FastAPI(title="assistchat demo")
 
+# --- GOOGLE OAUTH (минимум) ---
+from authlib.integrations.starlette_client import OAuth
+
+oauth = OAuth()
+oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+def _redirect_uri(path: str = "/auth/google/callback") -> str:
+    base = os.getenv("DOMAIN_NAME", "http://localhost:8000").rstrip("/")
+    return f"{base}{path}"
+
+@app.get("/auth/google", include_in_schema=False)
+async def auth_google(request: Request):
+    return await oauth.google.authorize_redirect(request, redirect_uri=_redirect_uri())
+
+@app.get("/auth/google/callback", include_in_schema=False)
+async def auth_google_callback(request: Request):
+    return RedirectResponse("/profile", status_code=302)
+
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Сессии (cookie) и шаблоны/статика
 # ────────────────────────────────────────────────────────────────────────────────
@@ -298,59 +324,3 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
         return StreamingResponse(mem, media_type="application/zip",
                                  headers={"X-File-Name":"qr_with_logo"})
 
-    # --- GOOGLE OAUTH (OIDC) ---
-    from authlib.integrations.starlette_client import OAuth
-
-    oauth = OAuth()
-    oauth.register(
-        name="google",
-        client_id=os.getenv("GOOGLE_CLIENT_ID"),
-        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-        client_kwargs={"scope": "openid email profile"},
-    )
-
-    def _redirect_uri(path: str = "/auth/google/callback") -> str:
-        base = os.getenv("DOMAIN_NAME", "http://localhost:8000").rstrip("/")
-        return f"{base}{path}"
-
-    @app.get("/auth/google")
-    async def auth_google(request: Request):
-        # стандартный редирект на страницу входа Google
-        return await oauth.google.authorize_redirect(request, redirect_uri=_redirect_uri())
-
-    @app.get("/auth/google/callback")
-    async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
-        # обмен кода на токен + получение профиля
-        token = await oauth.google.authorize_access_token(request)
-        userinfo = token.get("userinfo")
-        if not userinfo:
-            # fallback на разбор id_token
-            userinfo = await oauth.google.parse_id_token(request, token)
-
-        email = (userinfo.get("email") or "").strip().lower()
-        name = (userinfo.get("name") or "").strip() or email.split("@")[0]
-        if not email:
-            return JSONResponse({"ok": False, "error": "NO_EMAIL_FROM_GOOGLE"}, status_code=400)
-
-        # ищем пользователя по email; если нет — создаём
-        user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-        if not user:
-            user = User(
-                username=name,
-                email=email,
-                role=RoleEnum.USER,
-                hashed_password=None,  # пароль не нужен — вход по Google
-                is_active=True,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-
-        # логиним через сессию (как у тебя сделано в /api/auth/login)
-        request.session.update({
-            "user_id": user.id,
-            "username": user.username,
-            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-        })
-        return RedirectResponse(url="/profile", status_code=302)
