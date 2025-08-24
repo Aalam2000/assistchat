@@ -5,17 +5,19 @@
   <meta charset="utf-8" />
   <title>Вход | assistchat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="/static/css/auth.css" rel="stylesheet" />
+  <link href="/static/css/base.css" rel="stylesheet" />
 </head>
 <body>
   <main class="auth-wrap">
     <div class="card">
       <h1 class="title">assistchat</h1>
+
       <div class="tabs">
         <button class="tab-btn active" data-tab="login">Вход</button>
         <button class="tab-btn" data-tab="register">Регистрация</button>
       </div>
 
+      <!-- Вход -->
       <section class="tab-panel active" id="tab-login">
         <form id="login-form" novalidate>
           <label>
@@ -31,6 +33,7 @@
         </form>
       </section>
 
+      <!-- Регистрация -->
       <section class="tab-panel" id="tab-register">
         <form id="register-form" novalidate>
           <label>

@@ -5,26 +5,7 @@
   <meta charset="utf-8" />
   <title>Личный кабинет | assistchat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,Segoe UI,Roboto,Arial}
-    .wrap{max-width:960px;margin:0 auto;padding:24px}
-    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,.3)}
-    .subtitle{color:var(--muted);margin:0 0 16px}
-    .row{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
-    .user{display:flex;gap:8px;align-items:center;color:#cbd5e1}
-    .badge{padding:4px 8px;border:1px solid #334155;border-radius:999px;background:#0b1220;font-size:12px}
-    .btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;padding:12px 16px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:#e5e7eb;font-weight:600;cursor:pointer;text-decoration:none}
-    .btn.primary{background:linear-gradient(135deg,#16a34a,#22c55e);border:none;color:#04110a}
-    .grid{display:grid;gap:14px;margin-top:8px}
-    @media (min-width:740px){ .grid{grid-template-columns:repeat(3,1fr)} }
-    .tile{display:block;padding:16px;border:1px solid #334155;border-radius:14px;background:#0b1220;text-decoration:none;color:var(--text);transition:transform .08s ease, border-color .08s ease}
-    .tile:hover{transform:translateY(-1px);border-color:#475569}
-    .tile-title{font-weight:700;margin:0 0 4px}
-    .tile-desc{color:var(--muted);font-size:14px;margin:0}
-    .hr{height:1px;background:#1f2937;margin:16px 0}
-  </style>
+  <link href="/static/css/base.css" rel="stylesheet" />
 </head>
 <body>
   <main class="wrap">
@@ -46,23 +27,29 @@
       <p class="subtitle">Быстрые ссылки на инструменты и справку</p>
 
       <div class="grid">
+        {% if role == "admin" %}
         <a class="tile" href="/tables">
           <div class="tile-title">Таблицы БД</div>
           <p class="tile-desc">Просмотр содержимого всех таблиц</p>
         </a>
+        {% endif %}
+
         <a class="tile" href="/qr">
           <div class="tile-title">QR + Logo</div>
           <p class="tile-desc">Генерация QR с логотипом (PNG, PDF)</p>
         </a>
+
+        {% if role == "admin" %}
         <a class="tile" href="/docs">
           <div class="tile-title">Документация</div>
           <p class="tile-desc">Описание API и подсказки по проекту</p>
         </a>
+        {% endif %}
       </div>
 
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn primary" href="/">На главную</a>
-        <a class="btn" href="/qr">К QR‑генератору</a>
+        <a class="btn" href="/qr">К QR-генератору</a>
       </div>
     </div>
   </main>
