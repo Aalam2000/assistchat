@@ -3,18 +3,52 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Вход | assistchat</title>
+  <title>Вход | bona-plus</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="/static/css/base.css" rel="stylesheet" />
+  <style>
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #fff;
+      color: #444;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .google-btn:hover {
+      background: #f8f8f8;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .google-btn img {
+      width: 18px;
+      height: 18px;
+    }
+  </style>
 </head>
 <body>
   <main class="auth-wrap">
     <div class="card">
-      <h1 class="title">assistchat</h1>
+      <h1 class="title">bona-plus</h1>
+      <p class="subtitle">
+        Платформа, где мы собираем наши инструменты:
+        QR-коды, AI-ассистент и колл-центр.
+        Начните с регистрации и входа.
+      </p>
 
       <div class="tabs">
         <button class="tab-btn active" data-tab="login">Вход</button>
         <button class="tab-btn" data-tab="register">Регистрация</button>
+        <button class="google-btn" title="Войти с помощью Google"
+                onclick="window.location.href='/auth/google'">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+          Войти через Google
+        </button>
       </div>
 
       <!-- Вход -->
