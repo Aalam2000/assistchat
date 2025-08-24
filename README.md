@@ -151,7 +151,7 @@ assistchat/
 
 **Войти в контейнер с Postgres**
 ```bash
-    docker exec -it assistchat-db-1 psql -U postgres -d assistchat
+    docker exec -it assistchat-db-1 psql -U assistuser -d assistdb
 ```
 **Показать все таблицы**
 ```bash
