@@ -239,7 +239,7 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/auth/login", status_code=302)
-    return templates.TemplateResponse("qr.html", {"request": request})
+    return templates.TemplateResponse("qr.html", {"request": request, "username": user.username})
 
 # ────────────────────────────────────────────────────────────────────────────────
 # QR: API генерации (ZIP из PNG+PDF)
