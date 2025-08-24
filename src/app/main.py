@@ -234,7 +234,7 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
 # ────────────────────────────────────────────────────────────────────────────────
 # QR: страница
 # ────────────────────────────────────────────────────────────────────────────────
-@app.get("/qr", response_class=HTMLResponse)
+@app.get("/qr.html", response_class=HTMLResponse)
 async def qr_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
