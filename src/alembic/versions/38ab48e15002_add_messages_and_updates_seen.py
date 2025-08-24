@@ -14,13 +14,6 @@ down_revision = '165ab7be38b4'
 branch_labels = None
 depends_on = None
 
-# revision identifiers, used by Alembic.
-revision = "REPLACE_ME"          # <-- НЕ ТРОГАЙ: подставь сюда id файла ревизии (он уже стоит в шапке после генерации)
-down_revision = "165ab7be38b4"   # <-- ПОДСТАВЬ id из шага 1 (текущая голова)
-branch_labels = None
-depends_on = None
-
-
 def upgrade() -> None:
     # messages — журнал входящих/исходящих сообщений
     op.create_table(
