@@ -39,9 +39,9 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
     session_cookie="assistchat_session",
-    https_only=False,          # поставьте True за reverse-proxy/https
-    same_site="lax",
-    max_age=60 * 60 * 24 * 7,  # 7 дней
+    https_only=True,
+    same_site="none",
+    max_age=60 * 60 * 24 * 7,
     domain="bona-plus.ru",
 )
 
