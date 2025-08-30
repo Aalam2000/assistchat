@@ -43,6 +43,7 @@ app.add_middleware(
     https_only=False,          # поставьте True за reverse-proxy/https
     same_site="lax",
     max_age=60 * 60 * 24 * 7,  # 7 дней
+    domain="bona-plus.ru",
 )
 
 app.mount(
