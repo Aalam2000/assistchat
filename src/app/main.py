@@ -50,6 +50,7 @@ app.mount(
     StaticFiles(directory=str(BASE_DIR / "static")),
     name="static"
 )
+
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Локальный sessionmaker (не полагаемся на внешние фабрики)
