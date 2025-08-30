@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-08-25T01:06:33",
+  "generated_at": "2025-08-29T15:48:25",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "master",
-    "last_commit": "db078e4177f116ed7a0f1c799fb03182e63b1190",
+    "last_commit": "7a2579c739099869695f4187ba2c77c29b61115d",
     "dirty": true
   },
   "python": {
@@ -101,7 +101,10 @@
       "TTS_VOICE",
       "TTS_FORMAT",
       "TMP_DIR",
-      "STYLE_PROFILE_PATH"
+      "STYLE_PROFILE_PATH",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "DOMAIN_NAME"
     ],
     "present_files": [
       ".env",
@@ -230,7 +233,7 @@
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 15400
+        "size": 16168
       },
       {
         "name": "models.py",
@@ -329,24 +332,14 @@
         "size": 8921
       },
       {
-        "name": "QR_Valentina.pdf",
+        "name": "project_report.json",
         "is_dir": false,
-        "size": 26394
-      },
-      {
-        "name": "QR_Valentina.png",
-        "is_dir": false,
-        "size": 7609
+        "size": 7758
       },
       {
         "name": "tg_accounts.sql",
         "is_dir": false,
         "size": 1586
-      },
-      {
-        "name": "tmp",
-        "is_dir": true,
-        "size": null
       }
     ]
   },
