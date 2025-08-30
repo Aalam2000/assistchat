@@ -113,10 +113,7 @@ async def auth_google(request: Request):
 @app.get("/auth/google/callback", include_in_schema=False)
 async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
     token = await oauth.google.authorize_access_token(request)
-    ui = await oauth.google.parse_id_token(request, token)
-    if not ui:
-        return JSONResponse({"ok": False, "error": "NO_ID_TOKEN"}, status_code=400)
-
+    ui = await oauth.google.userinfo(token=token)
     email = ui["email"]
     username = ui.get("name") or email.split("@")[0]
 
@@ -124,13 +121,16 @@ async def auth_google_callback(request: Request, db: SASession = Depends(get_db)
     if not user:
         user = User(username=username, email=email, role=RoleEnum.USER,
                     hashed_password=None, is_active=True)
-        db.add(user); db.commit(); db.refresh(user)
+        db.add(user);
+        db.commit();
+        db.refresh(user)
 
+    request.session.clear()
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     request.session["role"] = getattr(user.role, "value", str(user.role))
-    request.session.modified = True
-    return RedirectResponse(url="/profile", status_code=302)
+    return RedirectResponse(url="/profile", status_code=303)
+
 
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
     if not hashed_password:
