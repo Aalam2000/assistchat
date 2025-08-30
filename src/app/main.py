@@ -2,7 +2,6 @@
 from pathlib import Path
 import os
 import sys
-import asyncio
 from typing import Optional
 
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
@@ -127,12 +126,11 @@ async def auth_google_callback(request: Request, db: SASession = Depends(get_db)
                     hashed_password=None, is_active=True)
         db.add(user); db.commit(); db.refresh(user)
 
-    request.session.update({
-        "user_id": user.id,
-        "username": user.username,
-        "role": getattr(user.role, "value", str(user.role)),
-    })
-    return RedirectResponse("/profile", status_code=302)
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    request.session["role"] = getattr(user.role, "value", str(user.role))
+    request.session.modified = True
+    return RedirectResponse(url="/profile", status_code=302)
 
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
     if not hashed_password:
