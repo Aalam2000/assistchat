@@ -5,7 +5,7 @@ import sys
 import asyncio
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends, Form, UploadFile, File
+from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -30,30 +30,6 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR.parent.parent / "tg_user"))
 
 app = FastAPI(title="assistchat demo")
-
-# --- GOOGLE OAUTH (минимум) ---
-from authlib.integrations.starlette_client import OAuth
-
-oauth = OAuth()
-oauth.register(
-    name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
-
-def _redirect_uri(path: str = "/auth/google/callback") -> str:
-    base = os.getenv("DOMAIN_NAME", "http://localhost:8000").rstrip("/")
-    return f"{base}{path}"
-
-@app.get("/auth/google", include_in_schema=False)
-async def auth_google(request: Request):
-    return await oauth.google.authorize_redirect(request, redirect_uri=_redirect_uri())
-
-@app.get("/auth/google/callback", include_in_schema=False)
-async def auth_google_callback(request: Request):
-    return RedirectResponse("/profile", status_code=302)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -92,6 +68,69 @@ def get_db():
     finally:
         db.close()
 
+# Доступ к /tables только для ADMIN
+def require_admin(request: Request, db: SASession = Depends(get_db)) -> User:
+    user = get_current_user(request, db)
+    if not user:
+        # не залогинен → 401 Unauthorized
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="UNAUTHORIZED"
+        )
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val != "admin":
+        # если роль не admin → прячем роут (404 Not Found)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="NOT_FOUND"
+        )
+    return user
+
+
+
+# --- GOOGLE OAUTH (минимум) ---
+from authlib.integrations.starlette_client import OAuth
+
+oauth = OAuth()
+oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+def _redirect_uri(path: str = "/auth/google/callback") -> str:
+    base = os.getenv("DOMAIN_NAME", "http://localhost:8000").rstrip("/")
+    return f"{base}{path}"
+
+@app.get("/auth/google", include_in_schema=False)
+async def auth_google(request: Request):
+    return await oauth.google.authorize_redirect(request, redirect_uri=_redirect_uri())
+
+@app.get("/auth/google/callback", include_in_schema=False)
+async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
+    token = await oauth.google.authorize_access_token(request)
+    ui = token.get("userinfo")
+    if not ui:
+        return JSONResponse({"ok": False, "error": "NO_USERINFO"}, status_code=400)
+
+    email = ui["email"]
+    username = ui.get("name") or email.split("@")[0]
+
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if not user:
+        user = User(username=username, email=email, role=RoleEnum.USER,
+                    hashed_password=None, is_active=True)
+        db.add(user); db.commit(); db.refresh(user)
+
+    request.session.update({
+        "user_id": user.id,
+        "username": user.username,
+        "role": getattr(user.role, "value", str(user.role)),
+    })
+    return RedirectResponse("/profile", status_code=302)
+
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
     if not hashed_password:
         return False
@@ -114,7 +153,7 @@ def get_current_user(request: Request, db: SASession) -> Optional[User]:
 # Публичные страницы
 # ────────────────────────────────────────────────────────────────────────────────
 @app.get("/tables", response_class=HTMLResponse)
-async def tables(request: Request):
+async def tables(request: Request, _: User = Depends(require_admin)):
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
 
