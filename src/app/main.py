@@ -157,8 +157,9 @@ async def auth_google_callback(request: Request, db: SASession = Depends(get_db)
 
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if not user:
+        # для OAuth-аккаунтов кладём пустую строку, чтобы пройти NOT NULL
         user = User(username=username, email=email, role=RoleEnum.USER,
-                    hashed_password=None, is_active=True)
+                    hashed_password="", is_active=True)
         db.add(user);
         db.commit();
         db.refresh(user)
