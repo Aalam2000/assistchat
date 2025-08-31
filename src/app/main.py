@@ -135,7 +135,7 @@ def _redirect_uri(path: str = "/auth/google/callback") -> str:
 @app.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
     return await oauth.google.authorize_redirect(
-        request, redirect_uri=str(request.url_for("auth_google_callback"))
+        request, redirect_uri=_redirect_uri("/auth/google/callback")
     )
 
 @app.get("/auth/google/callback", include_in_schema=False)
