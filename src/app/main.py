@@ -141,12 +141,17 @@ async def auth_google(request: Request):
 @app.get("/auth/google/callback", include_in_schema=False)
 async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
     token = await oauth.google.authorize_access_token(request)
-    ui = await oauth.google.parse_id_token(request, token)
-    if not ui:
-        return JSONResponse({"ok": False, "error": "NO_ID_TOKEN"}, status_code=400)
 
-    email = ui["email"]
-    username = ui.get("name") or email.split("@")[0]
+    # Надёжно получаем email: сперва из id_token, иначе из userinfo
+    claims = await oauth.google.parse_id_token(request, token)
+    if not claims or "email" not in claims:
+        claims = await oauth.google.userinfo(token=token)
+
+    email = claims.get("email")
+    if not email:
+        return JSONResponse({"ok": False, "error": "NO_EMAIL"}, status_code=400)
+
+    username = claims.get("name") or email.split("@")[0]
 
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if not user:
