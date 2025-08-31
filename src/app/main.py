@@ -144,15 +144,8 @@ async def auth_google_callback(request: Request, db: SASession = Depends(get_db)
 
     # Надёжно получаем email: сперва из id_token, иначе из userinfo
     # Сначала берём из id_token, но вызываем parse_id_token ТОЛЬКО если он есть
-    claims = {}
-    if token.get("id_token"):
-        claims = await oauth.google.parse_id_token(request, token)
-    else:
-        claims = await oauth.google.userinfo(token=token)
-
-    # Если в id_token нет email — дублируем запрос к userinfo
-    if "email" not in claims:
-        claims = await oauth.google.userinfo(token=token)
+    # Берём данные напрямую из /userinfo (устраняем падение на parse_id_token)
+    claims = await oauth.google.userinfo(token=token)
 
     email = claims.get("email")
     if not email:
