@@ -405,7 +405,9 @@ async def api_my_sessions(request: Request, db: SASession = Depends(get_db)):
             "last_seen_at": m["last_seen_at"].isoformat() if m["last_seen_at"] else None,
             "created_at": m["created_at"].isoformat() if m["created_at"] else None,
         })
+
     return {"ok": True, "items": data}
+
 
 @app.post("/api/tg/send_code")
 async def api_tg_send_code(payload: dict, request: Request, db: SASession = Depends(get_db)):
