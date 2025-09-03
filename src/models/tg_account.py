@@ -1,5 +1,6 @@
 # src/models/tg_account.py
 import uuid
+from sqlalchemy import ForeignKey
 from sqlalchemy import Text, DateTime, Boolean, BigInteger, Integer, Enum, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,6 +19,7 @@ class TgAccount(Base):
 
     tg_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     username: Mapped[str | None] = mapped_column(Text)
+    owner_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     app_id: Mapped[int] = mapped_column(Integer, nullable=False)
     app_hash: Mapped[str] = mapped_column(Text, nullable=False)

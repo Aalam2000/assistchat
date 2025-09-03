@@ -1,0 +1,137 @@
+<!-- src/app/templates/tg.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Телеграм | assistchat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/static/css/base.css" rel="stylesheet" />
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <style>
+    .note { font-size: 13px; opacity:.85; margin-top:6px }
+    .note.ok { color:#3dcf7a }
+    .note.err { color:#ff6b6b }
+    fieldset { border: 0; padding: 0; margin: 0 }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px }
+    .grid-1 { display:grid; grid-template-columns: 1fr; gap: 10px }
+    .tbl { width:100%; border-collapse: collapse; }
+    .tbl th, .tbl td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.08) }
+    .tbl th { text-align:left; opacity:.8; font-weight:600; font-size:14px }
+    .tbl .badge { padding:2px 8px; border-radius:999px; font-size:12px; }
+    .badge.ok { background:#113a2b; color:#4ee598 }
+    .badge.paused { background:#2f2f2f; color:#ddd }
+    .row-head { display:flex; justify-content:space-between; align-items:center; gap:10px }
+    .muted { opacity:.7 }
+    input[type="text"], input[type="password"], input[type="tel"], input[type="number"] {
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.1);
+      background:rgba(255,255,255,.04); color:#fff; outline:none;
+    }
+    label { font-size:13px; opacity:.85; margin-bottom:4px; display:block }
+    .card-section { margin-top:18px; padding-top:14px; border-top:1px solid rgba(255,255,255,.08) }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+
+      <div class="row-head">
+        <div>
+          <h1 style="margin:0 0 6px">Телеграм</h1>
+          <p class="subtitle">Добавление своей Telegram-сессии и управление ею</p>
+        </div>
+        <div>
+          <a class="btn" href="/profile">Назад</a>
+        </div>
+      </div>
+
+      <!-- МОИ СЕССИИ -->
+      <div class="card-section">
+        <h2 style="margin:0 0 10px">Мои сессии</h2>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Метка</th>
+              <th>Телефон</th>
+              <th>Статус</th>
+              <th style="width:140px">Управление</th>
+            </tr>
+          </thead>
+          <tbody id="tg-my-tbody">
+            <tr><td colspan="4" class="muted">Загрузка…</td></tr>
+          </tbody>
+        </table>
+        <div id="tg-list-note" class="note"></div>
+      </div>
+
+      <!-- ШАГ 1 -->
+      <div class="card-section">
+        <h2 style="margin:0 0 6px">Шаг 1 — отправка кода</h2>
+        <p class="subtitle">Заполни данные приложения из <span class="muted">my.telegram.org → API development tools</span> и свой номер телефона в формате E.164, затем пришлём код входа в Telegram.</p>
+
+        <form id="frm-step1" class="grid-2">
+          <div class="grid-1">
+            <label for="s1-label">Метка (любое имя для этой учётки)</label>
+            <input id="s1-label" type="text" placeholder="Напр.: Личный аккаунт" autocomplete="off" />
+          </div>
+
+          <div class="grid-1">
+            <label for="s1-phone">Телефон (E.164)</label>
+            <input id="s1-phone" type="tel" placeholder="+79991234567" autocomplete="off" />
+          </div>
+
+          <div class="grid-1">
+            <label for="s1-api-id">TELEGRAM_API_ID</label>
+            <input id="s1-api-id" type="number" placeholder="Напр.: 1234567" autocomplete="off" />
+          </div>
+
+          <div class="grid-1">
+            <label for="s1-api-hash">TELEGRAM_API_HASH</label>
+            <input id="s1-api-hash" type="text" placeholder="Напр.: abcd1234ef..." autocomplete="off" />
+          </div>
+
+          <div>
+            <button id="btn-send" class="btn primary" type="submit">Отправить код</button>
+          </div>
+        </form>
+        <div id="s1-note" class="note"></div>
+      </div>
+
+      <!-- ШАГ 2 -->
+      <div class="card-section">
+        <h2 style="margin:0 0 6px">Шаг 2 — подтверждение кода</h2>
+        <p class="subtitle">Введи код, пришедший в Telegram. Если включён пароль (2FA) — укажи его.</p>
+
+        <fieldset id="fs-step2" disabled>
+          <form id="frm-step2" class="grid-2">
+            <div class="grid-1">
+              <label for="s2-phone">Телефон (тот же)</label>
+              <input id="s2-phone" type="tel" placeholder="+79991234567" autocomplete="off" />
+            </div>
+
+            <div class="grid-1">
+              <label for="s2-code">Код из Telegram</label>
+              <input id="s2-code" type="text" placeholder="Напр.: 12345" autocomplete="one-time-code" inputmode="numeric" />
+            </div>
+
+            <div class="grid-1">
+              <label for="s2-2fa">Пароль 2FA (если включён)</label>
+              <input id="s2-2fa" type="password" placeholder="Оставь пустым, если 2FA нет" autocomplete="current-password" />
+            </div>
+
+            <div>
+              <button id="btn-confirm" class="btn primary" type="submit">Подтвердить</button>
+            </div>
+          </form>
+        </fieldset>
+        <div id="s2-note" class="note"></div>
+        <p class="subtitle muted">После подтверждения сессия сохранится в БД и появится выше со статусом <b>paused</b>. Включить/выключить можно кнопкой в таблице.</p>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/tg.js"></script>
+</body>
+</html>

@@ -2,6 +2,10 @@
 from pathlib import Path
 import os
 import sys
+
+from datetime import datetime, timezone
+from src.models.tg_account import TgAccount
+
 from typing import Optional
 
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
@@ -23,8 +27,16 @@ from scripts import tg_user_dm_responder
 from src.common.db import engine  # engine из вашего db.py/common/db.py
 from src.models.user import User, RoleEnum
 
-BASE_DIR = Path(__file__).resolve().parent
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PhoneCodeExpiredError
 
+from telethon.errors import PhoneNumberInvalidError, FloodWaitError, ApiIdInvalidError
+
+
+BASE_DIR = Path(__file__).resolve().parent
+# глобальный словарь для временных клиентов Telethon
+tg_clients: dict[str, TelegramClient] = {}
 # если нужно обращаться к tg_user
 sys.path.append(str(BASE_DIR.parent.parent / "tg_user"))
 
@@ -61,16 +73,23 @@ async def _authflow_trace(request, call_next):
 # ────────────────────────────────────────────────────────────────────────────────
 # Сессии (cookie) и шаблоны/статика
 # ────────────────────────────────────────────────────────────────────────────────
+
+@app.get("/login", include_in_schema=False)
+async def login_alias():
+    return RedirectResponse(url="/auth/login", status_code=302)
+
+
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
     session_cookie="assistchat_session",
-    https_only=True,
-    same_site="none",
+    https_only=False,      # для localhost без HTTPS
+    same_site="lax",       # для обычной навигации
     max_age=60 * 60 * 24 * 7,
-    domain="bona-plus.ru",
+    domain=None,           # без домена на localhost
 )
+
 
 app.mount(
     "/static",
@@ -129,8 +148,10 @@ oauth.register(
 )
 
 def _redirect_uri(path: str = "/auth/google/callback") -> str:
-    base = os.getenv("DOMAIN_NAME", "http://localhost:8000").rstrip("/")
-    return f"{base}{path}"
+    base = os.getenv("DOMAIN_NAME")
+    if not base:
+        raise RuntimeError("DOMAIN_NAME must be set in .env")
+    return f"{base.rstrip('/')}{path}"
 
 @app.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
@@ -210,18 +231,46 @@ async def tables(request: Request, _: User = Depends(require_admin)):
 async def health():
     return "ok"
 
-# ────────────────────────────────────────────────────────────────────────────────
-# API: tg toggle (как было)
-# ────────────────────────────────────────────────────────────────────────────────
-@app.post("/api/toggle")
-async def toggle_account(request: Request):
-    data = await request.json()
-    phone = data.get("phone")
-    if not phone:
-        return JSONResponse({"error": "phone required"}, status_code=400)
 
-    new_status = tg_user_dm_responder.toggle_session(phone)
-    return {"phone": phone, "status": new_status}
+# API: tg toggle (active <-> paused, с валидацией string_session)
+@app.post("/api/toggle")
+async def toggle_account(request: Request, db: SASession = Depends(get_db)):
+    data = await request.json()
+    phone = (data.get("phone") or "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="PHONE_REQUIRED")
+
+    acc = db.execute(select(TgAccount).where(TgAccount.phone_e164 == phone)).scalars().first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="ACCOUNT_NOT_FOUND")
+    # доступ: владелец или админ
+    user = get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val != "admin" and acc.owner_user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # Заблокированные/некорректные не трогаем
+    if acc.status in ("blocked", "invalid"):
+        return JSONResponse({"status": acc.status, "error": "LOCKED_STATUS"})
+
+    now = datetime.now(timezone.utc)
+
+    # active -> paused ; new/paused -> active (если есть валидная сессия)
+    if acc.status == "active":
+        acc.status = "paused"
+    else:
+        if not acc.string_session or len(acc.string_session) < 50:
+            raise HTTPException(status_code=400, detail="NO_SESSION")
+        acc.status = "active"
+        acc.session_updated_at = now
+
+    acc.updated_at = now
+    db.add(acc)
+    db.commit()
+    return JSONResponse({"status": acc.status})
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: страницы
@@ -315,6 +364,204 @@ async def api_auth_me(request: Request, db: SASession = Depends(get_db)):
         }
     }
 
+@app.get("/api/my/sessions")
+async def api_my_sessions(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    rows = db.execute(
+        select(
+            TgAccount.id,
+            TgAccount.label,
+            TgAccount.phone_e164,
+            TgAccount.status,
+            TgAccount.tg_user_id,
+            TgAccount.username,
+            TgAccount.session_updated_at,
+            TgAccount.last_login_at,
+            TgAccount.last_seen_at,
+            TgAccount.created_at,
+        ).where(TgAccount.owner_user_id == user.id)
+         .order_by(TgAccount.created_at.desc())
+    ).all()
+
+    data = []
+    for r in rows:
+        m = r._mapping
+        data.append({
+            "id": str(m["id"]),
+            "label": m["label"],
+            "phone": m["phone_e164"],
+            "status": m["status"],
+            "tg_user_id": m["tg_user_id"],
+            "username": m["username"],
+            "session_updated_at": m["session_updated_at"].isoformat() if m["session_updated_at"] else None,
+            "last_login_at": m["last_login_at"].isoformat() if m["last_login_at"] else None,
+            "last_seen_at": m["last_seen_at"].isoformat() if m["last_seen_at"] else None,
+            "created_at": m["created_at"].isoformat() if m["created_at"] else None,
+        })
+    return {"ok": True, "items": data}
+
+@app.post("/api/tg/send_code")
+async def api_tg_send_code(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    """
+    Шаг 1: сохраняем/обновляем запись tg_accounts (label, phone, api_id, api_hash, owner_user_id),
+    отправляем код через Telethon, возвращаем ok либо detail с ошибкой.
+    """
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False, "detail": "UNAUTHORIZED"}, status_code=401)
+
+    label = (payload.get("label") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    api_id = int(payload.get("api_id") or 0)
+    api_hash = (payload.get("api_hash") or "").strip()
+
+    if not label or not phone or not api_id or not api_hash:
+        return JSONResponse({"ok": False, "detail": "EMPTY_FIELDS"}, status_code=400)
+
+    # upsert в tg_accounts по телефону
+    acc = db.execute(
+        select(TgAccount).where(TgAccount.phone_e164 == phone)
+    ).scalar_one_or_none()
+
+    now = datetime.now(timezone.utc)
+    if acc is None:
+        acc = TgAccount(
+            label=label,
+            phone_e164=phone,
+            app_id=api_id,
+            app_hash=api_hash,
+            owner_user_id=user.id,
+            string_session="placeholder",
+            status="new",
+            created_at=now,
+            updated_at=now,
+            last_seen_at=now,
+            session_updated_at=now,
+            last_login_at=now,
+        )
+        db.add(acc)
+        db.commit()
+        db.refresh(acc)
+    else:
+        # обновим мета-данные, если изменились
+        changed = False
+        if acc.label != label:
+            acc.label = label; changed = True
+        if acc.app_id != api_id:
+            acc.app_id = api_id; changed = True
+        if acc.app_hash != api_hash:
+            acc.app_hash = api_hash; changed = True
+        if acc.owner_user_id != user.id:
+            acc.owner_user_id = user.id; changed = True
+        if changed:
+            acc.updated_at = now
+            db.add(acc); db.commit()
+
+    # Отправка кода. В ЭТОЙ версии Telethon параметров type/current_number НЕТ.
+    client = TelegramClient(StringSession(), api_id, api_hash)
+    await client.connect()
+    try:
+        if not await client.is_user_authorized():
+            sent = await client.send_code_request(phone)
+            print("[SEND_CODE][RAW]", repr(sent), file=sys.stderr, flush=True)
+            print("[SEND_CODE][DICT]", sent.to_dict() if hasattr(sent, "to_dict") else "no to_dict", file=sys.stderr,
+                  flush=True)
+            print("[SEND_CODE][HASH_RAW]", repr(getattr(sent, "phone_code_hash", None)),
+                  type(getattr(sent, "phone_code_hash", None)), file=sys.stderr, flush=True)
+
+        else:
+            return JSONResponse({"ok": False, "detail": "ALREADY_AUTHORIZED"}, status_code=400)
+
+        print(
+            "[SEND_CODE]",
+            "phone=", phone,
+            "phone_code_hash=", sent.phone_code_hash,
+            "len=", len(sent.phone_code_hash),
+            file=sys.stderr,
+            flush=True
+        )
+
+        tg_clients[phone] = client
+        request.session["tg_onboard"] = {
+            "label": label,
+            "phone": phone,
+            "api_id": api_id,
+            "api_hash": api_hash,
+        }
+    except ApiIdInvalidError:
+        await client.disconnect()
+        return JSONResponse({"ok": False, "detail": "API_ID_OR_HASH_INVALID"}, status_code=400)
+    except PhoneNumberInvalidError:
+        await client.disconnect()
+        return JSONResponse({"ok": False, "detail": "PHONE_INVALID"}, status_code=400)
+    except FloodWaitError as e:
+        await client.disconnect()
+        return JSONResponse({"ok": False, "detail": f"FLOOD_WAIT_{getattr(e, 'seconds', 'UNKNOWN')}"}, status_code=429)
+    except Exception as e:
+        await client.disconnect()
+        return JSONResponse({"ok": False, "detail": "SEND_CODE_FAILED"}, status_code=500)
+
+    # await client.disconnect()
+    return {"ok": True}
+
+
+@app.post("/api/tg/add")
+async def api_tg_add(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    label = (payload.get("label") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    app_id = payload.get("app_id")
+    app_hash = (payload.get("app_hash") or "").strip()
+    string_session = (payload.get("string_session") or "").strip()
+
+    if not label or not phone or not app_id or not app_hash or not string_session or len(string_session) < 50:
+        return JSONResponse({"ok": False, "error": "VALIDATION"}, status_code=400)
+
+    now = datetime.now(timezone.utc)
+
+    acc = db.execute(select(TgAccount).where(TgAccount.phone_e164 == phone)).scalars().first()
+    if acc:
+        # запрет на захват чужого номера
+        if acc.owner_user_id and acc.owner_user_id != user.id:
+            return JSONResponse({"ok": False, "error": "PHONE_TAKEN"}, status_code=409)
+        acc.label = label
+        acc.app_id = int(app_id)
+        acc.app_hash = app_hash
+        acc.string_session = string_session
+        acc.owner_user_id = user.id
+        acc.updated_at = now
+        # мягко останавливаем; запуск — вручную кнопкой
+        if acc.status == "new":
+            acc.status = "paused"
+        db.add(acc)
+        db.commit()
+        return {"ok": True}
+
+    # создание новой записи
+    acc = TgAccount(
+        label=label,
+        phone_e164=phone,
+        app_id=int(app_id),
+        app_hash=app_hash,
+        string_session=string_session,
+        owner_user_id=user.id,
+        status="paused",
+        last_login_at=now,
+        last_seen_at=now,
+        session_updated_at=now,
+        updated_at=now,
+    )
+    db.add(acc)
+    db.commit()
+    return {"ok": True}
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # PROFILE
 # ────────────────────────────────────────────────────────────────────────────────
@@ -355,6 +602,20 @@ def ai_page(request: Request):
         "role": getattr(user, "role", "user"),
     }
     return templates.TemplateResponse("ai.html", ctx)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# TG: страница
+# ────────────────────────────────────────────────────────────────────────────────
+@app.get("/tg", response_class=HTMLResponse)
+async def tg_page(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=302)
+    return templates.TemplateResponse("tg.html", {
+        "request": request,
+        "username": user.username,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+    })
 
 
 
@@ -402,3 +663,100 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
         return StreamingResponse(mem, media_type="application/zip",
                                  headers={"X-File-Name":"qr_with_logo"})
 
+
+@app.post("/api/tg/confirm")
+async def api_tg_confirm(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
+
+    sdata = request.session.get("tg_onboard") or {}
+    if not sdata:
+        raise HTTPException(status_code=400, detail="NO_SEND_CODE")
+
+    phone = (payload.get("phone") or "").strip()
+    code = (payload.get("code") or "").strip()
+    twofa = (payload.get("twofa") or "").strip()
+    if not phone or not code:
+        raise HTTPException(status_code=400, detail="EMPTY_FIELDS")
+
+    if phone != sdata.get("phone"):
+        raise HTTPException(status_code=400, detail="PHONE_MISMATCH")
+
+    api_id = int(sdata["api_id"])
+    api_hash = sdata["api_hash"]
+    phone_code_hash = sdata.get("phone_code_hash")
+    label = sdata["label"]
+
+    client = tg_clients.pop(phone, None)
+    if not client:
+        raise HTTPException(status_code=400, detail="NO_CLIENT")
+
+    try:
+        print(
+            "[CONFIRM]",
+            "phone=", phone,
+            "code=", code,
+            "twofa=", "***" if twofa else "none",
+            file=sys.stderr,
+            flush=True
+        )
+
+        try:
+            await client.sign_in(phone=phone, code=code)
+        except SessionPasswordNeededError:
+            if not twofa:
+                raise HTTPException(status_code=400, detail="2FA_REQUIRED")
+            await client.sign_in(password=twofa)
+
+        me = await client.get_me()
+        string_session = client.session.save()
+
+        now = datetime.now(timezone.utc)
+        # вставка/обновление записи
+        existing = db.execute(
+            select(TgAccount).where(TgAccount.phone_e164 == phone)
+        ).scalar_one_or_none()
+
+        if existing:
+            # перезапишем поля и привяжем владельца
+            existing.label = label
+            existing.app_id = api_id
+            existing.app_hash = api_hash
+            existing.string_session = string_session
+            existing.tg_user_id = int(getattr(me, "id", 0) or 0)
+            existing.username = getattr(me, "username", None)
+            existing.owner_user_id = user.id
+            existing.status = "paused"            # по умолчанию выключена
+            existing.last_login_at = now
+            existing.updated_at = now
+            db.add(existing)
+        else:
+            obj = TgAccount(
+                label=label,
+                phone_e164=phone,
+                tg_user_id=int(getattr(me, "id", 0) or 0),
+                username=getattr(me, "username", None),
+                owner_user_id=user.id,
+                app_id=api_id,
+                app_hash=api_hash,
+                string_session=str(string_session),
+                status="paused",
+                last_login_at=now,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(obj)
+
+        db.commit()
+        # очистим временные данные шага 1
+        request.session.pop("tg_onboard", None)
+        return {"ok": True}
+    except PhoneCodeInvalidError:
+        raise HTTPException(status_code=400, detail="CODE_INVALID")
+    except PhoneCodeExpiredError:
+        raise HTTPException(status_code=400, detail="CODE_EXPIRED")
+    finally:
+        # отключаем клиента, когда шаг завершён
+        if client:
+            await client.disconnect()
