@@ -154,19 +154,31 @@
   // старт
   loadMySessions();
 
-    // ---------- модальное окно ----------
+   // ---------- модальное окно ----------
+  console.log("helpBtn=", helpBtn);
+  console.log("helpModal=", helpModal);
+  console.log("helpClose=", helpClose);
   const helpBtn = document.getElementById("help-btn");
   const helpModal = document.getElementById("help-modal");
   const helpClose = document.getElementById("help-close");
 
-  helpBtn?.addEventListener("click", () => {
-    helpModal.style.display = "flex";
-  });
-  helpClose?.addEventListener("click", () => {
-    helpModal.style.display = "none";
-  });
+  if (helpBtn && helpModal) {
+    helpBtn.addEventListener("click", () => {
+      helpModal.style.display = "flex";
+    });
+  }
+
+  if (helpClose && helpModal) {
+    helpClose.addEventListener("click", () => {
+      helpModal.style.display = "none";
+    });
+  }
+
   window.addEventListener("click", (e) => {
-    if (e.target === helpModal) helpModal.style.display = "none";
+    if (helpModal && e.target === helpModal) {
+      helpModal.style.display = "none";
+    }
   });
+
 
 })();
