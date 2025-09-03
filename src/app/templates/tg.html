@@ -36,7 +36,10 @@
 
       <div class="row-head">
         <div>
-          <h1 style="margin:0 0 6px">Телеграм</h1>
+          <h1 style="margin:0 0 6px">
+            Телеграм
+            <button id="help-btn" class="btn small" title="Инструкция">?</button>
+          </h1>
           <p class="subtitle">Добавление своей Telegram-сессии и управление ею</p>
         </div>
         <div>
@@ -133,5 +136,32 @@
   <script src="/static/js/config.js"></script>
   <script src="/static/js/api.js"></script>
   <script src="/static/js/tg.js"></script>
+
+  <!-- Модальное окно с инструкцией -->
+  <div id="help-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span id="help-close" class="close">&times;</span>
+      <h2>Инструкция по подключению Telegram-сессии</h2>
+      <ol>
+        <li>Перейдите на <b>my.telegram.org → API development tools</b> и создайте своё приложение.</li>
+        <li>Скопируйте <b>API_ID</b> и <b>API_HASH</b>.</li>
+        <li>На этой странице заполните форму «Шаг 1» (метка, телефон в формате E.164, API_ID, API_HASH).</li>
+        <li>Нажмите «Отправить код». Telegram пришлёт код подтверждения на указанный номер.</li>
+        <li>В «Шаге 2» укажите телефон, код, а если включено 2FA — пароль.</li>
+        <li>После подтверждения сессия появится в таблице выше со статусом <b>paused</b>.</li>
+        <li>Нажмите «Включить», чтобы активировать сессию.</li>
+      </ol>
+      <p class="note">Важно: одна сессия хранится в базе и используется сервером. Если заново подключить тот же номер, предыдущая сессия может стать неактивной.</p>
+    </div>
+  </div>
+
+  <style>
+    .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; }
+    .modal-content { background:#222; padding:20px; border-radius:12px; max-width:600px; width:90%; color:#fff; }
+    .close { float:right; cursor:pointer; font-size:20px; }
+    .btn.small { font-size:12px; padding:2px 8px; margin-left:8px; }
+  </style>
+
+
 </body>
 </html>
