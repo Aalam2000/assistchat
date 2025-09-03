@@ -153,4 +153,20 @@
 
   // старт
   loadMySessions();
+
+    // ---------- модальное окно ----------
+  const helpBtn = document.getElementById("help-btn");
+  const helpModal = document.getElementById("help-modal");
+  const helpClose = document.getElementById("help-close");
+
+  helpBtn?.addEventListener("click", () => {
+    helpModal.style.display = "flex";
+  });
+  helpClose?.addEventListener("click", () => {
+    helpModal.style.display = "none";
+  });
+  window.addEventListener("click", (e) => {
+    if (e.target === helpModal) helpModal.style.display = "none";
+  });
+
 })();
