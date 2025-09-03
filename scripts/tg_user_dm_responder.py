@@ -214,6 +214,11 @@ async def main():
 
     @tg.on(events.NewMessage(incoming=True))
     async def on_new_dm(event: events.NewMessage.Event):
+        # стоп-фильтр по статусу аккаунта в БД: при paused/blocked/invalid не отвечать
+        with eng.begin() as conn:
+            st = conn.execute(sql_text("SELECT status FROM tg_accounts WHERE id = :id"), {"id": account_id}).scalar()
+        if st != "active":
+            return
         try:
             if not event.is_private or event.out:
                 return
