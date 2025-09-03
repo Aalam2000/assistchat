@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-08-29T15:48:25",
+  "generated_at": "2025-08-31T17:16:37",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "master",
-    "last_commit": "7a2579c739099869695f4187ba2c77c29b61115d",
+    "last_commit": "b21b3a86170759fd901f9d3e83076c115d97681e",
     "dirty": true
   },
   "python": {
@@ -191,7 +191,7 @@
     "script_location": "src/alembic",
     "alembic_ini_present": true,
     "versions_dir_exists": true,
-    "migrations_count": 3,
+    "migrations_count": 5,
     "migrations": [
       {
         "file": "165ab7be38b4_init_create_tg_accounts.py",
@@ -207,10 +207,20 @@
         "file": "6e79614b2f16_create_users.py",
         "revision": "6e79614b2f16",
         "down_revision": "38ab48e15002"
+      },
+      {
+        "file": "70a3c3c0406a_add_tg_accounts_status.py",
+        "revision": "70a3c3c0406a",
+        "down_revision": "6e79614b2f16"
+      },
+      {
+        "file": "c4af6c51f292_add_owner_user_id_to_tg_accounts.py",
+        "revision": "c4af6c51f292",
+        "down_revision": "70a3c3c0406a"
       }
     ],
     "heads": [
-      "6e79614b2f16"
+      "c4af6c51f292"
     ]
   },
   "fs": {
@@ -233,7 +243,7 @@
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 16168
+        "size": 21056
       },
       {
         "name": "models.py",
@@ -270,12 +280,22 @@
       {
         "name": "6e79614b2f16_create_users.py",
         "is_dir": false,
-        "size": 2959
+        "size": 3023
+      },
+      {
+        "name": "70a3c3c0406a_add_tg_accounts_status.py",
+        "is_dir": false,
+        "size": 379
       },
       {
         "name": "__pycache__",
         "is_dir": true,
         "size": null
+      },
+      {
+        "name": "c4af6c51f292_add_owner_user_id_to_tg_accounts.py",
+        "is_dir": false,
+        "size": 949
       }
     ],
     "scripts": [
@@ -330,11 +350,6 @@
         "name": "project_probe.py",
         "is_dir": false,
         "size": 8921
-      },
-      {
-        "name": "project_report.json",
-        "is_dir": false,
-        "size": 7758
       },
       {
         "name": "tg_accounts.sql",
