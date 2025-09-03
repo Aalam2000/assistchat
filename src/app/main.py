@@ -370,21 +370,25 @@ async def api_my_sessions(request: Request, db: SASession = Depends(get_db)):
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
 
-    rows = db.execute(
-        select(
-            TgAccount.id,
-            TgAccount.label,
-            TgAccount.phone_e164,
-            TgAccount.status,
-            TgAccount.tg_user_id,
-            TgAccount.username,
-            TgAccount.session_updated_at,
-            TgAccount.last_login_at,
-            TgAccount.last_seen_at,
-            TgAccount.created_at,
-        ).where(TgAccount.owner_user_id == user.id)
-         .order_by(TgAccount.created_at.desc())
-    ).all()
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+
+    q = select(
+        TgAccount.id,
+        TgAccount.label,
+        TgAccount.phone_e164,
+        TgAccount.status,
+        TgAccount.tg_user_id,
+        TgAccount.username,
+        TgAccount.session_updated_at,
+        TgAccount.last_login_at,
+        TgAccount.last_seen_at,
+        TgAccount.created_at,
+    ).order_by(TgAccount.created_at.desc())
+
+    if role_val != "admin":
+        q = q.where(TgAccount.owner_user_id == user.id)
+
+    rows = db.execute(q).all()
 
     data = []
     for r in rows:
