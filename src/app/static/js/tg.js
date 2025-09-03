@@ -155,13 +155,13 @@
   loadMySessions();
 
    // ---------- модальное окно ----------
-  console.log("helpBtn=", helpBtn);
-  console.log("helpModal=", helpModal);
-  console.log("helpClose=", helpClose);
+
   const helpBtn = document.getElementById("help-btn");
   const helpModal = document.getElementById("help-modal");
   const helpClose = document.getElementById("help-close");
-
+  console.log("helpBtn=", helpBtn);
+  console.log("helpModal=", helpModal);
+  console.log("helpClose=", helpClose);
   if (helpBtn && helpModal) {
     helpBtn.addEventListener("click", () => {
       helpModal.style.display = "flex";
