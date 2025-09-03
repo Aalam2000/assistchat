@@ -1,3 +1,4 @@
+# scripts/onboard_tg_session.py
 import os
 import sys
 import getpass
