@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-08-31T17:16:37",
+  "generated_at": "2025-09-03T18:17:32",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "master",
-    "last_commit": "b21b3a86170759fd901f9d3e83076c115d97681e",
+    "last_commit": "abefbe657477e82449be4a82c0b84171d4e6ad74",
     "dirty": true
   },
   "python": {
@@ -243,7 +243,7 @@
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 21056
+        "size": 32760
       },
       {
         "name": "models.py",
@@ -312,7 +312,7 @@
       {
         "name": "onboard_tg_session.py",
         "is_dir": false,
-        "size": 3750
+        "size": 3783
       },
       {
         "name": "QR.py",
@@ -332,7 +332,7 @@
       {
         "name": "tg_user_dm_responder.py",
         "is_dir": false,
-        "size": 20972
+        "size": 21305
       },
       {
         "name": "tmp",
