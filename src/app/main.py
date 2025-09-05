@@ -32,7 +32,10 @@ from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PhoneCodeExpiredError
 
 from telethon.errors import PhoneNumberInvalidError, FloodWaitError, ApiIdInvalidError
+from autoi18n import Translator
 
+templates = Jinja2Templates(directory="src/app/templates")
+tr = Translator(cache_dir="./translations")
 
 BASE_DIR = Path(__file__).resolve().parent
 # глобальный словарь для временных клиентов Telethon
@@ -74,11 +77,6 @@ async def _authflow_trace(request, call_next):
 # Сессии (cookie) и шаблоны/статика
 # ────────────────────────────────────────────────────────────────────────────────
 
-@app.get("/login", include_in_schema=False)
-async def login_alias():
-    return RedirectResponse(url="/auth/login", status_code=302)
-
-
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 app.add_middleware(
     SessionMiddleware,
@@ -108,6 +106,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ────────────────────────────────────────────────────────────────────────────────
 # Утилиты
 # ────────────────────────────────────────────────────────────────────────────────
+
+
 def get_db():
     db = SessionLocal()
     try:
@@ -225,7 +225,7 @@ async def tables(request: Request, _: User = Depends(require_admin)):
             rows = conn.execute(text(f'SELECT * FROM "{table}"')).fetchall()
             data[table] = {"columns": cols, "rows": rows}
 
-    return templates.TemplateResponse("index.html", {"request": request, "data": data})
+    return render_i18n("index.html", request, "tables_index", {"data": data})
 
 @app.get("/health")
 async def health():
@@ -275,13 +275,16 @@ async def toggle_account(request: Request, db: SASession = Depends(get_db)):
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: страницы
 # ────────────────────────────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
+def root_redirect():
+    return RedirectResponse(url="/auth/login", status_code=302)
+
 @app.get("/auth/login", response_class=HTMLResponse)
 async def auth_login_page(request: Request):
-    # если уже залогинен — в профиль
     if request.session.get("user_id"):
         return RedirectResponse(url="/profile", status_code=302)
-    return templates.TemplateResponse("auth/login.html", {"request": request})
+    return render_i18n("auth/login.html", request, "auth_login", {})
 
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: API (login/register/logout/me)
@@ -577,10 +580,11 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/auth/login", status_code=302)
 
-    return templates.TemplateResponse(
+    return render_i18n(
         "profile.html",
+        request,
+        "profile",
         {
-            "request": request,
             "username": user.username,
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
@@ -596,7 +600,7 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/auth/login", status_code=302)
-    return templates.TemplateResponse("qr.html", {"request": request, "username": user.username})
+    return render_i18n("qr.html", request, "qr", {"username": user.username})
 
 
 @app.get("/ai", response_class=HTMLResponse)
@@ -607,7 +611,7 @@ def ai_page(request: Request):
         "username": getattr(user, "username", "Гость"),
         "role": getattr(user, "role", "user"),
     }
-    return templates.TemplateResponse("ai.html", ctx)
+    return render_i18n("ai.html", request, "ai", ctx)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # TG: страница
@@ -617,12 +621,10 @@ async def tg_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/auth/login", status_code=302)
-    return templates.TemplateResponse("tg.html", {
-        "request": request,
+    return render_i18n("tg.html", request, "tg", {
         "username": user.username,
         "role": user.role.value if hasattr(user.role, "value") else str(user.role),
     })
-
 
 
 @app.get("/callcenter", response_class=HTMLResponse)
@@ -633,7 +635,7 @@ def callcenter_page(request: Request):
         "username": getattr(user, "username", "Гость"),
         "role": getattr(user, "role", "user"),
     }
-    return templates.TemplateResponse("callcenter.html", ctx)
+    return render_i18n("callcenter.html", request, "callcenter", ctx)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -766,3 +768,87 @@ async def api_tg_confirm(payload: dict, request: Request, db: SASession = Depend
         # отключаем клиента, когда шаг завершён
         if client:
             await client.disconnect()
+
+
+# ── i18n: helpers ─────────────────────────────────────────────────────────────
+def _get_lang(request: Request) -> str:
+    lang = (request.cookies.get("lang") or "").lower()
+    if lang in ("ru", "en"):
+        return lang
+    # язык из браузера, иначе RU по умолчанию
+    return tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
+
+
+def _inject_en_button(html: str, lang: str) -> str:
+    cur = (lang or "ru").lower()
+    label, href = ("RU", "/set-lang/ru") if cur.startswith("en") else ("EN", "/set-lang/en")
+
+    if 'id="i18n-toggle"' in html:
+        return html
+
+    btn = (
+        f'<a id="i18n-toggle" href="{href}" '
+        'style="position:fixed;top:10px;right:10px;z-index:9999;'
+        'padding:6px 10px;border:1px solid #aaa;border-radius:8px;'
+        'background:#fff;opacity:.95;text-decoration:none;'
+        'font:14px/1.2 system-ui">'
+        f'{label}</a>'
+    )
+    i = html.lower().rfind("</body>")
+    return html[:i] + btn + html[i:] if i != -1 else html + btn
+
+
+
+
+# фиксируем выбор EN и возвращаемся на ту же страницу
+@app.get("/set-lang/en")
+def set_lang_en(request: Request):
+    ref = request.headers.get("referer") or "/"
+    resp = RedirectResponse(url=ref, status_code=303)
+    resp.set_cookie("lang", "en", httponly=True, samesite="lax")
+    return resp
+
+@app.get("/set-lang/ru")
+def set_lang_ru(request: Request):
+    ref = request.headers.get("referer") or "/"
+    resp = RedirectResponse(url=ref, status_code=303)
+    resp.set_cookie("lang", "ru", httponly=True, samesite="lax")
+    return resp
+
+
+
+def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) -> HTMLResponse:
+    # всегда добавляем {"request": request}
+    ctx = {**ctx, "request": request}
+    rendered = templates.get_template(template_name).render(ctx)
+    lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
+    translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
+    return HTMLResponse(content=_inject_en_button(translated, lang))
+
+
+
+# универсальный роут для всех HTML-страниц
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+def render_any_html(request: Request, full_path: str = ""):
+    # URL → шаблон:
+    #   /               -> index.html
+    #   /auth/login     -> auth/login.html
+    #   /docs/          -> docs/index.html
+    path = full_path.strip("/")
+    if path == "" or path.endswith("/"):
+        path = path + "index"
+    if not path.endswith(".html"):
+        path = path + ".html"
+    if ".." in path or path.startswith("/"):
+        return HTMLResponse("Not found", status_code=404)
+
+    try:
+        rendered = templates.get_template(path).render(request=request)
+    except Exception:
+        return HTMLResponse("Not found", status_code=404)
+
+    lang = _get_lang(request)
+    page_key = path[:-5].replace("/", "_")  # для раздельного кэша
+    translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
+    return HTMLResponse(content=_inject_en_button(translated, lang))
+
