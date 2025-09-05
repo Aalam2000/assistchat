@@ -43,6 +43,7 @@ tg_clients: dict[str, TelegramClient] = {}
 # если нужно обращаться к tg_user
 sys.path.append(str(BASE_DIR.parent.parent / "tg_user"))
 
+
 app = FastAPI(title="assistchat demo")
 # ── ТРЕЙС АВТОРИЗАЦИИ В КОНСОЛЬ ────────────────────────────────────────────────
 @app.middleware("http")
