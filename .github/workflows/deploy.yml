@@ -42,10 +42,11 @@ jobs:
 
           # миграции Alembic
           docker compose run --rm migrate
-
-          # поднимаем приложения
-          docker compose up -d web tg_user
-
+          
+          # перезапускаем всё с чистого состояния
+          docker compose down
+          docker compose up -d --build web tg_user db
+          
           # чистим висячие образы
           docker image prune -f
           SSH
