@@ -41,7 +41,11 @@ jobs:
           until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
 
           # миграции Alembic
-          docker compose run --rm migrate
+          if ! docker compose run --rm migrate alembic check; then
+            docker compose run --rm migrate alembic upgrade head
+          else
+            echo "No migrations needed"
+          fi
           
           # перезапускаем всё с чистого состояния
           docker compose down
