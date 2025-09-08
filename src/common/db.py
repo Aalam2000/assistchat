@@ -1,6 +1,6 @@
 # src/common/db.py
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 # читаем из ENV (compose передаёт из .env)
@@ -19,3 +19,8 @@ class Base(DeclarativeBase):
     pass
 
 __all__ = ["engine", "SessionLocal", "Base"]
+
+
+def check_db() -> str:
+    with engine.connect() as conn:
+        return conn.execute(text("select version();")).scalar_one()
