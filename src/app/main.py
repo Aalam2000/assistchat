@@ -1,50 +1,36 @@
 # src/app/main.py
 from pathlib import Path
-import os
-import sys
-
+import os, sys, asyncio, subprocess, signal
 from datetime import datetime, timezone
-from src.models.tg_account import TgAccount
-
 from typing import Optional
-
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import JSONResponse, StreamingResponse
 from starlette.middleware.sessions import SessionMiddleware
-
 import io, zipfile, tempfile
 from scripts.QR import generate_qr_with_logo
-
 from sqlalchemy import inspect, text, select
 from sqlalchemy.orm import sessionmaker, Session as SASession
-
 from passlib.context import CryptContext
-
-from scripts import tg_user_dm_responder
-from src.common.db import engine  # engine из вашего db.py/common/db.py
+from src.common.db import engine, SessionLocal
 from src.models.user import User, RoleEnum
-
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PhoneCodeExpiredError
-
-from telethon.errors import PhoneNumberInvalidError, FloodWaitError, ApiIdInvalidError
 from autoi18n import Translator
+from src.models import Resource
+from src.app.providers import PROVIDERS, validate_provider_meta
+from src.common.db import SessionLocal  # если уже есть — пропусти
 
-templates = Jinja2Templates(directory="src/app/templates")
+
+# --- GOOGLE OAUTH (минимум) ---
+from authlib.integrations.starlette_client import OAuth
+
 tr = Translator(cache_dir="./translations")
-
 BASE_DIR = Path(__file__).resolve().parent
-# глобальный словарь для временных клиентов Telethon
-tg_clients: dict[str, TelegramClient] = {}
-# если нужно обращаться к tg_user
-sys.path.append(str(BASE_DIR.parent.parent / "tg_user"))
-
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app = FastAPI(title="assistchat demo")
+
+
 # ── ТРЕЙС АВТОРИЗАЦИИ В КОНСОЛЬ ────────────────────────────────────────────────
 @app.middleware("http")
 async def _authflow_trace(request, call_next):
@@ -96,11 +82,6 @@ app.mount(
     name="static"
 )
 
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-
-# Локальный sessionmaker (не полагаемся на внешние фабрики)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
 # Пароли
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -135,10 +116,6 @@ def require_admin(request: Request, db: SASession = Depends(get_db)) -> User:
     return user
 
 
-
-# --- GOOGLE OAUTH (минимум) ---
-from authlib.integrations.starlette_client import OAuth
-
 oauth = OAuth()
 oauth.register(
     name="google",
@@ -153,6 +130,7 @@ def _redirect_uri(path: str = "/auth/google/callback") -> str:
     if not base:
         raise RuntimeError("DOMAIN_NAME must be set in .env")
     return f"{base.rstrip('/')}{path}"
+
 
 @app.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
@@ -231,46 +209,6 @@ async def tables(request: Request, _: User = Depends(require_admin)):
 @app.get("/health")
 async def health():
     return "ok"
-
-
-# API: tg toggle (active <-> paused, с валидацией string_session)
-@app.post("/api/toggle")
-async def toggle_account(request: Request, db: SASession = Depends(get_db)):
-    data = await request.json()
-    phone = (data.get("phone") or "").strip()
-    if not phone:
-        raise HTTPException(status_code=400, detail="PHONE_REQUIRED")
-
-    acc = db.execute(select(TgAccount).where(TgAccount.phone_e164 == phone)).scalars().first()
-    if not acc:
-        raise HTTPException(status_code=404, detail="ACCOUNT_NOT_FOUND")
-    # доступ: владелец или админ
-    user = get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
-    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-    if role_val != "admin" and acc.owner_user_id != user.id:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
-
-    # Заблокированные/некорректные не трогаем
-    if acc.status in ("blocked", "invalid"):
-        return JSONResponse({"status": acc.status, "error": "LOCKED_STATUS"})
-
-    now = datetime.now(timezone.utc)
-
-    # active -> paused ; new/paused -> active (если есть валидная сессия)
-    if acc.status == "active":
-        acc.status = "paused"
-    else:
-        if not acc.string_session or len(acc.string_session) < 50:
-            raise HTTPException(status_code=400, detail="NO_SESSION")
-        acc.status = "active"
-        acc.session_updated_at = now
-
-    acc.updated_at = now
-    db.add(acc)
-    db.commit()
-    return JSONResponse({"status": acc.status})
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -368,208 +306,19 @@ async def api_auth_me(request: Request, db: SASession = Depends(get_db)):
         }
     }
 
-@app.get("/api/my/sessions")
-async def api_my_sessions(request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-
-    q = select(
-        TgAccount.id,
-        TgAccount.label,
-        TgAccount.phone_e164,
-        TgAccount.status,
-        TgAccount.tg_user_id,
-        TgAccount.username,
-        TgAccount.session_updated_at,
-        TgAccount.last_login_at,
-        TgAccount.last_seen_at,
-        TgAccount.created_at,
-    ).order_by(TgAccount.created_at.desc())
-
-    if role_val != "admin":
-        q = q.where(TgAccount.owner_user_id == user.id)
-
-    rows = db.execute(q).all()
-
-    data = []
-    for r in rows:
-        m = r._mapping
-        data.append({
-            "id": str(m["id"]),
-            "label": m["label"],
-            "phone": m["phone_e164"],
-            "status": m["status"],
-            "tg_user_id": m["tg_user_id"],
-            "username": m["username"],
-            "session_updated_at": m["session_updated_at"].isoformat() if m["session_updated_at"] else None,
-            "last_login_at": m["last_login_at"].isoformat() if m["last_login_at"] else None,
-            "last_seen_at": m["last_seen_at"].isoformat() if m["last_seen_at"] else None,
-            "created_at": m["created_at"].isoformat() if m["created_at"] else None,
+@app.get("/api/providers")
+def api_providers(request: Request):
+    # Отдаём только то, что нужно UI: ключ, видимое имя, шаблон meta_json и (опц.) описание
+    items = []
+    for key, cfg in PROVIDERS.items():
+        items.append({
+            "key": key,
+            "name": cfg.get("title", key),
+            "template": cfg.get("template", {}),
+            "help": cfg.get("help", {}),
         })
+    return {"ok": True, "providers": items}
 
-    return {"ok": True, "items": data}
-
-
-@app.post("/api/tg/send_code")
-async def api_tg_send_code(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    """
-    Шаг 1: сохраняем/обновляем запись tg_accounts (label, phone, api_id, api_hash, owner_user_id),
-    отправляем код через Telethon, возвращаем ok либо detail с ошибкой.
-    """
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False, "detail": "UNAUTHORIZED"}, status_code=401)
-
-    label = (payload.get("label") or "").strip()
-    phone = (payload.get("phone") or "").strip()
-    api_id = int(payload.get("api_id") or 0)
-    api_hash = (payload.get("api_hash") or "").strip()
-
-    if not label or not phone or not api_id or not api_hash:
-        return JSONResponse({"ok": False, "detail": "EMPTY_FIELDS"}, status_code=400)
-
-    # upsert в tg_accounts по телефону
-    acc = db.execute(
-        select(TgAccount).where(TgAccount.phone_e164 == phone)
-    ).scalar_one_or_none()
-
-    now = datetime.now(timezone.utc)
-    if acc is None:
-        acc = TgAccount(
-            label=label,
-            phone_e164=phone,
-            app_id=api_id,
-            app_hash=api_hash,
-            owner_user_id=user.id,
-            string_session="placeholder",
-            status="new",
-            created_at=now,
-            updated_at=now,
-            last_seen_at=now,
-            session_updated_at=now,
-            last_login_at=now,
-        )
-        db.add(acc)
-        db.commit()
-        db.refresh(acc)
-    else:
-        # обновим мета-данные, если изменились
-        changed = False
-        if acc.label != label:
-            acc.label = label; changed = True
-        if acc.app_id != api_id:
-            acc.app_id = api_id; changed = True
-        if acc.app_hash != api_hash:
-            acc.app_hash = api_hash; changed = True
-        if acc.owner_user_id != user.id:
-            acc.owner_user_id = user.id; changed = True
-        if changed:
-            acc.updated_at = now
-            db.add(acc); db.commit()
-
-    # Отправка кода. В ЭТОЙ версии Telethon параметров type/current_number НЕТ.
-    client = TelegramClient(StringSession(), api_id, api_hash)
-    await client.connect()
-    try:
-        if not await client.is_user_authorized():
-            sent = await client.send_code_request(phone)
-            print("[SEND_CODE][RAW]", repr(sent), file=sys.stderr, flush=True)
-            print("[SEND_CODE][DICT]", sent.to_dict() if hasattr(sent, "to_dict") else "no to_dict", file=sys.stderr,
-                  flush=True)
-            print("[SEND_CODE][HASH_RAW]", repr(getattr(sent, "phone_code_hash", None)),
-                  type(getattr(sent, "phone_code_hash", None)), file=sys.stderr, flush=True)
-
-        else:
-            return JSONResponse({"ok": False, "detail": "ALREADY_AUTHORIZED"}, status_code=400)
-
-        print(
-            "[SEND_CODE]",
-            "phone=", phone,
-            "phone_code_hash=", sent.phone_code_hash,
-            "len=", len(sent.phone_code_hash),
-            file=sys.stderr,
-            flush=True
-        )
-
-        tg_clients[phone] = client
-        request.session["tg_onboard"] = {
-            "label": label,
-            "phone": phone,
-            "api_id": api_id,
-            "api_hash": api_hash,
-        }
-    except ApiIdInvalidError:
-        await client.disconnect()
-        return JSONResponse({"ok": False, "detail": "API_ID_OR_HASH_INVALID"}, status_code=400)
-    except PhoneNumberInvalidError:
-        await client.disconnect()
-        return JSONResponse({"ok": False, "detail": "PHONE_INVALID"}, status_code=400)
-    except FloodWaitError as e:
-        await client.disconnect()
-        return JSONResponse({"ok": False, "detail": f"FLOOD_WAIT_{getattr(e, 'seconds', 'UNKNOWN')}"}, status_code=429)
-    except Exception as e:
-        await client.disconnect()
-        return JSONResponse({"ok": False, "detail": "SEND_CODE_FAILED"}, status_code=500)
-
-    # await client.disconnect()
-    return {"ok": True}
-
-
-@app.post("/api/tg/add")
-async def api_tg_add(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    label = (payload.get("label") or "").strip()
-    phone = (payload.get("phone") or "").strip()
-    app_id = payload.get("app_id")
-    app_hash = (payload.get("app_hash") or "").strip()
-    string_session = (payload.get("string_session") or "").strip()
-
-    if not label or not phone or not app_id or not app_hash or not string_session or len(string_session) < 50:
-        return JSONResponse({"ok": False, "error": "VALIDATION"}, status_code=400)
-
-    now = datetime.now(timezone.utc)
-
-    acc = db.execute(select(TgAccount).where(TgAccount.phone_e164 == phone)).scalars().first()
-    if acc:
-        # запрет на захват чужого номера
-        if acc.owner_user_id and acc.owner_user_id != user.id:
-            return JSONResponse({"ok": False, "error": "PHONE_TAKEN"}, status_code=409)
-        acc.label = label
-        acc.app_id = int(app_id)
-        acc.app_hash = app_hash
-        acc.string_session = string_session
-        acc.owner_user_id = user.id
-        acc.updated_at = now
-        # мягко останавливаем; запуск — вручную кнопкой
-        if acc.status == "new":
-            acc.status = "paused"
-        db.add(acc)
-        db.commit()
-        return {"ok": True}
-
-    # создание новой записи
-    acc = TgAccount(
-        label=label,
-        phone_e164=phone,
-        app_id=int(app_id),
-        app_hash=app_hash,
-        string_session=string_session,
-        owner_user_id=user.id,
-        status="paused",
-        last_login_at=now,
-        last_seen_at=now,
-        session_updated_at=now,
-        updated_at=now,
-    )
-    db.add(acc)
-    db.commit()
-    return {"ok": True}
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -591,6 +340,112 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
         }
     )
 
+@app.get("/resources", response_class=HTMLResponse)
+async def resources_page(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=302)
+
+    return render_i18n(
+        "resources.html",
+        request,
+        "resources",
+        {
+            "username": user.username,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+        }
+    )
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# PROFILE: сводка статуса бота (устойчивая к отсутствию таблиц/колонок)
+# ────────────────────────────────────────────────────────────────────────────────
+@app.get("/api/status")
+async def api_status(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    rows = db.execute(
+        select(Resource).where(Resource.user_id == user.id)
+    ).scalars().all()
+
+    services_total = len(rows)
+    services_active = sum(1 for r in rows if r.status == "active")
+
+    tg_total = sum(1 for r in rows if r.provider == "telegram")
+    tg_active = sum(1 for r in rows if r.provider == "telegram" and r.status == "active")
+
+    return {
+        "ok": True,
+        "on": services_active > 0,
+        "services_active": services_active,
+        "services_total": services_total,
+        "tg_active": tg_active,
+        "tg_total": tg_total,
+    }
+
+
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# PROFILE: OpenAI настройки пользователя
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/profile/openai")
+async def api_profile_openai_get(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    key = getattr(user, "openai_api_key", None)
+    masked = None
+    if key:
+        masked = (key[:3] + "…" + key[-4:]) if len(key) > 7 else "******"
+
+    # дефолты (пока без хранения отдельных полей)
+    return {
+        "ok": True,
+        "mode": "byok" if key else "managed",
+        "key_masked": masked,
+        "model": "gpt-4o-mini",
+        "history_limit": 20,
+        "voice_enabled": False,
+    }
+
+
+@app.post("/api/profile/openai/test")
+async def api_profile_openai_test(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    mode = (payload.get("mode") or "byok").lower()
+    if mode == "byok":
+        key = (payload.get("key") or "").strip()
+        # минимальная валидация формата, без внешних запросов
+        if not key or not key.startswith("sk-") or len(key) < 20:
+            return JSONResponse({"ok": False, "error": "KEY_FORMAT"}, status_code=400)
+
+    return {"ok": True, "message": "Ок"}
+
+
+@app.post("/api/profile/openai/save")
+async def api_profile_openai_save(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    mode = (payload.get("mode") or "byok").lower()
+    if mode == "byok":
+        user.openai_api_key = (payload.get("key") or "").strip() or None
+    else:
+        # managed-режим — ключ пользователя не храним
+        user.openai_api_key = None
+
+    db.add(user)
+    db.commit()
+    return {"ok": True}
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -613,19 +468,6 @@ def ai_page(request: Request):
         "role": getattr(user, "role", "user"),
     }
     return render_i18n("ai.html", request, "ai", ctx)
-
-# ────────────────────────────────────────────────────────────────────────────────
-# TG: страница
-# ────────────────────────────────────────────────────────────────────────────────
-@app.get("/tg", response_class=HTMLResponse)
-async def tg_page(request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/auth/login", status_code=302)
-    return render_i18n("tg.html", request, "tg", {
-        "username": user.username,
-        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-    })
 
 
 @app.get("/callcenter", response_class=HTMLResponse)
@@ -671,104 +513,6 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
         mem.seek(0)
         return StreamingResponse(mem, media_type="application/zip",
                                  headers={"X-File-Name":"qr_with_logo"})
-
-
-@app.post("/api/tg/confirm")
-async def api_tg_confirm(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
-
-    sdata = request.session.get("tg_onboard") or {}
-    if not sdata:
-        raise HTTPException(status_code=400, detail="NO_SEND_CODE")
-
-    phone = (payload.get("phone") or "").strip()
-    code = (payload.get("code") or "").strip()
-    twofa = (payload.get("twofa") or "").strip()
-    if not phone or not code:
-        raise HTTPException(status_code=400, detail="EMPTY_FIELDS")
-
-    if phone != sdata.get("phone"):
-        raise HTTPException(status_code=400, detail="PHONE_MISMATCH")
-
-    api_id = int(sdata["api_id"])
-    api_hash = sdata["api_hash"]
-    phone_code_hash = sdata.get("phone_code_hash")
-    label = sdata["label"]
-
-    client = tg_clients.pop(phone, None)
-    if not client:
-        raise HTTPException(status_code=400, detail="NO_CLIENT")
-
-    try:
-        print(
-            "[CONFIRM]",
-            "phone=", phone,
-            "code=", code,
-            "twofa=", "***" if twofa else "none",
-            file=sys.stderr,
-            flush=True
-        )
-
-        try:
-            await client.sign_in(phone=phone, code=code)
-        except SessionPasswordNeededError:
-            if not twofa:
-                raise HTTPException(status_code=400, detail="2FA_REQUIRED")
-            await client.sign_in(password=twofa)
-
-        me = await client.get_me()
-        string_session = client.session.save()
-
-        now = datetime.now(timezone.utc)
-        # вставка/обновление записи
-        existing = db.execute(
-            select(TgAccount).where(TgAccount.phone_e164 == phone)
-        ).scalar_one_or_none()
-
-        if existing:
-            # перезапишем поля и привяжем владельца
-            existing.label = label
-            existing.app_id = api_id
-            existing.app_hash = api_hash
-            existing.string_session = string_session
-            existing.tg_user_id = int(getattr(me, "id", 0) or 0)
-            existing.username = getattr(me, "username", None)
-            existing.owner_user_id = user.id
-            existing.status = "paused"            # по умолчанию выключена
-            existing.last_login_at = now
-            existing.updated_at = now
-            db.add(existing)
-        else:
-            obj = TgAccount(
-                label=label,
-                phone_e164=phone,
-                tg_user_id=int(getattr(me, "id", 0) or 0),
-                username=getattr(me, "username", None),
-                owner_user_id=user.id,
-                app_id=api_id,
-                app_hash=api_hash,
-                string_session=str(string_session),
-                status="paused",
-                last_login_at=now,
-                created_at=now,
-                updated_at=now,
-            )
-            db.add(obj)
-
-        db.commit()
-        # очистим временные данные шага 1
-        request.session.pop("tg_onboard", None)
-        return {"ok": True}
-    except PhoneCodeInvalidError:
-        raise HTTPException(status_code=400, detail="CODE_INVALID")
-    except PhoneCodeExpiredError:
-        raise HTTPException(status_code=400, detail="CODE_EXPIRED")
-    finally:
-        # отключаем клиента, когда шаг завершён
-        if client:
-            await client.disconnect()
 
 
 # ── i18n: helpers ─────────────────────────────────────────────────────────────
@@ -829,6 +573,121 @@ def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) 
 
 
 # универсальный роут для всех HTML-страниц
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# RESOURCES (новая модель): список + включение/пауза с валидацией meta_json
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/resources/list")
+async def api_resources_list(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    rows = db.execute(
+        select(Resource).where(Resource.user_id == user.id).order_by(Resource.created_at.desc())
+    ).scalars().all()
+
+    items = []
+    for r in rows:
+        meta = r.meta_json or {}
+        ok, issues = validate_provider_meta(r.provider, meta)
+        items.append({
+            "id": str(r.id),
+            "provider": r.provider,
+            "label": r.label,
+            "status": r.status,
+            "phase": r.phase,
+            "last_error_code": r.last_error_code,
+            "valid": ok,
+            "issues": issues,
+        })
+    return {"ok": True, "items": items}
+
+
+@app.post("/api/resources/toggle")
+async def api_resources_toggle(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    rid = (payload.get("id") or "").strip()
+    action = (payload.get("action") or "").strip()  # 'activate' | 'pause'
+    if not rid or action not in {"activate", "pause"}:
+        return JSONResponse({"ok": False, "error": "VALIDATION"}, status_code=400)
+
+    # грузим ресурс
+    row = db.execute(select(Resource).where(Resource.id == rid)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    # доступ: владелец или админ
+    role_val = row_user_role = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val != "admin" and row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # если включаем — проверим meta_json по правилам провайдера
+    if action == "activate":
+        ok, issues = validate_provider_meta(row.provider, row.meta_json or {})
+        if not ok:
+            return JSONResponse(
+                {"ok": False, "error": "META_INVALID", "issues": issues},
+                status_code=400,
+            )
+        row.status = "active"
+        # менеджер переведёт фазу дальше; здесь держим ready
+        if row.phase in (None, "paused", "error"):
+            row.phase = "ready"
+    else:
+        row.status = "paused"
+        row.phase = "paused"
+
+    db.add(row)
+    db.commit()
+    return {"ok": True, "status": row.status, "phase": row.phase}
+
+
+@app.post("/api/resources/add")
+async def api_resources_add(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    provider = (payload.get("provider") or "").strip()
+    label = (payload.get("label") or "").strip() or provider
+    meta = payload.get("meta_json")
+
+    if provider not in PROVIDERS:
+        return JSONResponse({"ok": False, "error": "UNKNOWN_PROVIDER"}, status_code=400)
+
+    # если meta не передан → берем дефолт
+    if not isinstance(meta, dict):
+        meta = PROVIDERS[provider]["template"]
+
+    new_res = Resource(
+        user_id=user.id,
+        provider=provider,
+        label=label,
+        status="paused",
+        phase="draft",
+        meta_json=meta,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_res)
+    db.commit()
+    db.refresh(new_res)
+
+    return {
+        "ok": True,
+        "id": str(new_res.id),
+        "provider": new_res.provider,
+        "label": new_res.label,
+        "status": new_res.status,
+        "phase": new_res.phase,
+    }
+
+
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 def render_any_html(request: Request, full_path: str = ""):
     # URL → шаблон:
@@ -852,4 +711,3 @@ def render_any_html(request: Request, full_path: str = ""):
     page_key = path[:-5].replace("/", "_")  # для раздельного кэша
     translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
     return HTMLResponse(content=_inject_en_button(translated, lang))
-
