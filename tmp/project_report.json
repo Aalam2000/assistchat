@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-03T18:17:32",
+  "generated_at": "2025-09-08T10:58:54",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "master",
-    "last_commit": "abefbe657477e82449be4a82c0b84171d4e6ad74",
+    "last_commit": "c8e21ccc21f39374a10dcbf946c655ac18e00798",
     "dirty": true
   },
   "python": {
@@ -36,7 +36,8 @@
       "passlib==1.7.4",
       "itsdangerous>=2.2,<3",
       "python-multipart==0.0.19",
-      "authlib==1.3.1"
+      "authlib==1.3.1",
+      "auto-i18n-lib==0.1.0"
     ]
   },
   "env": {
@@ -191,12 +192,17 @@
     "script_location": "src/alembic",
     "alembic_ini_present": true,
     "versions_dir_exists": true,
-    "migrations_count": 5,
+    "migrations_count": 6,
     "migrations": [
       {
         "file": "165ab7be38b4_init_create_tg_accounts.py",
         "revision": "165ab7be38b4",
         "down_revision": null
+      },
+      {
+        "file": "20250908_avito_flru_and_user_openai_key.py",
+        "revision": "20250908_avito_flru",
+        "down_revision": "c4af6c51f292"
       },
       {
         "file": "38ab48e15002_add_messages_and_updates_seen.py",
@@ -220,7 +226,7 @@
       }
     ],
     "heads": [
-      "c4af6c51f292"
+      "20250908_avito_flru"
     ]
   },
   "fs": {
@@ -243,7 +249,7 @@
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 32760
+        "size": 36142
       },
       {
         "name": "models.py",
@@ -271,6 +277,11 @@
         "name": "165ab7be38b4_init_create_tg_accounts.py",
         "is_dir": false,
         "size": 2038
+      },
+      {
+        "name": "20250908_avito_flru_and_user_openai_key.py",
+        "is_dir": false,
+        "size": 7138
       },
       {
         "name": "38ab48e15002_add_messages_and_updates_seen.py",
