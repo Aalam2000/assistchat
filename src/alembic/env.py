@@ -1,3 +1,4 @@
+# src/alembic/env.py
 from __future__ import annotations
 import os
 from logging.config import fileConfig
@@ -12,9 +13,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Метаданные моделей
-from src.common.db import Base  # noqa
-from src.models import tg_account, user, message  # подключаем модели
-target_metadata = Base.metadata
+target_metadata = None
 
 # DATABASE_URL из ENV (docker-compose его передаёт)
 DATABASE_URL = os.getenv("DATABASE_URL")
