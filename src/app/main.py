@@ -1,6 +1,7 @@
-# src/app/main.py
+# src/app/main.py model:32
 from pathlib import Path
 import os, sys, asyncio, subprocess, signal
+from uuid import UUID
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
@@ -319,6 +320,20 @@ def api_providers(request: Request):
         })
     return {"ok": True, "providers": items}
 
+@app.get("/api/providers/{key}/schema")
+def api_provider_schema(key: str):
+    cfg = PROVIDERS.get(key)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="UNKNOWN_PROVIDER")
+    # для фронта удобно вернуть сразу и schema, и template, и help
+    return {
+        "ok": True,
+        "schema": cfg.get("schema", {}),
+        "template": cfg.get("template", {}),
+        "help": cfg.get("help", {}),
+    }
+
+
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -576,8 +591,60 @@ def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) 
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# RESOURCES (новая модель): список + включение/пауза с валидацией meta_json
+# RESOURCE (новая модель): список + включение/пауза с валидацией meta_json
 # ────────────────────────────────────────────────────────────────────────────────
+@app.put("/api/resource/{rid}")
+async def api_resources_update(
+    rid: str,
+    payload: dict,
+    request: Request,
+    db: SASession = Depends(get_db),
+):
+    # валидируем UUID, чтобы не ловить /api/resources/list как rid
+    try:
+        rid_uuid = UUID(rid)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.execute(select(Resource).where(Resource.id == rid_uuid)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val != "admin" and row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # что обновляем
+    new_label = (payload.get("label") or "").strip() if "label" in payload else row.label
+    if "meta_json" in payload:
+        new_meta = payload.get("meta_json")
+        if not isinstance(new_meta, dict):
+            return JSONResponse({"ok": False, "error": "META_FORMAT"}, status_code=400)
+        ok, issues = validate_provider_meta(row.provider, new_meta or {})
+        if not ok:
+            return JSONResponse({"ok": False, "error": "META_INVALID", "issues": issues}, status_code=400)
+        row.meta_json = new_meta
+
+    row.label = new_label or row.label
+
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "provider": row.provider,
+        "label": row.label,
+        "meta_json": row.meta_json or {},
+        "status": row.status,
+        "phase": row.phase,
+    }
+
 
 @app.get("/api/resources/list")
 async def api_resources_list(request: Request, db: SASession = Depends(get_db)):
@@ -585,9 +652,11 @@ async def api_resources_list(request: Request, db: SASession = Depends(get_db)):
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
 
-    rows = db.execute(
-        select(Resource).where(Resource.user_id == user.id).order_by(Resource.created_at.desc())
-    ).scalars().all()
+    q = select(Resource).where(Resource.user_id == user.id)
+    created_at_col = getattr(Resource, "created_at", None)
+    if created_at_col is not None:
+        q = q.order_by(created_at_col.desc())
+    rows = db.execute(q).scalars().all()
 
     items = []
     for r in rows:
@@ -599,7 +668,7 @@ async def api_resources_list(request: Request, db: SASession = Depends(get_db)):
             "label": r.label,
             "status": r.status,
             "phase": r.phase,
-            "last_error_code": r.last_error_code,
+            "last_error_code": getattr(r, "last_error_code", None),  # было: r.last_error_code
             "valid": ok,
             "issues": issues,
         })
