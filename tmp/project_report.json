@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-11T15:09:06",
+  "generated_at": "2025-09-15T19:55:05",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "development",
-    "last_commit": "5f2c6c90a9107dd7d9732dcea892500ccae3d927",
+    "last_commit": "7c4ebd9bb308bf8b707767ffeb94f2866aa56bfe",
     "dirty": true
   },
   "python": {
@@ -52,6 +52,8 @@
       "OPENAI_API_KEY",
       "TELEGRAM_BOT_TOKEN",
       "TELEGRAM_ADMIN_ID",
+      "AVITO_CLIENT_ID",
+      "AVITO_CLIENT_SECRET",
       "TELEGRAM_API_ID",
       "TELEGRAM_API_HASH",
       "TELEGRAM_PHONE_NUMBER",
@@ -180,7 +182,7 @@
     "script_location": "src/alembic",
     "alembic_ini_present": true,
     "versions_dir_exists": true,
-    "migrations_count": 7,
+    "migrations_count": 8,
     "migrations": [
       {
         "file": "165ab7be38b4_init_create_tg_accounts.py",
@@ -191,6 +193,11 @@
         "file": "20250908_avito_flru_and_user_openai_key.py",
         "revision": "20250908_avito_flru",
         "down_revision": "c4af6c51f292"
+      },
+      {
+        "file": "2a2a919a38d6_fix_resources_user_id_to_integer.py",
+        "revision": "2a2a919a38d6",
+        "down_revision": "7b3c9f3d28c3"
       },
       {
         "file": "38ab48e15002_add_messages_and_updates_seen.py",
@@ -219,7 +226,7 @@
       }
     ],
     "heads": [
-      "7b3c9f3d28c3"
+      "2a2a919a38d6"
     ]
   },
   "fs": {
@@ -237,7 +244,7 @@
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 32735
+        "size": 45117
       },
       {
         "name": "models.py",
@@ -247,7 +254,7 @@
       {
         "name": "providers.py",
         "is_dir": false,
-        "size": 5015
+        "size": 16052
       },
       {
         "name": "static",
@@ -275,6 +282,11 @@
         "name": "20250908_avito_flru_and_user_openai_key.py",
         "is_dir": false,
         "size": 7138
+      },
+      {
+        "name": "2a2a919a38d6_fix_resources_user_id_to_integer.py",
+        "is_dir": false,
+        "size": 1650
       },
       {
         "name": "38ab48e15002_add_messages_and_updates_seen.py",

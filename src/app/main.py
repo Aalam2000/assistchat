@@ -1,29 +1,58 @@
 # src/app/main.py model:32
-from pathlib import Path
-import os, sys, asyncio, subprocess, signal
-from uuid import UUID
+import io
+import os
+import tempfile
+import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
-import io, zipfile, tempfile
-from scripts.QR import generate_qr_with_logo
-from sqlalchemy import inspect, text, select
-from sqlalchemy.orm import sessionmaker, Session as SASession
-from passlib.context import CryptContext
-from src.common.db import engine, SessionLocal
-from src.models.user import User, RoleEnum
-from autoi18n import Translator
-from src.models import Resource
-from src.app.providers import PROVIDERS, validate_provider_meta
-from src.common.db import SessionLocal  # если уже есть — пропусти
-
+from uuid import UUID
 
 # --- GOOGLE OAUTH (минимум) ---
 from authlib.integrations.starlette_client import OAuth
+from autoi18n import Translator
+from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status, Body
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from passlib.context import CryptContext
+from sqlalchemy import inspect, text, select
+from sqlalchemy.orm import Session as SASession
+from starlette.middleware.sessions import SessionMiddleware
+
+from scripts.QR import generate_qr_with_logo
+from src.app.providers import PROVIDERS, validate_provider_meta
+from src.common.db import SessionLocal  # если уже есть — пропусти
+from src.common.db import engine
+from src.models import Resource
+from src.models.user import User, RoleEnum
+
+import traceback
+import time
+import traceback
+from telethon.errors import FloodWaitError, PhoneCodeInvalidError, PhoneNumberInvalidError
+
+# --- TELEGRAM ACTIVATE (in-memory pending) ---
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
+PENDING_TG: dict[str, dict] = {}  # rid -> {'client': TelegramClient, 'session': str, 'phone': str, 'app_id': int, 'app_hash': str, 'ts': float}
+PENDING_TG_TTL = int(os.getenv("TG_ACT_TTL", "300"))  # секунд держим живую сессию до ввода кода
+
+def _pending_drop(rid: str):
+    """Снять клиента из кэша и разорвать соединение (тихо)."""
+    entry = PENDING_TG.pop(rid, None)
+    if not entry:
+        return
+    try:
+        client = entry.get("client")
+        if client:
+            print(f"[TG_ACT][{rid}] pending_drop: disconnect")
+            # client.disconnect() — coroutine; вызываем из корутины там, где знаем, что у нас есть loop
+    except Exception as e:
+        print(f"[TG_ACT][{rid}] pending_drop error:", repr(e))
+
+
 
 tr = Translator(cache_dir="./translations")
 BASE_DIR = Path(__file__).resolve().parent
@@ -70,12 +99,11 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
     session_cookie="assistchat_session",
-    https_only=False,      # для localhost без HTTPS
-    same_site="lax",       # для обычной навигации
+    https_only=False,  # для localhost без HTTPS
+    same_site="lax",  # для обычной навигации
     max_age=60 * 60 * 24 * 7,
-    domain=None,           # без домена на localhost
+    domain=None,  # без домена на localhost
 )
-
 
 app.mount(
     "/static",
@@ -85,6 +113,7 @@ app.mount(
 
 # Пароли
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Утилиты
@@ -97,6 +126,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # Доступ к /tables только для ADMIN
 def require_admin(request: Request, db: SASession = Depends(get_db)) -> User:
@@ -126,6 +156,7 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
+
 def _redirect_uri(path: str = "/auth/google/callback") -> str:
     base = os.getenv("DOMAIN_NAME")
     if not base:
@@ -140,6 +171,7 @@ async def auth_google(request: Request):
     return await oauth.google.authorize_redirect(
         request, redirect_uri=_redirect_uri("/auth/google/callback")
     )
+
 
 @app.get("/auth/google/callback", include_in_schema=False)
 async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
@@ -181,14 +213,17 @@ def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool
         # если формат не совпал — считаем невалидным
         return False
 
+
 def hash_password(plain_password: str) -> str:
     return pwd_context.hash(plain_password)
+
 
 def get_current_user(request: Request, db: SASession) -> Optional[User]:
     user_id = request.session.get("user_id")
     if not user_id:
         return None
     return db.get(User, user_id)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Публичные страницы
@@ -207,6 +242,7 @@ async def tables(request: Request, _: User = Depends(require_admin)):
 
     return render_i18n("index.html", request, "tables_index", {"data": data})
 
+
 @app.get("/health")
 async def health():
     return "ok"
@@ -220,11 +256,13 @@ async def health():
 def root_redirect():
     return RedirectResponse(url="/auth/login", status_code=302)
 
+
 @app.get("/auth/login", response_class=HTMLResponse)
 async def auth_login_page(request: Request):
     if request.session.get("user_id"):
         return RedirectResponse(url="/profile", status_code=302)
     return render_i18n("auth/login.html", request, "auth_login", {})
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: API (login/register/logout/me)
@@ -252,6 +290,7 @@ async def api_auth_login(payload: dict, request: Request, db: SASession = Depend
     })
     return {"ok": True, "redirect": "/profile"}
 
+
 @app.post("/api/auth/register")
 async def api_auth_register(payload: dict, request: Request, db: SASession = Depends(get_db)):
     # Регистрация открыта. Требует: username, password, email (необяз.)
@@ -263,7 +302,7 @@ async def api_auth_register(payload: dict, request: Request, db: SASession = Dep
         return JSONResponse({"ok": False, "error": "EMPTY_FIELDS"}, status_code=400)
 
     exists = db.execute(select(User).where((User.username == username) | (User.email == email))).first() if email else \
-             db.execute(select(User).where(User.username == username)).first()
+        db.execute(select(User).where(User.username == username)).first()
     if exists:
         return JSONResponse({"ok": False, "error": "USER_EXISTS"}, status_code=409)
 
@@ -286,10 +325,12 @@ async def api_auth_register(payload: dict, request: Request, db: SASession = Dep
     })
     return {"ok": True, "redirect": "/profile"}
 
+
 @app.post("/api/auth/logout")
 async def api_auth_logout(request: Request):
     request.session.clear()
     return {"ok": True, "redirect": "/auth/login"}
+
 
 @app.get("/api/auth/me")
 async def api_auth_me(request: Request, db: SASession = Depends(get_db)):
@@ -307,6 +348,7 @@ async def api_auth_me(request: Request, db: SASession = Depends(get_db)):
         }
     }
 
+
 @app.get("/api/providers")
 def api_providers(request: Request):
     # Отдаём только то, что нужно UI: ключ, видимое имя, шаблон meta_json и (опц.) описание
@@ -320,6 +362,7 @@ def api_providers(request: Request):
         })
     return {"ok": True, "providers": items}
 
+
 @app.get("/api/providers/{key}/schema")
 def api_provider_schema(key: str):
     cfg = PROVIDERS.get(key)
@@ -332,8 +375,6 @@ def api_provider_schema(key: str):
         "template": cfg.get("template", {}),
         "help": cfg.get("help", {}),
     }
-
-
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -354,6 +395,7 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
     )
+
 
 @app.get("/resources", response_class=HTMLResponse)
 async def resources_page(request: Request, db: SASession = Depends(get_db)):
@@ -399,8 +441,6 @@ async def api_status(request: Request, db: SASession = Depends(get_db)):
         "tg_active": tg_active,
         "tg_total": tg_total,
     }
-
-
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -501,7 +541,7 @@ def callcenter_page(request: Request):
 # ────────────────────────────────────────────────────────────────────────────────
 @app.post("/api/qr/build")
 async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
-    if logo.content_type not in {"image/png","image/tiff","image/x-tiff"}:
+    if logo.content_type not in {"image/png", "image/tiff", "image/x-tiff"}:
         return JSONResponse({"ok": False, "error": "LOGO_TYPE"}, status_code=400)
     with tempfile.TemporaryDirectory() as tmp:
         logo_path = f"{tmp}/{logo.filename}"
@@ -527,7 +567,7 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
             z.write(pdf_path, arcname=os.path.basename(pdf_path))
         mem.seek(0)
         return StreamingResponse(mem, media_type="application/zip",
-                                 headers={"X-File-Name":"qr_with_logo"})
+                                 headers={"X-File-Name": "qr_with_logo"})
 
 
 # ── i18n: helpers ─────────────────────────────────────────────────────────────
@@ -558,8 +598,6 @@ def _inject_en_button(html: str, lang: str) -> str:
     return html[:i] + btn + html[i:] if i != -1 else html + btn
 
 
-
-
 # фиксируем выбор EN и возвращаемся на ту же страницу
 @app.get("/set-lang/en")
 def set_lang_en(request: Request):
@@ -568,13 +606,13 @@ def set_lang_en(request: Request):
     resp.set_cookie("lang", "en", httponly=True, samesite="lax")
     return resp
 
+
 @app.get("/set-lang/ru")
 def set_lang_ru(request: Request):
     ref = request.headers.get("referer") or "/"
     resp = RedirectResponse(url=ref, status_code=303)
     resp.set_cookie("lang", "ru", httponly=True, samesite="lax")
     return resp
-
 
 
 def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) -> HTMLResponse:
@@ -586,8 +624,43 @@ def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) 
     return HTMLResponse(content=_inject_en_button(translated, lang))
 
 
-
 # универсальный роут для всех HTML-страниц
+
+@app.get("/api/resource/{rid}")
+async def api_resource_get(
+        rid: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    # проверка UUID
+    try:
+        rid_uuid = UUID(rid)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.execute(select(Resource).where(Resource.id == rid_uuid)).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    # доступ: владелец или админ
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val != "admin" and row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    return {
+        "ok": True,
+        "id": str(row.id),
+        "provider": row.provider,
+        "label": row.label,
+        "meta_json": row.meta_json or {},
+        "status": row.status,
+        "phase": row.phase,
+        "last_error_code": row.last_error_code,
+    }
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -595,10 +668,10 @@ def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) 
 # ────────────────────────────────────────────────────────────────────────────────
 @app.put("/api/resource/{rid}")
 async def api_resources_update(
-    rid: str,
-    payload: dict,
-    request: Request,
-    db: SASession = Depends(get_db),
+        rid: str,
+        payload: dict,
+        request: Request,
+        db: SASession = Depends(get_db),
 ):
     # валидируем UUID, чтобы не ловить /api/resources/list как rid
     try:
@@ -755,6 +828,233 @@ async def api_resources_add(payload: dict, request: Request, db: SASession = Dep
         "status": new_res.status,
         "phase": new_res.phase,
     }
+
+
+
+@app.post("/api/resource/{rid}/activate")
+async def api_resource_activate(
+    rid: str,
+    request: Request,
+    payload: dict = Body(...),
+    db: SASession = Depends(get_db),
+):
+    """
+    Шаг 1 (без code): send_code_request — держим живой client в памяти, сохраняем pending_session в БД.
+    Шаг 2 (с code): если клиент ещё жив — sign_in только с code (использует sent_code из памяти).
+                    если клиент потерян — fallback: sign_in(phone, code, phone_code_hash).
+    """
+    from uuid import UUID
+    from telethon.errors import FloodWaitError, PhoneCodeInvalidError, PhoneNumberInvalidError
+
+    print(f"\n[TG_ACT][{rid}] activate called. Payload keys={list(payload.keys())}")
+
+    # --- доступ/ресурс ---
+    try:
+        rid_uuid = UUID(rid)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    user = get_current_user(request, db)
+    if not user:
+        print(f"[TG_ACT][{rid}] UNAUTHORIZED")
+        return JSONResponse({"ok": False, "error": "UNAUTHORIZED"}, status_code=401)
+
+    row: Resource | None = db.execute(
+        select(Resource).where(Resource.id == rid_uuid)
+    ).scalar_one_or_none()
+    if not row:
+        print(f"[TG_ACT][{rid}] NOT_FOUND")
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    if row.provider != "telegram":
+        print(f"[TG_ACT][{rid}] NOT_TELEGRAM")
+        return {"ok": False, "error": "NOT_TELEGRAM"}
+
+    # --- данные ---
+    meta = row.meta_json or {}
+    creds = dict(meta.get("creds") or {})
+
+    phone = (
+        payload.get("phone")
+        or payload.get("phone_e164")
+        or creds.get("phone_e164")
+        or creds.get("phone")
+    )
+    app_id = (
+        payload.get("app_id")
+        or payload.get("api_id")
+        or creds.get("app_id")
+        or creds.get("api_id")
+    )
+    app_hash = (
+        payload.get("app_hash")
+        or payload.get("api_hash")
+        or creds.get("app_hash")
+        or creds.get("api_hash")
+    )
+    code = (payload.get("code") or "").strip() or None
+
+    try:
+        app_id = int(app_id) if app_id is not None else None
+    except Exception:
+        app_id = None
+
+    print(f"[TG_ACT][{rid}] extracted phone={phone} app_id={app_id} app_hash={'SET' if app_hash else 'NONE'} code={'SET' if code else 'NONE'}")
+
+    if not phone or not app_id or not app_hash:
+        print(f"[TG_ACT][{rid}] MISSING_FIELDS")
+        return {"ok": False, "error": "MISSING_FIELDS"}
+
+    # уже активен?
+    if (creds.get("string_session") or "").strip():
+        print(f"[TG_ACT][{rid}] already active → status=active/ready")
+        row.status = "active"
+        row.phase = "ready"
+        row.last_error_code = None
+        db.commit()
+        return {"ok": True, "activated": True}
+
+    # ─────────── ШАГ 1: отправить код (без code) ───────────
+    if not code:
+        # flood guard
+        now = int(time.time())
+        flood_until = int(creds.get("flood_until_ts") or 0)
+        if flood_until and flood_until > now:
+            wait_left = flood_until - now
+            print(f"[TG_ACT][{rid}] FLOOD_WAIT active: {wait_left}s left")
+            return {"ok": False, "error": "FLOOD_WAIT", "wait_seconds": wait_left}
+
+        # зачистим прошлые подвисшие клиенты
+        old = PENDING_TG.get(rid)
+        if old:
+            try:
+                print(f"[TG_ACT][{rid}] found old pending → disconnect+drop")
+                await old["client"].disconnect()
+            except Exception as e:
+                print(f"[TG_ACT][{rid}] old pending disconnect error:", repr(e))
+            finally:
+                PENDING_TG.pop(rid, None)
+
+        client = TelegramClient(StringSession(), app_id, app_hash)
+        await client.connect()
+        print(f"[TG_ACT][{rid}] client CONNECTED (step1). session_len={len(client.session.save())}")
+
+        try:
+            result = await client.send_code_request(phone)
+            print(f"[TG_ACT][{rid}] send_code_request OK. phone_code_hash={getattr(result, 'phone_code_hash', None)}")
+        except FloodWaitError as e:
+            wait_sec = getattr(e, "seconds", None) or int(str(e).split()[3])
+            creds["flood_until_ts"] = int(time.time()) + int(wait_sec)
+            meta["creds"] = creds
+            row.meta_json = meta
+            row.phase = "error"
+            row.last_error_code = "FLOOD_WAIT"
+            db.commit()
+            print(f"[TG_ACT][{rid}] FLOOD_WAIT: {wait_sec}s; saved flood_until_ts")
+            await client.disconnect()
+            return {"ok": False, "error": "FLOOD_WAIT", "wait_seconds": int(wait_sec)}
+        except PhoneNumberInvalidError:
+            print(f"[TG_ACT][{rid}] PHONE_INVALID")
+            await client.disconnect()
+            return {"ok": False, "error": "PHONE_INVALID"}
+        except Exception as e:
+            print(f"[TG_ACT][{rid}] send_code_request ERROR: {type(e).__name__} {repr(e)}")
+            traceback.print_exc()
+            await client.disconnect()
+            return {"ok": False, "error": str(e)}
+
+        # сохраняем хэши и pending_session
+        creds["phone_e164"] = phone
+        creds["phone_code_hash"] = result.phone_code_hash
+        pending_session = client.session.save()
+        creds["pending_session"] = pending_session
+        creds.pop("flood_until_ts", None)
+
+        meta["creds"] = creds
+        row.meta_json = meta
+        row.phase = "waiting_code"
+        row.last_error_code = None
+        db.commit()
+
+        # держим клиент живым в памяти
+        PENDING_TG[rid] = {
+            "client": client,
+            "session": pending_session,
+            "phone": phone,
+            "app_id": app_id,
+            "app_hash": app_hash,
+            "sent_code": result,   # 🔵 сохраняем сам объект sent_code
+            "ts": time.time(),
+        }
+        print(f"[TG_ACT][{rid}] step1 OK → waiting code. pending_session_len={len(pending_session)}; PENDING_TG set")
+
+        return {"ok": True, "need_code": True}
+
+    # ─────────── ШАГ 2: подтверждение кода ───────────
+    db.refresh(row)
+    creds = dict((row.meta_json or {}).get("creds") or {})
+    phone_code_hash = creds.get("phone_code_hash")
+    pending_session = creds.get("pending_session")
+    if not phone_code_hash:
+        print(f"[TG_ACT][{rid}] MISSING_PHONE_CODE_HASH")
+        return {"ok": False, "error": "MISSING_PHONE_CODE_HASH"}
+
+    entry = PENDING_TG.get(rid)
+    use_fallback = False
+    if entry and (time.time() - entry.get("ts", 0) <= PENDING_TG_TTL):
+        client = entry["client"]
+        print(f"[TG_ACT][{rid}] step2: reuse alive client from memory")
+        try:
+            await client.sign_in(code=code)   # 🔵 используем короткий вариант
+            print(f"[TG_ACT][{rid}] sign_in SUCCESS (with sent_code)")
+            final_session = client.session.save()
+        except PhoneCodeInvalidError:
+            print(f"[TG_ACT][{rid}] CODE_INVALID (with sent_code)")
+            return {"ok": False, "error": "CODE_INVALID"}
+        except Exception as e:
+            print(f"[TG_ACT][{rid}] sign_in ERROR (with sent_code): {repr(e)}")
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+    else:
+        # fallback (сервер перезапускался, sent_code потерян)
+        if not pending_session:
+            print(f"[TG_ACT][{rid}] MISSING_PENDING_SESSION")
+            return {"ok": False, "error": "MISSING_PENDING_SESSION"}
+        client = TelegramClient(StringSession(pending_session), app_id, app_hash)
+        await client.connect()
+        use_fallback = True
+        print(f"[TG_ACT][{rid}] step2: fallback client CONNECTED from pending_session")
+        try:
+            await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
+            print(f"[TG_ACT][{rid}] sign_in SUCCESS (fallback)")
+            final_session = client.session.save()
+        except PhoneCodeInvalidError:
+            print(f"[TG_ACT][{rid}] CODE_INVALID (fallback)")
+            return {"ok": False, "error": "CODE_INVALID"}
+        except Exception as e:
+            print(f"[TG_ACT][{rid}] sign_in ERROR (fallback): {repr(e)}")
+            traceback.print_exc()
+            return {"ok": False, "error": str(e)}
+
+    # финал
+    creds["string_session"] = final_session
+    creds.pop("phone_code_hash", None)
+    creds.pop("pending_session", None)
+    meta["creds"] = creds
+    row.meta_json = meta
+    row.status = "active"
+    row.phase = "ready"
+    row.last_error_code = None
+    db.commit()
+    print(f"[TG_ACT][{rid}] FINAL: activated. string_session_len={len(final_session)} fallback={use_fallback}")
+
+    try:
+        await client.disconnect()
+        print(f"[TG_ACT][{rid}] client DISCONNECTED after activation")
+    finally:
+        PENDING_TG.pop(rid, None)
+
+    return {"ok": True, "activated": True}
 
 
 @app.get("/{full_path:path}", response_class=HTMLResponse)
