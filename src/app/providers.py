@@ -1,6 +1,7 @@
 # src/app/providers.py
 from typing import Any, Dict, List, Tuple, Optional
 
+
 # ── хелперы ───────────────────────────────────────────────────────────────────────
 def _get(meta: Dict[str, Any] | None, path: str) -> Any:
     cur: Any = meta or {}
@@ -172,10 +173,15 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
                 {
                     "title": "Учетные данные (my.telegram.org)",
                     "fields": [
-                        {"key": "creds.app_id", "label": "App ID", "type": "number", "required": True, "placeholder": "123456"},
-                        {"key": "creds.app_hash", "label": "App Hash", "type": "password", "required": True, "placeholder": "xxxxxxxxxxxxxxxx"},
-                        {"key": "creds.string_session", "label": "String Session", "type": "textarea", "required": False, "help": "Можно оставить пустым и получить в префлайте"},
-                        {"key": "extra.phone_e164", "label": "Номер телефона (E.164)", "type": "string", "required": False, "placeholder": "+9945XXXXXXX"},
+                        {"key": "creds.app_id", "label": "App ID", "type": "number", "required": True,
+                         "placeholder": "123456"},
+                        {"key": "creds.app_hash", "label": "App Hash", "type": "password", "required": True,
+                         "placeholder": "xxxxxxxxxxxxxxxx"},
+                        {"key": "creds.string_session", "label": "String Session", "type": "textarea",
+                         "required": False, "help": "Можно оставить пустым и получить в префлайте"},
+                        {"key": "extra.phone_e164", "label": "Номер телефона (E.164)", "type": "string",
+                         "required": False, "placeholder": "+9945XXXXXXX"},
+                        {"key": "creds.code", "label": "Код подтверждения", "type": "string", "required": False},
                     ],
                 },
                 {
@@ -183,15 +189,18 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
                     "fields": [
                         {"key": "lists.whitelist", "label": "Whitelist (логины/ID)", "type": "list", "required": False},
                         {"key": "lists.blacklist", "label": "Blacklist (логины/ID)", "type": "list", "required": False},
-                        {"key": "extra.allow_groups", "label": "Разрешить группы", "type": "boolean", "required": False},
+                        {"key": "extra.allow_groups", "label": "Разрешить группы", "type": "boolean",
+                         "required": False},
                     ],
                 },
                 {
                     "title": "Промпты и правила (заполняются позже во второй модалке)",
                     "fields": [
                         {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
+                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea",
+                         "required": False},
+                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea",
+                         "required": False},
                     ],
                 },
             ],
@@ -204,85 +213,85 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         },
     },
 
-    "avito": {
-        "title": "Avito",
-        "help": {
-            "about": "Подключение аккаунта Avito по cookie и user-agent.",
-            "cookie": "Укажите валидный cookie (обычно из браузера), следите за сроком жизни.",
-        },
-        "schema": {
-            "version": 1,
-            "groups": [
-                {
-                    "title": "Авторизация",
-                    "fields": [
-                        {"key": "creds.cookie", "label": "Cookie", "type": "textarea", "required": True},
-                        {"key": "creds.user_agent", "label": "User-Agent", "type": "string", "required": True},
-                    ],
-                },
-                {
-                    "title": "Фильтры доступа",
-                    "fields": [
-                        {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
-                        {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
-                    ],
-                },
-                {
-                    "title": "Промпты и правила (позже)",
-                    "fields": [
-                        {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
-                    ],
-                },
-            ],
-        },
-        "template": {
-            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-            "lists": {"whitelist": [], "blacklist": []},
-            "creds": {"cookie": "", "user_agent": ""},
-            "extra": {},
-        },
-    },
-
-    "flru": {
-        "title": "FL.ru",
-        "help": {
-            "about": "Интеграция по API-токену FL.ru.",
-        },
-        "schema": {
-            "version": 1,
-            "groups": [
-                {
-                    "title": "Авторизация",
-                    "fields": [
-                        {"key": "creds.api_token", "label": "API Token", "type": "password", "required": True},
-                    ],
-                },
-                {
-                    "title": "Фильтры доступа",
-                    "fields": [
-                        {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
-                        {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
-                    ],
-                },
-                {
-                    "title": "Промпты и правила (позже)",
-                    "fields": [
-                        {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
-                    ],
-                },
-            ],
-        },
-        "template": {
-            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-            "lists": {"whitelist": [], "blacklist": []},
-            "creds": {"api_token": ""},
-            "extra": {},
-        },
-    },
+    # "avito": {
+    #     "title": "Avito",
+    #     "help": {
+    #         "about": "Подключение аккаунта Avito по cookie и user-agent.",
+    #         "cookie": "Укажите валидный cookie (обычно из браузера), следите за сроком жизни.",
+    #     },
+    #     "schema": {
+    #         "version": 1,
+    #         "groups": [
+    #             {
+    #                 "title": "Авторизация",
+    #                 "fields": [
+    #                     {"key": "creds.cookie", "label": "Cookie", "type": "textarea", "required": True},
+    #                     {"key": "creds.user_agent", "label": "User-Agent", "type": "string", "required": True},
+    #                 ],
+    #             },
+    #             {
+    #                 "title": "Фильтры доступа",
+    #                 "fields": [
+    #                     {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
+    #                     {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
+    #                 ],
+    #             },
+    #             {
+    #                 "title": "Промпты и правила (позже)",
+    #                 "fields": [
+    #                     {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
+    #                     {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
+    #                     {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
+    #                 ],
+    #             },
+    #         ],
+    #     },
+    #     "template": {
+    #         "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
+    #         "lists": {"whitelist": [], "blacklist": []},
+    #         "creds": {"cookie": "", "user_agent": ""},
+    #         "extra": {},
+    #     },
+    # },
+    #
+    # "flru": {
+    #     "title": "FL.ru",
+    #     "help": {
+    #         "about": "Интеграция по API-токену FL.ru.",
+    #     },
+    #     "schema": {
+    #         "version": 1,
+    #         "groups": [
+    #             {
+    #                 "title": "Авторизация",
+    #                 "fields": [
+    #                     {"key": "creds.api_token", "label": "API Token", "type": "password", "required": True},
+    #                 ],
+    #             },
+    #             {
+    #                 "title": "Фильтры доступа",
+    #                 "fields": [
+    #                     {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
+    #                     {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
+    #                 ],
+    #             },
+    #             {
+    #                 "title": "Промпты и правила (позже)",
+    #                 "fields": [
+    #                     {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
+    #                     {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
+    #                     {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
+    #                 ],
+    #             },
+    #         ],
+    #     },
+    #     "template": {
+    #         "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
+    #         "lists": {"whitelist": [], "blacklist": []},
+    #         "creds": {"api_token": ""},
+    #         "extra": {},
+    #     },
+    # },
 
     "voice": {
         "title": "Voice",
@@ -295,16 +304,20 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
                 {
                     "title": "Опции",
                     "fields": [
-                        {"key": "extra.provider", "label": "Провайдер голоса", "type": "string", "required": False, "placeholder": "whisper/…"},
-                        {"key": "extra.lang", "label": "Язык по умолчанию", "type": "string", "required": False, "placeholder": "ru|en|az"},
+                        {"key": "extra.provider", "label": "Провайдер голоса", "type": "string", "required": False,
+                         "placeholder": "whisper/…"},
+                        {"key": "extra.lang", "label": "Язык по умолчанию", "type": "string", "required": False,
+                         "placeholder": "ru|en|az"},
                     ],
                 },
                 {
                     "title": "Промпты и правила (позже)",
                     "fields": [
                         {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
+                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea",
+                         "required": False},
+                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea",
+                         "required": False},
                     ],
                 },
                 {

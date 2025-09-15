@@ -1,3 +1,4 @@
+<!-- src/app/templates/resources.html -->
 <!doctype html>
 <html lang="ru">
 <head>
@@ -5,6 +6,7 @@
     <title>Ресурсы | assistchat</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link href="/static/css/base.css" rel="stylesheet"/>
+    <link href="/static/css/modals.css" rel="stylesheet"/>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
@@ -48,23 +50,25 @@
 <script src="/static/js/api.js"></script>
 <script src="/static/js/resources.js"></script>
 
-<div id="addResourceModal" class="modal hidden">
+<div id="addResourceModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addResourceTitle">
     <div class="modal__content">
-        <h3>Добавить ресурс</h3>
+        <div class="modal__header">
+          <div class="modal__bar"></div>
+          <button type="button" class="modal__close" id="addResClose" aria-label="Закрыть">✕</button>
+        </div>
 
-        <label>Провайдер</label>
-        <select id="provSelect"></select>
+        <h3 id="addResourceTitle">Добавить ресурс</h3>
 
-        <label>Название (label)</label>
-        <input id="resLabel" type="text" placeholder="Мой ресурс">
+        <div class="modal__controls">
+          <label for="provSelect">Провайдер</label>
+          <select id="provSelect"></select>
 
-        <details style="margin:8px 0">
-            <summary>Подсказки провайдера</summary>
-            <pre id="provHelp" class="note" style="white-space:pre-wrap"></pre>
-        </details>
+          <label for="resLabel">Название (Label)</label>
+          <input id="resLabel" type="text" placeholder="Мой ресурс">
+        </div>
 
-        <label>meta_json (редактируемый шаблон)</label>
-        <textarea id="metaEditor" rows="12" style="width:100%;font-family:monospace"></textarea>
+        <div id="dynForm"></div>
+        <div id="formErrors" class="error"></div>
 
         <div class="modal__actions">
             <button id="addResCancel" class="btn">Отмена</button>
@@ -72,62 +76,17 @@
         </div>
     </div>
 </div>
-
-<style>
-    .hidden {
-        display: none;
-    }
-
-    .modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, .4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal__content {
-        background: #fff;
-        padding: 16px;
-        border-radius: 12px;
-        width: min(900px, 92vw);
-        max-height: 90vh;
-        overflow: auto;
-    }
-
-    .modal__actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 10px
-    }
-
-    .btn {
-        padding: 8px 12px;
-        border-radius: 10px;
-        border: 1px solid #ddd;
-        cursor: pointer
-    }
-
-    .btn.primary {
-        background: #2b7cff;
-        color: #fff;
-        border-color: #2b7cff
-    }
-
-    label {
-        font-weight: 600;
-        display: block;
-        margin-top: 10px;
-        margin-bottom: 4px
-    }
-
-    .note {
-        font-size: 13px;
-        opacity: .9
-    }
-</style>
+<!-- Микромодалка для кода активации Telegram -->
+<div id="codeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
+  <div class="modal__content" style="max-width:360px">
+    <h3 id="codeModalTitle">Введите код из Telegram</h3>
+    <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
+    <div class="modal__actions">
+      <button id="codeOkBtn" class="btn primary">Ок</button>
+      <button id="codeCancelBtn" class="btn">Отмена</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
