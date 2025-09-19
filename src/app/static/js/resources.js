@@ -83,7 +83,14 @@ function bindResourceActions() {
         const btnEdit = e.target.closest(".res-edit");
         if (btnEdit) {
             const id = btnEdit.dataset.id;
-            openEditModal(id);
+            const row = btnEdit.closest("tr");
+            const provider = row.querySelector("td")?.textContent?.trim();
+
+            if (provider === "zoom_meeting") {
+                window.location.href = `/resources/zoom/${id}`;
+            } else {
+                openEditModal(id);
+            }
         }
     });
 }
@@ -444,17 +451,18 @@ document.addEventListener("DOMContentLoaded", () => {
             meta_json: meta,
         };
 
-        try {
-            let url, method;
-            if (!state.editingId) {
-                state.editingId = data.id;   // теперь кнопка Активировать знает, какой id
-                btnSubmit.textContent = "Сохранить";
-                alert("Ресурс сохранён. Теперь можно нажать 'Активировать'.");
-            } else {
-                close();
-                if (typeof window.reloadResources === "function") window.reloadResources();
-            }
+        let url, method, isNew;
+        if (!state.editingId) {
+            url = "/api/resources/add";
+            method = "POST";
+            isNew = true;
+        } else {
+            url = `/api/resource/${state.editingId}`;
+            method = "PUT";
+            isNew = false;
+        }
 
+        try {
             const r = await fetch(url, {
                 method,
                 headers: {"Content-Type": "application/json"},
@@ -462,18 +470,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 body: JSON.stringify(payload),
             });
             const data = await r.json().catch(() => ({}));
+
             if (!r.ok || !data.ok) {
                 if (formErrors) formErrors.textContent = "Ошибка: " + (data.error || "unknown");
                 return;
             }
+
+            // сохранили или обновили ресурс
+            state.editingId = data.id;
+            btnSubmit.textContent = "Сохранить";
+
+            if (isNew) {
+                alert("Ресурс создан. При необходимости его можно активировать позже.");
+            } else {
+                alert("Ресурс обновлён.");
+            }
+
             close();
             if (typeof window.reloadResources === "function") window.reloadResources();
-            else location.reload();
         } catch (err) {
             if (formErrors) formErrors.textContent = "Ошибка сохранения";
             console.error(err);
         }
     }
+
 
     async function openEditModal(id) {
         try {

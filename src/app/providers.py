@@ -213,6 +213,31 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         },
     },
 
+        "zoom_meeting": {
+        "title": "Zoom",
+        "help": {
+            "about": "Загрузка записей Zoom для автоматической транскрибации и анализа.",
+        },
+        "schema": {
+            "version": 1,
+            "groups": [
+                {
+                    "title": "Основные",
+                    "fields": [
+                        {"key": "extra.note", "label": "Заметка", "type": "string", "required": False},
+                    ],
+                }
+            ],
+        },
+        "template": {
+            "extra": {"note": ""},
+            "creds": {},
+            "lists": {"whitelist": [], "blacklist": []},
+            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
+        },
+    },
+
+
     # "avito": {
     #     "title": "Avito",
     #     "help": {

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-15T19:55:05",
+  "generated_at": "2025-09-16T17:26:03",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -10,7 +10,7 @@
   },
   "git": {
     "branch": "development",
-    "last_commit": "7c4ebd9bb308bf8b707767ffeb94f2866aa56bfe",
+    "last_commit": "2a68ebbb1f3bbdf245a145d624ddb4733b535e80",
     "dirty": true
   },
   "python": {
@@ -182,8 +182,13 @@
     "script_location": "src/alembic",
     "alembic_ini_present": true,
     "versions_dir_exists": true,
-    "migrations_count": 8,
+    "migrations_count": 9,
     "migrations": [
+      {
+        "file": "0c7d905c79ff_replace_account_id_with_resource_id_in_.py",
+        "revision": "0c7d905c79ff",
+        "down_revision": "2a2a919a38d6"
+      },
       {
         "file": "165ab7be38b4_init_create_tg_accounts.py",
         "revision": "165ab7be38b4",
@@ -226,7 +231,7 @@
       }
     ],
     "heads": [
-      "2a2a919a38d6"
+      "0c7d905c79ff"
     ]
   },
   "fs": {
@@ -242,9 +247,19 @@
         "size": null
       },
       {
+        "name": "dialogs",
+        "is_dir": true,
+        "size": null
+      },
+      {
         "name": "main.py",
         "is_dir": false,
-        "size": 45117
+        "size": 46763
+      },
+      {
+        "name": "manager",
+        "is_dir": true,
+        "size": null
       },
       {
         "name": "models.py",
@@ -265,6 +280,11 @@
         "name": "templates",
         "is_dir": true,
         "size": null
+      },
+      {
+        "name": "workers",
+        "is_dir": true,
+        "size": null
       }
     ],
     "src_alembic_versions": [
@@ -272,6 +292,11 @@
         "name": ".gitkeep",
         "is_dir": false,
         "size": 2
+      },
+      {
+        "name": "0c7d905c79ff_replace_account_id_with_resource_id_in_.py",
+        "is_dir": false,
+        "size": 1405
       },
       {
         "name": "165ab7be38b4_init_create_tg_accounts.py",
@@ -326,11 +351,6 @@
         "size": null
       },
       {
-        "name": "check_models.py",
-        "is_dir": false,
-        "size": 3965
-      },
-      {
         "name": "create_user.py",
         "is_dir": false,
         "size": 1386
@@ -341,9 +361,14 @@
         "size": 8786
       },
       {
-        "name": "smoke_check.py",
+        "name": "setup_bot_structure.py",
         "is_dir": false,
-        "size": 2441
+        "size": 2683
+      },
+      {
+        "name": "system_check.py",
+        "is_dir": false,
+        "size": 11086
       },
       {
         "name": "tmp",

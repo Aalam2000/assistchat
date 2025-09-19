@@ -175,70 +175,52 @@ async function toggleBot() {
     out.textContent = "Проверяем ресурсы...";
 
     try {
-        // шаг 1: прогоняем preflight
+        // 1) префлайт: показываем статусы, но не блокируем запуск, если есть готовые
         const pre = await fetch("/api/preflight", {credentials: "same-origin"});
-        const preData = await pre.json().catch(() => ({}));
+        const preData = await pre.json();
+        if (!pre.ok || !preData.ok) throw new Error("PREFLIGHT");
 
-        if (!pre.ok || !preData.ok) {
-            out.textContent = "Ошибка preflight";
-            console.error("[profile] preflight failed:", preData);
-            return;
-        }
+        const results = preData.results || {};
+        const entries = Object.entries(results);
+        const ready = entries.filter(([, r]) => r && r.ok);
+        const notReady = entries.filter(([, r]) => !r || !r.ok);
 
-        // рисуем подробный отчёт
-        const lines = [];
-        for (const [key, info] of Object.entries(preData.results || {})) {
-            if (info.ok) {
-                lines.push(`${key}: ✅ OK`);
-            } else {
-                lines.push(`${key}: ❌ ${info.reason || "ERROR"}`);
+        out.innerHTML = entries.map(([rid, r]) =>
+            `${rid}: ${r && r.ok ? "✅ OK" : `❌ ${r && r.reason || "ERR"}`}`
+        ).join("<br>");
+
+        if (want === "activate") {
+            if (ready.length === 0) {
+                out.innerHTML += "<br>Нет готовых ресурсов для запуска.";
+                return;
             }
+            // 2) запускаем только готовые (бекенд сам подхватит active/ready)
+            const resp = await fetch("/api/bot/start", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error("START");
+            out.innerHTML += `<br>Запущено: ${Array.isArray(data.started) ? data.started.length : 0}`;
+            btn.dataset.state = "on";
+            btn.textContent = "Пауза";
+        } else {
+            const resp = await fetch("/api/bot/stop", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) throw new Error("STOP");
+            out.innerHTML += `<br>Остановлено: ${Array.isArray(data.stopped) ? data.stopped.length : 0}`;
+            btn.dataset.state = "off";
+            btn.textContent = "Включить";
         }
-        out.innerHTML = lines.join("<br>");
-
-        // если есть ошибки → прерываем включение
-        const hasError = Object.values(preData.results || {}).some(r => !r.ok);
-        if (hasError && want === "activate") {
-            out.innerHTML += "<br><b>Не все ресурсы готовы. Исправьте ошибки.</b>";
-            return;
-        }
-
-        // шаг 2: переключаем бота
-        out.innerHTML += "<br>Применяем...";
-        const r = await fetch("/api/toggle", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            credentials: "same-origin",
-            body: JSON.stringify({action: want})
-        });
-
-
-        const d = await r.json().catch(() => ({}));
-
-        if (!r.ok) {
-            // ОЖИДАЕМЫЙ СЛУЧАЙ: нет персонального ключа
-            const code = (d.error || d.detail || "").toString();
-            if (r.status === 400 && code === "NO_OPENAI_KEY") {
-                out.textContent = "Введите ключ OpenAI";
-                return; // не бросаем ошибку, консоль чистая
-            }
-            // любая другая ошибка — как раньше
-            out.textContent = "Ошибка";
-            console.error("[profile] toggleBot error:", code || r.status);
-            return;
-        }
-
-        out.textContent = "Готово";
-        await loadBotStatus();
-
     } catch (e) {
-        // сюда попадём только при сетевой/JS-ошибке, не при NO_OPENAI_KEY
-        out.textContent = "Ошибка";
+        out.textContent = "Ошибка: " + (e && e.message ? e.message : e);
         console.error("[profile] toggleBot error:", e);
     } finally {
         btn.disabled = false;
     }
-
 }
 
 
