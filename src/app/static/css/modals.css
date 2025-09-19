@@ -1,0 +1,89 @@
+/* src/app/static/css/modals.css */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .4);
+  z-index: 1000;
+}
+
+.modal__content {
+  width: min(900px, 92vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  color: #111;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+}
+
+.modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+/* Поддержка тёмного фона, если общий базовый стиль делает body тёмным */
+@media (prefers-color-scheme: dark) {
+  .modal__content {
+    background: #0f172a; /* близко к base.css */
+    color: #e5e7eb;
+  }
+}
+
+/* Утилита .hidden уже есть в base.css; здесь её не дублируем */
+
+
+.modal__header {
+  position: sticky;
+  top: 0;
+  background: inherit;
+  display: flex;
+  justify-content: flex-end; /* крестик справа */
+  align-items: center;
+  border-bottom: 2px solid var(--border);
+  padding: 4px 0;
+  z-index: 10;
+}
+
+.modal__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--border);
+}
+
+.modal__close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.modal__close:hover {
+  color: var(--danger);
+}
+
+.modal__controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0;
+}
+.modal__controls label {
+  white-space: nowrap;
+}
+.modal__controls input,
+.modal__controls select {
+  min-width: 150px;
+}

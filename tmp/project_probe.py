@@ -52,13 +52,11 @@ def parse_requirements(req_path: Path):
     return pkgs
 
 def load_yaml(path: Path):
-    # Пытаемся с PyYAML, иначе — простой парсер портов и имён
     try:
         import yaml  # type: ignore
         with path.open("r", encoding="utf-8") as f:
             return yaml.safe_load(f)
     except Exception:
-        # минимальный разбор service-имен и ports через regex в аварийном режиме
         data = {"services": {}}
         text = read_text(path) or ""
         current = None
@@ -89,7 +87,6 @@ def parse_env_file(path: Path):
     return keys
 
 def resolve_project_root():
-    # ищем вверх docker-compose.yml или .git
     cur = Path.cwd()
     for _ in range(6):
         if (cur/"docker-compose.yml").exists() or (cur/".git").exists():
@@ -105,7 +102,6 @@ def alembic_script_location(project_root: Path):
         cp.read(ini, encoding="utf-8")
         if cp.has_section("alembic") and cp.has_option("alembic","script_location"):
             script_loc = cp.get("alembic","script_location").strip()
-    # по умолчанию — src/alembic, затем alembic
     if not script_loc:
         if (project_root/"src/alembic").exists():
             script_loc = "src/alembic"
@@ -114,12 +110,6 @@ def alembic_script_location(project_root: Path):
     return script_loc, ini.exists()
 
 def scan_migrations(versions_dir: Path):
-    """
-    Читает файлы миграций и извлекает revision/down_revision.
-    Возвращает:
-      - migrations: [{file, revision, down_revision}]
-      - heads: список ревизий, на которые никто не ссылается
-    """
     migs = []
     if not versions_dir.exists():
         return migs, []
@@ -129,7 +119,6 @@ def scan_migrations(versions_dir: Path):
         txt = read_text(p) or ""
         rev = None
         down = None
-        # Ищем по шаблону из файлов Alembic
         m1 = re.search(r"^revision\s*=\s*[\"']([\w\d]+)[\"']", txt, re.M|re.I)
         m2 = re.search(r"^down_revision\s*=\s*[\"']?([\w\d]+)?[\"']?", txt, re.M|re.I)
         if m1: rev = m1.group(1)
@@ -141,10 +130,30 @@ def scan_migrations(versions_dir: Path):
     heads = sorted(revs - downs)
     return migs, heads
 
+# ---------- DB schema ----------
+def collect_db_schema():
+    try:
+        from src.common.db import engine
+        from sqlalchemy import inspect
+        insp = inspect(engine)
+        schema = {}
+        for tbl in insp.get_table_names():
+            cols = []
+            for col in insp.get_columns(tbl):
+                cols.append({
+                    "name": col["name"],
+                    "type": str(col["type"]),
+                    "nullable": col.get("nullable", True),
+                    "default": str(col.get("default"))
+                })
+            schema[tbl] = cols
+        return schema
+    except Exception as e:
+        return {"error": repr(e)}
+
 # ---------- main ----------
 def main():
     project_root = resolve_project_root()
-
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     info = {
@@ -157,10 +166,10 @@ def main():
         "docker_compose": {},
         "alembic": {},
         "fs": {},
+        "db_schema": {},
         "warnings": [],
     }
 
-    # summary
     info["summary"] = {
         "has_docker_compose": (project_root/"docker-compose.yml").exists(),
         "has_alembic_ini": (project_root/"alembic.ini").exists(),
@@ -169,7 +178,6 @@ def main():
         "requirements_txt": (project_root/"requirements.txt").exists(),
     }
 
-    # git
     code, out, err = try_run(["git","rev-parse","--abbrev-ref","HEAD"], project_root)
     if code==0: info["git"]["branch"] = out
     code, out, err = try_run(["git","rev-parse","HEAD"], project_root)
@@ -177,18 +185,15 @@ def main():
     code, out, err = try_run(["git","status","--porcelain"], project_root)
     if code==0: info["git"]["dirty"] = bool(out.strip())
 
-    # python/requirements
     req_path = project_root/"requirements.txt"
     info["python"]["requirements"] = parse_requirements(req_path)
 
-    # env
     env_file = project_root/".env"
     env_example = project_root/".env.example"
     info["env"][".env_keys"] = parse_env_file(env_file) if env_file.exists() else []
     info["env"][".env_example_keys"] = parse_env_file(env_example) if env_example.exists() else []
     info["env"]["present_files"] = [p for p in [".env",".env.example"] if (project_root/p).exists()]
 
-    # docker-compose
     dc = project_root/"docker-compose.yml"
     if dc.exists():
         y = load_yaml(dc) or {}
@@ -209,7 +214,6 @@ def main():
     else:
         info["warnings"].append("docker-compose.yml not found")
 
-    # alembic
     script_loc, has_ini = alembic_script_location(project_root)
     alembic_dir = project_root / script_loc
     versions_dir = alembic_dir / "versions"
@@ -223,7 +227,6 @@ def main():
         "heads": heads,
     }
 
-    # fs snapshots
     info["fs"] = {
         "src_app": list_dir(project_root/"src/app"),
         "src_alembic_versions": list_dir(versions_dir),
@@ -231,7 +234,9 @@ def main():
         "tmp": list_dir(project_root/"tmp"),
     }
 
-    # write report
+    # новая часть: структура БД
+    info["db_schema"] = collect_db_schema()
+
     with REPORT_PATH.open("w", encoding="utf-8") as f:
         json.dump(info, f, ensure_ascii=False, indent=2)
 

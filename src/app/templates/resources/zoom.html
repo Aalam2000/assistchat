@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <title>Zoom ресурс | assistchat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link href="/static/css/base.css" rel="stylesheet"/>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+<main class="wrap">
+    <div class="card">
+        <div class="row">
+            <div>
+                <h1 style="margin:0 0 6px">Zoom ресурс</h1>
+                <p class="subtitle">ID ресурса: {{ rid }}</p>
+            </div>
+            <div class="user">
+                <a class="btn" href="/resources">← Назад к ресурсам</a>
+            </div>
+        </div>
+
+        <h2>Загрузить запись</h2>
+        <form id="zoom-upload-form" enctype="multipart/form-data">
+            <input type="file" id="zoom-file" accept=".mp3,.mp4" required>
+            <button type="submit" class="btn primary">Загрузить</button>
+        </form>
+
+        <h2 class="mt-20">Промпт для отчёта</h2>
+        <div class="card" style="margin:10px 0;">
+            <textarea id="report-prompt" rows="8" style="width:100%;resize:vertical;"
+                      placeholder="Шаблон промпта для отчёта..."></textarea>
+            <div class="mono" style="margin-top:6px;">Шаблон сохраняется локально для этого ресурса.</div>
+        </div>
+
+        <h2 class="mt-20">Файлы</h2>
+        <div id="zoom-list" class="mt-10"></div>
+
+        <div id="zoom-reports" class="mt-20"></div>
+    </div>
+</main>
+
+<script src="/static/js/config.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/resources_zoom.js"></script>
+<!-- processing modal -->
+<div id="processing-modal" class="pm-backdrop pm-hidden">
+    <div class="pm-box">
+        <div class="pm-spinner"></div>
+        <div class="pm-title">Идет обработка…</div>
+    </div>
+</div>
+
+<style>
+    /* чтобы карточки не «вылазили» за фон */
+    .pair-row .card {
+        min-width: 0
+    }
+
+    .pair-row strong {
+        word-break: break-word
+    }
+
+    /* модалка */
+    .pm-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999
+    }
+
+    .pm-hidden {
+        display: none
+    }
+
+    .pm-box {
+        background: #10131a;
+        color: #fff;
+        border: 1px solid #2a2f3a;
+        border-radius: 10px;
+        padding: 16px 20px;
+        min-width: 220px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+        display: flex;
+        align-items: center;
+        gap: 12px
+    }
+
+    .pm-title {
+        font: 16px/1.25 system-ui
+    }
+
+    .pm-spinner {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, .3);
+        border-top-color: #fff;
+        animation: pmspin .8s linear infinite
+    }
+
+    @keyframes pmspin {
+        to {
+            transform: rotate(360deg)
+        }
+    }
+</style>
+</body>
+
+</html>
