@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-08T10:58:54",
+  "generated_at": "2025-09-16T17:26:03",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "summary": {
     "has_docker_compose": true,
@@ -9,8 +9,8 @@
     "requirements_txt": true
   },
   "git": {
-    "branch": "master",
-    "last_commit": "c8e21ccc21f39374a10dcbf946c655ac18e00798",
+    "branch": "development",
+    "last_commit": "2a68ebbb1f3bbdf245a145d624ddb4733b535e80",
     "dirty": true
   },
   "python": {
@@ -52,6 +52,8 @@
       "OPENAI_API_KEY",
       "TELEGRAM_BOT_TOKEN",
       "TELEGRAM_ADMIN_ID",
+      "AVITO_CLIENT_ID",
+      "AVITO_CLIENT_SECRET",
       "TELEGRAM_API_ID",
       "TELEGRAM_API_HASH",
       "TELEGRAM_PHONE_NUMBER",
@@ -133,32 +135,20 @@
         "volumes": [
           "./:/app"
         ],
-        "depends_on": [
-          "db"
-        ]
+        "depends_on": {
+          "db": {
+            "condition": "service_healthy"
+          },
+          "migrate": {
+            "condition": "service_completed_successfully"
+          }
+        }
       },
       "migrate": {
         "image": "assistchat-api",
         "build": null,
         "ports": null,
         "env_file": ".env",
-        "environment_keys": null,
-        "volumes": [
-          "./:/app"
-        ],
-        "depends_on": {
-          "db": {
-            "condition": "service_healthy"
-          }
-        }
-      },
-      "tg_user": {
-        "image": "assistchat-api",
-        "build": null,
-        "ports": null,
-        "env_file": [
-          "./.env"
-        ],
         "environment_keys": null,
         "volumes": [
           "./:/app"
@@ -192,8 +182,13 @@
     "script_location": "src/alembic",
     "alembic_ini_present": true,
     "versions_dir_exists": true,
-    "migrations_count": 6,
+    "migrations_count": 9,
     "migrations": [
+      {
+        "file": "0c7d905c79ff_replace_account_id_with_resource_id_in_.py",
+        "revision": "0c7d905c79ff",
+        "down_revision": "2a2a919a38d6"
+      },
       {
         "file": "165ab7be38b4_init_create_tg_accounts.py",
         "revision": "165ab7be38b4",
@@ -203,6 +198,11 @@
         "file": "20250908_avito_flru_and_user_openai_key.py",
         "revision": "20250908_avito_flru",
         "down_revision": "c4af6c51f292"
+      },
+      {
+        "file": "2a2a919a38d6_fix_resources_user_id_to_integer.py",
+        "revision": "2a2a919a38d6",
+        "down_revision": "7b3c9f3d28c3"
       },
       {
         "file": "38ab48e15002_add_messages_and_updates_seen.py",
@@ -220,13 +220,18 @@
         "down_revision": "6e79614b2f16"
       },
       {
+        "file": "7b3c9f3d28c3_create_resources_table.py",
+        "revision": "7b3c9f3d28c3",
+        "down_revision": "20250908_avito_flru"
+      },
+      {
         "file": "c4af6c51f292_add_owner_user_id_to_tg_accounts.py",
         "revision": "c4af6c51f292",
         "down_revision": "70a3c3c0406a"
       }
     ],
     "heads": [
-      "20250908_avito_flru"
+      "0c7d905c79ff"
     ]
   },
   "fs": {
@@ -242,19 +247,29 @@
         "size": null
       },
       {
-        "name": "db.py",
-        "is_dir": false,
-        "size": 708
+        "name": "dialogs",
+        "is_dir": true,
+        "size": null
       },
       {
         "name": "main.py",
         "is_dir": false,
-        "size": 36142
+        "size": 46763
+      },
+      {
+        "name": "manager",
+        "is_dir": true,
+        "size": null
       },
       {
         "name": "models.py",
         "is_dir": false,
         "size": 86
+      },
+      {
+        "name": "providers.py",
+        "is_dir": false,
+        "size": 16052
       },
       {
         "name": "static",
@@ -263,6 +278,11 @@
       },
       {
         "name": "templates",
+        "is_dir": true,
+        "size": null
+      },
+      {
+        "name": "workers",
         "is_dir": true,
         "size": null
       }
@@ -274,6 +294,11 @@
         "size": 2
       },
       {
+        "name": "0c7d905c79ff_replace_account_id_with_resource_id_in_.py",
+        "is_dir": false,
+        "size": 1405
+      },
+      {
         "name": "165ab7be38b4_init_create_tg_accounts.py",
         "is_dir": false,
         "size": 2038
@@ -282,6 +307,11 @@
         "name": "20250908_avito_flru_and_user_openai_key.py",
         "is_dir": false,
         "size": 7138
+      },
+      {
+        "name": "2a2a919a38d6_fix_resources_user_id_to_integer.py",
+        "is_dir": false,
+        "size": 1650
       },
       {
         "name": "38ab48e15002_add_messages_and_updates_seen.py",
@@ -296,7 +326,12 @@
       {
         "name": "70a3c3c0406a_add_tg_accounts_status.py",
         "is_dir": false,
-        "size": 379
+        "size": 397
+      },
+      {
+        "name": "7b3c9f3d28c3_create_resources_table.py",
+        "is_dir": false,
+        "size": 2931
       },
       {
         "name": "__pycache__",
@@ -321,29 +356,19 @@
         "size": 1386
       },
       {
-        "name": "onboard_tg_session.py",
-        "is_dir": false,
-        "size": 3783
-      },
-      {
         "name": "QR.py",
         "is_dir": false,
         "size": 8786
       },
       {
-        "name": "seed_tg_account.py",
+        "name": "setup_bot_structure.py",
         "is_dir": false,
-        "size": 3105
+        "size": 2683
       },
       {
-        "name": "tg_user_dm_logger.py",
+        "name": "system_check.py",
         "is_dir": false,
-        "size": 4191
-      },
-      {
-        "name": "tg_user_dm_responder.py",
-        "is_dir": false,
-        "size": 21305
+        "size": 11086
       },
       {
         "name": "tmp",
@@ -360,7 +385,7 @@
       {
         "name": "project_probe.py",
         "is_dir": false,
-        "size": 8921
+        "size": 8890
       },
       {
         "name": "tg_accounts.sql",
@@ -368,6 +393,9 @@
         "size": 1586
       }
     ]
+  },
+  "db_schema": {
+    "error": "ModuleNotFoundError(\"No module named 'src'\")"
   },
   "warnings": []
 }

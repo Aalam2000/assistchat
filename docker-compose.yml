@@ -1,4 +1,3 @@
-# docker-compose.yml
 name: assistchat
 services:
   web:
@@ -11,11 +10,34 @@ services:
       - "8000:8000"
     volumes:
       - "./:/app"
-    command: uvicorn src.app.main:app --app-dir /app --host 0.0.0.0 --port 8000
+    command:
+      - python
+      - -m
+      - uvicorn
+      - src.app.main:app
+      - --app-dir
+      - /app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app
+      - --reload-include
+      - "*.py"
+      - --reload-include
+      - "*.html"
+      - --reload-include
+      - "*.css"
+      - --reload-include
+      - "*.js"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
-
 
   migrate:
     image: assistchat-api
@@ -25,23 +47,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: alembic upgrade head
+    command: python -m alembic upgrade head
     restart: "no"
-
-
-
-  tg_user:
-    image: assistchat-api           # тот же образ, что у web (смотри docker compose ps)
-    command: python -u scripts/tg_user_dm_responder.py
-    env_file:
-      - ./.env
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./:/app                     # поставь такой же volumes, как у web
-    restart: unless-stopped
-    # без ports — это не http-сервис
 
 
   db:
@@ -55,11 +62,29 @@ services:
     volumes:
       - assistchat_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 5s
       timeout: 3s
       retries: 10
     restart: unless-stopped
+#  n8n:
+#    image: n8nio/n8n
+#    restart: unless-stopped
+#    ports:
+#      - "5678:5678"
+#    environment:
+#      - N8N_BASIC_AUTH_ACTIVE=true
+#      - N8N_BASIC_AUTH_USER=admin
+#      - N8N_BASIC_AUTH_PASSWORD=secret
+#      - N8N_HOST=localhost
+#      - N8N_PORT=5678
+#      - N8N_RUNNERS_ENABLED=true
+#      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+#      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+#
+#    volumes:
+#      - ./n8n_data:/home/node/.n8n
+
 
 volumes:
   assistchat_db:
