@@ -2,6 +2,8 @@
 import io
 import os
 import tempfile
+import time
+import traceback
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,32 +14,35 @@ from uuid import UUID
 from authlib.integrations.starlette_client import OAuth
 from autoi18n import Translator
 from fastapi import FastAPI, Request, Depends, Form, UploadFile, File, HTTPException, status, Body
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from sqlalchemy import inspect, text, select
 from sqlalchemy.orm import Session as SASession
 from starlette.middleware.sessions import SessionMiddleware
+# --- TELEGRAM ACTIVATE (in-memory pending) ---
+from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 from scripts.QR import generate_qr_with_logo
+from src.app.manager.bot import bot_manager
 from src.app.providers import PROVIDERS, validate_provider_meta
 from src.common.db import SessionLocal  # если уже есть — пропусти
 from src.common.db import engine
 from src.models import Resource
 from src.models.user import User, RoleEnum
 
-import traceback
-import time
-import traceback
-from telethon.errors import FloodWaitError, PhoneCodeInvalidError, PhoneNumberInvalidError
-
-# --- TELEGRAM ACTIVATE (in-memory pending) ---
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-
-PENDING_TG: dict[str, dict] = {}  # rid -> {'client': TelegramClient, 'session': str, 'phone': str, 'app_id': int, 'app_hash': str, 'ts': float}
+PENDING_TG: dict[
+    str, dict] = {}  # rid -> {'client': TelegramClient, 'session': str, 'phone': str, 'app_id': int, 'app_hash': str, 'ts': float}
 PENDING_TG_TTL = int(os.getenv("TG_ACT_TTL", "300"))  # секунд держим живую сессию до ввода кода
+
+AUDIO_EXTS = {".mp3", }  # ".mp4", ".m4a", ".wav", ".ogg", ".webm"
+
+from openai import OpenAI
+
+client = OpenAI()
+
 
 def _pending_drop(rid: str):
     """Снять клиента из кэша и разорвать соединение (тихо)."""
@@ -53,10 +58,11 @@ def _pending_drop(rid: str):
         print(f"[TG_ACT][{rid}] pending_drop error:", repr(e))
 
 
-
 tr = Translator(cache_dir="./translations")
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+BASE_STORAGE = Path(__file__).resolve().parent.parent / "storage"
+BASE_STORAGE.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="assistchat demo")
 
@@ -760,7 +766,12 @@ async def api_resources_toggle(payload: dict, request: Request, db: SASession = 
         return JSONResponse({"ok": False, "error": "VALIDATION"}, status_code=400)
 
     # грузим ресурс
-    row = db.execute(select(Resource).where(Resource.id == rid)).scalar_one_or_none()
+    try:
+        rid_uuid = UUID(rid)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+    row = db.execute(select(Resource).where(Resource.id == rid_uuid)).scalar_one_or_none()
+
     if not row:
         raise HTTPException(status_code=404, detail="NOT_FOUND")
 
@@ -830,13 +841,12 @@ async def api_resources_add(payload: dict, request: Request, db: SASession = Dep
     }
 
 
-
 @app.post("/api/resource/{rid}/activate")
 async def api_resource_activate(
-    rid: str,
-    request: Request,
-    payload: dict = Body(...),
-    db: SASession = Depends(get_db),
+        rid: str,
+        request: Request,
+        payload: dict = Body(...),
+        db: SASession = Depends(get_db),
 ):
     """
     Шаг 1 (без code): send_code_request — держим живой client в памяти, сохраняем pending_session в БД.
@@ -875,22 +885,22 @@ async def api_resource_activate(
     creds = dict(meta.get("creds") or {})
 
     phone = (
-        payload.get("phone")
-        or payload.get("phone_e164")
-        or creds.get("phone_e164")
-        or creds.get("phone")
+            payload.get("phone")
+            or payload.get("phone_e164")
+            or creds.get("phone_e164")
+            or creds.get("phone")
     )
     app_id = (
-        payload.get("app_id")
-        or payload.get("api_id")
-        or creds.get("app_id")
-        or creds.get("api_id")
+            payload.get("app_id")
+            or payload.get("api_id")
+            or creds.get("app_id")
+            or creds.get("api_id")
     )
     app_hash = (
-        payload.get("app_hash")
-        or payload.get("api_hash")
-        or creds.get("app_hash")
-        or creds.get("api_hash")
+            payload.get("app_hash")
+            or payload.get("api_hash")
+            or creds.get("app_hash")
+            or creds.get("api_hash")
     )
     code = (payload.get("code") or "").strip() or None
 
@@ -899,7 +909,8 @@ async def api_resource_activate(
     except Exception:
         app_id = None
 
-    print(f"[TG_ACT][{rid}] extracted phone={phone} app_id={app_id} app_hash={'SET' if app_hash else 'NONE'} code={'SET' if code else 'NONE'}")
+    print(
+        f"[TG_ACT][{rid}] extracted phone={phone} app_id={app_id} app_hash={'SET' if app_hash else 'NONE'} code={'SET' if code else 'NONE'}")
 
     if not phone or not app_id or not app_hash:
         print(f"[TG_ACT][{rid}] MISSING_FIELDS")
@@ -983,7 +994,7 @@ async def api_resource_activate(
             "phone": phone,
             "app_id": app_id,
             "app_hash": app_hash,
-            "sent_code": result,   # 🔵 сохраняем сам объект sent_code
+            "sent_code": result,  # 🔵 сохраняем сам объект sent_code
             "ts": time.time(),
         }
         print(f"[TG_ACT][{rid}] step1 OK → waiting code. pending_session_len={len(pending_session)}; PENDING_TG set")
@@ -1005,7 +1016,7 @@ async def api_resource_activate(
         client = entry["client"]
         print(f"[TG_ACT][{rid}] step2: reuse alive client from memory")
         try:
-            await client.sign_in(code=code)   # 🔵 используем короткий вариант
+            await client.sign_in(code=code)  # 🔵 используем короткий вариант
             print(f"[TG_ACT][{rid}] sign_in SUCCESS (with sent_code)")
             final_session = client.session.save()
         except PhoneCodeInvalidError:
@@ -1057,6 +1068,489 @@ async def api_resource_activate(
     return {"ok": True, "activated": True}
 
 
+# ────────────────────────────────────────────────────────────────────────────────
+# BOT: preflight + start/stop/status
+# ────────────────────────────────────────────────────────────────────────────────
+@app.get("/api/preflight")
+async def api_preflight(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    return bot_manager.preflight(user.id)
+
+
+@app.post("/api/bot/start")
+async def api_bot_start(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    return await bot_manager.start(user.id)
+
+
+@app.post("/api/bot/stop")
+async def api_bot_stop(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    return await bot_manager.stop(user.id)
+
+
+@app.get("/api/bot/status")
+async def api_bot_status():
+    return {"ok": True, "running": len(getattr(bot_manager, "workers", {}))}
+
+
+@app.get("/resources/zoom/{rid}", response_class=HTMLResponse)
+async def resource_zoom_page(rid: str, request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/auth/login", status_code=302)
+
+    return render_i18n(
+        "resources/zoom.html",
+        request,
+        "resource_zoom",
+        {
+            "username": user.username,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "rid": rid,
+        }
+    )
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Блок работы с загрузкой файлов
+# ────────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/zoom/{rid}/upload")
+async def api_zoom_upload(
+        rid: str,
+        request: Request,
+        file: UploadFile = File(...),
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    # 🔹 проверяем расширение
+    if not file.filename.lower().endswith(".mp3"):
+        return JSONResponse({"ok": False, "error": "ONLY_MP3_ALLOWED"}, status_code=400)
+
+    # 🔹 проверяем размер
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        return JSONResponse({"ok": False, "error": "FILE_TOO_LARGE"}, status_code=400)
+
+    # сохраняем
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "uploads"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    file_path = user_dir / file.filename
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    return {"ok": True, "filename": file.filename}
+
+
+@app.get("/api/zoom/{rid}/status")
+async def api_zoom_status(
+        rid: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # читаем статус
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    log_path = user_dir / "status.log"
+    lines = []
+    if log_path.exists():
+        lines = log_path.read_text(encoding="utf-8").splitlines()[-10:]
+
+    return {"ok": True, "lines": lines}
+
+
+@app.get("/api/zoom/{rid}/reports")
+async def api_zoom_reports(
+        rid: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # директория ресурса
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    reports_dir = user_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    items = []
+    for path in reports_dir.glob("*.json"):
+        try:
+            import json
+            data = json.loads(path.read_text(encoding="utf-8"))
+            items.append({
+                "filename": path.stem,
+                "summary": data.get("summary", ""),
+                "transcript": data.get("transcript", ""),
+            })
+        except Exception as e:
+            items.append({
+                "filename": path.stem,
+                "summary": f"Ошибка чтения ({e})",
+                "transcript": "",
+            })
+
+    return {"ok": True, "items": items}
+
+
+@app.get("/api/zoom/{rid}/files")
+async def api_zoom_files(
+        rid: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "uploads"
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    files = []
+    for path in sorted(user_dir.glob("*")):
+        if path.is_file():
+            files.append({
+                "filename": path.name,
+                "size": path.stat().st_size,
+                "uploaded": datetime.fromtimestamp(path.stat().st_mtime).isoformat(),
+            })
+
+    return {"ok": True, "files": files}
+
+
+@app.post("/api/zoom/{rid}/process")
+async def api_zoom_process(
+        rid: str,
+        request: Request,
+        payload: dict = Body(...),
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    filename = (payload.get("filename") or "").strip()
+    if not filename:
+        return JSONResponse({"ok": False, "error": "NO_FILENAME"}, status_code=400)
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    uploads_dir = user_dir / "uploads"
+    transcripts_dir = user_dir / "transcripts"
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = uploads_dir / filename
+    if not file_path.exists():
+        return JSONResponse({"ok": False, "error": "FILE_NOT_FOUND"}, status_code=404)
+
+    # 🔹 Транскрипция (Deepgram)
+    from src.app.workers.transcribe_worker import transcribe_audio
+
+    try:
+        text = transcribe_audio(str(file_path))
+    except Exception as e:
+        return JSONResponse(
+            {"ok": False, "error": f"TRANSCRIBE_FAILED: {e}"}, status_code=500
+        )
+
+    # сохраняем транскрипт
+    out_path = transcripts_dir / f"{filename}.txt"
+    out_path.write_text(text, encoding="utf-8")
+
+    # логируем
+    log_path = user_dir / "status.log"
+    with log_path.open("a", encoding="utf-8") as log:
+        log.write(f"{datetime.now().isoformat()} transcribed {filename}\n")
+
+    return {
+        "ok": True,
+        "message": "Транскрипция завершена",
+        "length": len(text),
+    }
+
+
+@app.get("/api/zoom/{rid}/items")
+def api_zoom_items(
+        rid: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    uploads_dir = user_dir / "uploads"
+    transcripts_dir = user_dir / "transcripts"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+
+    items = []
+
+    # 1) пары по аудио
+    for p in sorted(uploads_dir.glob("*")):
+        if not p.is_file() or p.suffix.lower() not in AUDIO_EXTS:
+            continue
+        t_name = p.name + ".txt"
+        t_path = transcripts_dir / t_name
+        items.append({
+            "audio": {
+                "filename": p.name,
+                "size": p.stat().st_size,
+                "uploaded": datetime.fromtimestamp(p.stat().st_mtime).isoformat(),
+            },
+            "transcript": {
+                "filename": t_name,
+                "exists": t_path.exists(),
+                "size": (t_path.stat().st_size if t_path.exists() else 0),
+            },
+        })
+
+    # 2) «осиротевшие» транскрипты без исходника
+    for t in sorted(transcripts_dir.glob("*.txt")):
+        if not any(it["transcript"]["filename"] == t.name for it in items):
+            items.append({
+                "audio": None,
+                "transcript": {
+                    "filename": t.name,
+                    "exists": True,
+                    "size": t.stat().st_size,
+                },
+            })
+
+    reports_dir = user_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    # 3) отчёты для каждого транскрипта
+    for it in items:
+        tr_name = it["transcript"]["filename"] if it.get("transcript") else None
+        if tr_name:
+            base = tr_name.replace(".txt", "_отчет.txt")
+            r_path = reports_dir / base
+            if r_path.exists():
+                it["report"] = {
+                    "filename": base,
+                    "exists": True,
+                    "size": r_path.stat().st_size,
+                }
+            else:
+                it["report"] = {"exists": False}
+
+    return {"ok": True, "items": items}
+
+
+@app.get("/api/zoom/{rid}/transcript/open", response_class=PlainTextResponse)
+def api_zoom_transcript_open(
+        rid: str,
+        filename: str,  # можно передавать и "audio.mp3", и "audio.mp3.txt"
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    transcripts_dir = user_dir / "transcripts"
+    name = filename if filename.endswith(".txt") else f"{filename}.txt"
+    path = transcripts_dir / name
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+
+    # text/plain
+    return path.read_text(encoding="utf-8")
+
+
+@app.delete("/api/zoom/{rid}/audio")
+def api_zoom_delete_audio(
+        rid: str,
+        filename: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    p = (user_dir / "uploads" / filename)
+    if not (p.exists() and p.is_file()):
+        raise HTTPException(status_code=404, detail="AUDIO_NOT_FOUND")
+    p.unlink()
+    return {"ok": True}
+
+
+@app.delete("/api/zoom/{rid}/transcript")
+def api_zoom_delete_transcript(
+        rid: str,
+        filename: str,  # можно "audio.mp3" или "audio.mp3.txt"
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    transcripts_dir = user_dir / "transcripts"
+    name = filename if filename.endswith(".txt") else f"{filename}.txt"
+    p = transcripts_dir / name
+    if not (p.exists() and p.is_file()):
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+    p.unlink()
+    return {"ok": True}
+
+
+# ----------------------------------------
+# Отчет по транскрипту
+# ----------------------------------------
+# --- ДОБАВИТЬ в main.py после api_zoom_delete_transcript ---
+
+@app.post("/api/zoom/{rid}/report")
+async def api_zoom_report(
+        rid: str,
+        request: Request,
+        payload: dict = Body(...),
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    filename = (payload.get("filename") or "").strip()
+    prompt = (payload.get("prompt") or "").strip()
+    if not filename:
+        return JSONResponse({"ok": False, "error": "NO_FILENAME"}, status_code=400)
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    transcripts_dir = user_dir / "transcripts"
+    reports_dir = user_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    t_name = filename if filename.endswith(".txt") else f"{filename}.txt"
+    t_path = transcripts_dir / t_name
+    if not t_path.exists():
+        return JSONResponse({"ok": False, "error": "TRANSCRIPT_NOT_FOUND"}, status_code=404)
+
+    text = t_path.read_text(encoding="utf-8")
+
+    # 🔹 OpenAI
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.3,
+        )
+        report_text = resp.choices[0].message.content.strip()
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"OPENAI_FAILED: {e}"}, status_code=500)
+
+    out_name = t_name.replace(".txt", "_отчет.txt")
+    out_path = reports_dir / out_name
+    out_path.write_text(report_text, encoding="utf-8")
+
+    return {"ok": True, "filename": out_name, "length": len(report_text)}
+
+
+@app.get("/api/zoom/{rid}/report/open", response_class=PlainTextResponse)
+def api_zoom_report_open(
+        rid: str,
+        filename: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "reports"
+    path = user_dir / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
+    return path.read_text(encoding="utf-8")
+
+
+@app.delete("/api/zoom/{rid}/report")
+def api_zoom_report_delete(
+        rid: str,
+        filename: str,
+        request: Request,
+        db: SASession = Depends(get_db),
+):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "reports"
+    path = user_dir / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
+    path.unlink()
+    return {"ok": True}
+
+
+# -----------------------------------------
+# END
+# -----------------------------------------
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 def render_any_html(request: Request, full_path: str = ""):
     # URL → шаблон:
