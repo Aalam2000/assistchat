@@ -4,7 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("zoom-upload-form");
     const fileInput = document.getElementById("zoom-file");
     const reportsEl = document.getElementById("zoom-reports");
-    const rid = (window.location.pathname.split("/").pop());
+    let rid = form.dataset.rid;
+    if (!rid) {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        rid = parts[parts.length - 1];
+    }
     const listEl = document.getElementById("zoom-list");
 
     // modal helpers
@@ -78,7 +82,11 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("file", file);
 
         try {
-            const rid = form.dataset.rid || (window.location.pathname.split("/").pop());
+            let rid = form.dataset.rid;
+            if (!rid) {
+                const parts = window.location.pathname.split("/").filter(Boolean);
+                rid = parts[parts.length - 1];
+            }
             const resp = await fetch(`/api/zoom/${rid}/upload`, {
                 method: "POST",
                 body: formData,

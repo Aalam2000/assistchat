@@ -21,7 +21,7 @@
         </div>
 
         <h2>Загрузить запись</h2>
-        <form id="zoom-upload-form" enctype="multipart/form-data">
+        <form id="zoom-upload-form" data-rid="{{ rid }}" enctype="multipart/form-data">
             <input type="file" id="zoom-file" accept=".mp3,.mp4" required>
             <button type="submit" class="btn primary">Загрузить</button>
         </form>
