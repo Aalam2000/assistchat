@@ -10,5 +10,12 @@
   "Фаза": "Phase",
   "Ошибка": "Error",
   "Действия": "Actions",
-  "Загрузка...": "Loading..."
+  "Загрузка...": "Loading...",
+  "✕": "Close",
+  "Добавить ресурс": "Add resource",
+  "Название (Label)": "Name (Label)",
+  "Отмена": "Cancel",
+  "Создать": "Create",
+  "Введите код из Telegram": "Enter the code from Telegram.",
+  "Ок": "OK"
 }

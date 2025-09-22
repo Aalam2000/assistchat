@@ -172,11 +172,12 @@ def _redirect_uri(path: str = "/auth/google/callback") -> str:
 
 @app.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
-    # кука могла раздуться из-за множества _state_google_* → очистим перед новым заходом
     request.session.clear()
+    request.session["next"] = request.headers.get("referer", "/")
     return await oauth.google.authorize_redirect(
         request, redirect_uri=_redirect_uri("/auth/google/callback")
     )
+
 
 
 @app.get("/auth/google/callback", include_in_schema=False)
@@ -207,7 +208,7 @@ async def auth_google_callback(request: Request, db: SASession = Depends(get_db)
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     request.session["role"] = getattr(user.role, "value", str(user.role))
-    return RedirectResponse(url="/profile", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
 
 
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
@@ -246,7 +247,7 @@ async def tables(request: Request, _: User = Depends(require_admin)):
             rows = conn.execute(text(f'SELECT * FROM "{table}"')).fetchall()
             data[table] = {"columns": cols, "rows": rows}
 
-    return render_i18n("index.html", request, "tables_index", {"data": data})
+    return render_i18n("all-tables.html", request, "tables_index", {"data": data})
 
 
 @app.get("/health")
@@ -257,46 +258,24 @@ async def health():
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: страницы
 # ────────────────────────────────────────────────────────────────────────────────
-
 @app.get("/", response_class=HTMLResponse)
-def root_redirect():
-    return RedirectResponse(url="/auth/login", status_code=302)
-
-
-@app.get("/auth/login", response_class=HTMLResponse)
-async def auth_login_page(request: Request):
-    if request.session.get("user_id"):
-        return RedirectResponse(url="/profile", status_code=302)
-    return render_i18n("auth/login.html", request, "auth_login", {})
+async def homepage(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    return render_i18n(
+        "index.html",
+        request,
+        "index",
+        {
+            "user": user,  # оставить для if user
+            "username": user.username if user else None,
+            "role": user.role.value if user and hasattr(user.role, "value") else (str(user.role) if user else None),
+        }
+    )
 
 
 # ────────────────────────────────────────────────────────────────────────────────
 # AUTH: API (login/register/logout/me)
 # ────────────────────────────────────────────────────────────────────────────────
-@app.post("/api/auth/login")
-async def api_auth_login(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    username = (payload.get("username") or "").strip()
-    password = payload.get("password") or ""
-
-    if not username or not password:
-        return JSONResponse({"ok": False, "error": "EMPTY_FIELDS"}, status_code=400)
-
-    user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
-    if not user or not user.is_active:
-        return JSONResponse({"ok": False, "error": "USER_NOT_FOUND_OR_INACTIVE"}, status_code=401)
-
-    if not verify_password(password, user.hashed_password):
-        return JSONResponse({"ok": False, "error": "BAD_CREDENTIALS"}, status_code=401)
-
-    # set session
-    request.session.update({
-        "user_id": user.id,
-        "username": user.username,
-        "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-    })
-    return {"ok": True, "redirect": "/profile"}
-
-
 @app.post("/api/auth/register")
 async def api_auth_register(payload: dict, request: Request, db: SASession = Depends(get_db)):
     # Регистрация открыта. Требует: username, password, email (необяз.)
@@ -335,7 +314,7 @@ async def api_auth_register(payload: dict, request: Request, db: SASession = Dep
 @app.post("/api/auth/logout")
 async def api_auth_logout(request: Request):
     request.session.clear()
-    return {"ok": True, "redirect": "/auth/login"}
+    return {"ok": True, "redirect": "/"}
 
 
 @app.get("/api/auth/me")
@@ -353,6 +332,30 @@ async def api_auth_me(request: Request, db: SASession = Depends(get_db)):
             "is_active": user.is_active
         }
     }
+
+@app.post("/api/auth/login")
+async def api_auth_login(payload: dict, request: Request, db: SASession = Depends(get_db)):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+
+    if not username or not password:
+        return JSONResponse({"ok": False, "error": "EMPTY_FIELDS"}, status_code=400)
+
+    user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    if not user or not verify_password(password, user.hashed_password):
+        return JSONResponse({"ok": False, "error": "INVALID_CREDENTIALS"}, status_code=401)
+
+    if not user.is_active:
+        return JSONResponse({"ok": False, "error": "INACTIVE"}, status_code=403)
+
+    request.session.clear()
+    request.session.update({
+        "user_id": user.id,
+        "username": user.username,
+        "role": user.role.value if hasattr(user.role, "value") else str(user.role)
+    })
+
+    return {"ok": True}
 
 
 @app.get("/api/providers")
@@ -390,13 +393,14 @@ def api_provider_schema(key: str):
 async def profile_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     return render_i18n(
         "profile.html",
         request,
         "profile",
         {
+            "user": user,
             "username": user.username,
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
@@ -407,13 +411,14 @@ async def profile_page(request: Request, db: SASession = Depends(get_db)):
 async def resources_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     return render_i18n(
         "resources.html",
         request,
         "resources",
         {
+            "user": user,
             "username": user.username,
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
         }
@@ -516,7 +521,7 @@ async def api_profile_openai_save(payload: dict, request: Request, db: SASession
 async def qr_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return render_i18n("qr.html", request, "qr", {"username": user.username})
 
 
@@ -547,8 +552,8 @@ def callcenter_page(request: Request):
 # ────────────────────────────────────────────────────────────────────────────────
 @app.post("/api/qr/build")
 async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
-    if logo.content_type not in {"image/png", "image/tiff", "image/x-tiff"}:
-        return JSONResponse({"ok": False, "error": "LOGO_TYPE"}, status_code=400)
+    # if logo.content_type not in {"image/png", "image/tiff", "image/x-tiff"}:
+    #     return JSONResponse({"ok": False, "error": "LOGO_TYPE"}, status_code=400)
     with tempfile.TemporaryDirectory() as tmp:
         logo_path = f"{tmp}/{logo.filename}"
         with open(logo_path, "wb") as f:
@@ -561,8 +566,8 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
             file_stem="qr_with_logo",
             qr_size_mm=30.0,
             dpi=300,
-            logo_ratio=0.20,
-            white_pad_mm=2.0,
+            logo_ratio=0.1,
+            white_pad_mm=1.0,
             logo_has_alpha=True,
             try_knockout_white=False,
         )
@@ -592,14 +597,7 @@ def _inject_en_button(html: str, lang: str) -> str:
     if 'id="i18n-toggle"' in html:
         return html
 
-    btn = (
-        f'<a id="i18n-toggle" href="{href}" '
-        'style="position:fixed;top:10px;right:10px;z-index:9999;'
-        'padding:6px 10px;border:1px solid #aaa;border-radius:8px;'
-        'background:#fff;opacity:.95;text-decoration:none;'
-        'font:14px/1.2 system-ui">'
-        f'{label}</a>'
-    )
+    btn = f'<a id="i18n-toggle" href="{href}">{label}</a>'
     i = html.lower().rfind("</body>")
     return html[:i] + btn + html[i:] if i != -1 else html + btn
 
@@ -622,10 +620,11 @@ def set_lang_ru(request: Request):
 
 
 def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) -> HTMLResponse:
+    lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
     # всегда добавляем {"request": request}
     ctx = {**ctx, "request": request}
     rendered = templates.get_template(template_name).render(ctx)
-    lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
+    # lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
     translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
     return HTMLResponse(content=_inject_en_button(translated, lang))
 
@@ -1104,7 +1103,7 @@ async def api_bot_status():
 async def resource_zoom_page(rid: str, request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
-        return RedirectResponse(url="/auth/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
 
     return render_i18n(
         "resources/zoom.html",
@@ -1554,9 +1553,9 @@ def api_zoom_report_delete(
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 def render_any_html(request: Request, full_path: str = ""):
     # URL → шаблон:
-    #   /               -> index.html
+    #   /               -> all-tables.html
     #   /auth/login     -> auth/login.html
-    #   /docs/          -> docs/index.html
+    #   /docs/          -> docs/all-tables.html
     path = full_path.strip("/")
     if path == "" or path.endswith("/"):
         path = path + "index"

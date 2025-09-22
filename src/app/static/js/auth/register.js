@@ -13,7 +13,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     try {
       const { ok, redirect, error } = await apiPost(window.APP_CONFIG.endpoints.register, payload);
-      if (ok && redirect) window.location.href = redirect;
+      if (ok) {
+        window.location.reload();
+      }
       else err.textContent = error || "Ошибка регистрации";
     } catch (ex) {
       err.textContent = ex.error || "Ошибка регистрации";

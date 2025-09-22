@@ -1,199 +1,181 @@
-<!-- src/app/templates/profile.html -->
-<!doctype html>
-<html lang="ru">
-<head>
-    <meta charset="utf-8"/>
-    <title>Личный кабинет | assistchat</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link href="/static/css/base.css" rel="stylesheet"/>
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Личный кабинет | bona-plus{% endblock %}
+
+{% block content %}
 <main class="wrap">
-    <div class="card">
-        <!-- Шапка -->
-        <div class="row">
-            <div>
-                <h1 style="margin:0 0 6px">Личный кабинет</h1>
-                <p class="subtitle">Добро пожаловать, <strong>{{ username }}</strong></p>
-            </div>
-            <div class="user">
-                <span class="badge">роль: {{ role }}</span>
-                <button id="logout-btn" class="btn">Выйти</button>
-            </div>
-        </div>
-        <div class="hr"></div>
-
-        <!-- 4 карточки: Профиль, OpenAI, Подписка, Подключения -->
-        <div class="grid" style="grid-template-columns:repeat(2,1fr)">
-            <!-- 0) Бот: глобальный тумблер -->
-            <section class="tile" id="bot-card">
-                <div class="tile-title">Бот</div>
-                <p class="tile-desc">Глобальное управление всеми подключениями</p>
-
-                <div class="mt-12">
-                    <div class="mono" id="bot-summary">Статус: —</div>
-                    <div class="actions">
-                        <button type="button" id="btn-bot-toggle" class="btn primary">Включить</button>
-                    </div>
-                    <div class="mono mt-8" id="bot-status"></div>
-                </div>
-            </section>
-
-            <!-- 1) Профиль -->
-            <section class="tile" id="profile-card">
-                <div class="tile-title">Профиль</div>
-                <p class="tile-desc">Данные учётной записи</p>
-
-                <div class="mt-12">
-                    <label>Имя пользователя
-                        <input type="text" id="profile-username" readonly>
-                    </label>
-
-                    <label>Email
-                        <input type="email" id="profile-email" readonly>
-                    </label>
-
-                    <div id="profile-status" class="mono mt-8"></div>
-                </div>
-            </section>
-
-            <!-- 2) OpenAI доступ -->
-            <section class="tile" id="openai-card">
-                <div class="tile-title">OpenAI доступ</div>
-                <p class="tile-desc">Ключ, режим и параметры генерации ответов</p>
-
-                <form id="form-openai" class="mt-12">
-                    <div class="row" style="gap:10px;align-items:center">
-                        <label class="inline"><span>Режим</span></label>
-                        <label class="inline"><input type="radio" name="openai_mode" value="byok" id="openai-mode-byok"
-                                                     checked> <span>Свой ключ</span></label>
-                        <label class="inline"><input type="radio" name="openai_mode" value="managed"
-                                                     id="openai-mode-managed"> <span>Наш ключ</span></label>
-                    </div>
-
-                    <label>Ключ (BYOK)
-                        <input type="password" id="openai-key" name="openai_key" placeholder="sk-...">
-                    </label>
-
-                    <label>Модель
-                        <input type="text" id="openai-model" name="openai_model" placeholder="gpt-4o-mini">
-                    </label>
-
-                    <label>История сообщений (N)
-                        <input type="text" id="openai-history" name="history_limit" placeholder="20">
-                    </label>
-
-                    <label class="inline">
-                        <span>Голос</span>
-                        <input type="checkbox" id="openai-voice" name="voice_enabled"/>
-                    </label>
-
-                    <div class="actions">
-                        <button type="button" id="btn-openai-test" class="btn">Проверить ключ</button>
-                        <button type="button" id="btn-openai-save" class="btn primary">Сохранить</button>
-                    </div>
-                    <div id="openai-status" class="mono mt-8"></div>
-                </form>
-            </section>
-
-            <!-- 3) Подписка и лимиты -->
-            <section class="tile" id="billing-card">
-                <div class="tile-title">Подписка и лимиты</div>
-                <p class="tile-desc">Текущий план и использование за период</p>
-
-                <div class="mt-12">
-                    <div class="mono">План: <span id="plan-name">—</span></div>
-                    <div class="mono mt-8">Период: <span id="plan-period">—</span></div>
-                    <div class="mono mt-8">Лимиты: <span id="plan-limits">—</span></div>
-
-                    <div class="actions">
-                        <a class="btn" href="/billing/plan">Изменить план</a>
-                        <a class="btn" href="/billing/history">История платежей</a>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 4) Мои подключения (Avito/FL.ru/др.) -->
-            <section class="tile" id="services-card">
-                <div class="tile-title">Мои подключения</div>
-                <p class="tile-desc">Аккаунты/сессии на площадках (вкл/выкл, промпт, логи)</p>
-
-                <div class="actions">
-                    <a class="btn primary" href="/resources">Открыть ресурсы</a>
-                </div>
-
-
-                <table class="mt-12">
-                    <thead>
-                    <tr>
-                        <th>Провайдер</th>
-                        <th>Метка</th>
-                        <th>Статус</th>
-                        <th>Промпт</th>
-                        <th>Действия</th>
-                    </tr>
-                    </thead>
-                    <tbody id="svc-tbody">
-                    <tr>
-                        <td colspan="5">Загрузка...</td>
-                    </tr>
-                    </tbody>
-                </table>
-            </section>
-        </div>
-
-        <div class="hr"></div>
-
-        <!-- Быстрые ссылки (оставляем для удобства, как было) -->
-        <h2 style="margin:0 0 8px">Быстрые ссылки</h2>
-        <p class="subtitle">Инструменты и справка</p>
-
-        <div class="grid">
-            {% if role == "admin" %}
-            <a class="tile" href="/tables">
-                <div class="tile-title">Таблицы БД</div>
-                <p class="tile-desc">Просмотр содержимого всех таблиц</p>
-            </a>
-            {% endif %}
-
-            <a class="tile" href="/qr">
-                <div class="tile-title">QR + Logo</div>
-                <p class="tile-desc">Генерация QR с логотипом (PNG, PDF)</p>
-            </a>
-
-            {% if role == "admin" %}
-            <a class="tile" href="/docs">
-                <div class="tile-title">Документация</div>
-                <p class="tile-desc">Описание API и подсказки по проекту</p>
-            </a>
-            {% endif %}
-
-            <a class="tile" href="https://t.me/assistent_next" target="_blank" rel="noopener">
-                <div class="tile-title">Telegram: assistent_next</div>
-                <p class="tile-desc">Группа с новостями наших сервисов</p>
-            </a>
-
-            <a class="tile" href="/ai">
-                <div class="tile-title">AI-ассистент</div>
-                <p class="tile-desc">Помощь в покупках и продажах</p>
-            </a>
-
-            <a class="tile" href="/callcenter">
-                <div class="tile-title">Колл-центр</div>
-                <p class="tile-desc">Роботизированный приём звонков</p>
-            </a>
-        </div>
-
-        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-            <a class="btn primary" href="/">На главную</a>
-            <a class="btn" href="/qr">К QR-генератору</a>
-        </div>
+  <div class="card">
+    <!-- Шапка карточки -->
+    <div class="row">
+      <div>
+        <h1 style="margin:0 0 6px">Личный кабинет</h1>
+        <p class="subtitle">Добро пожаловать, <strong>{{ username }}</strong></p>
+      </div>
+      <div class="user">
+        <span class="badge">роль: {{ role }}</span>
+        <!-- Было: <button id="logout-btn" class="btn">Выйти</button> -->
+        <a href="/" class="btn">Назад</a>
+      </div>
     </div>
+    <div class="hr"></div>
+
+    <!-- 4 карточки: Бот, Профиль, OpenAI, Подписка, Подключения -->
+    <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+      <!-- 0) Бот -->
+      <section class="tile" id="bot-card">
+        <div class="tile-title">Бот</div>
+        <p class="tile-desc">Глобальное управление всеми подключениями</p>
+
+        <div class="mt-12">
+          <div class="mono" id="bot-summary">Статус: —</div>
+          <div class="actions">
+            <button type="button" id="btn-bot-toggle" class="btn primary">Включить</button>
+          </div>
+          <div class="mono mt-8" id="bot-status"></div>
+        </div>
+      </section>
+
+      <!-- 1) Профиль -->
+      <section class="tile" id="profile-card">
+        <div class="tile-title">Профиль</div>
+        <p class="tile-desc">Данные учётной записи</p>
+
+        <div class="mt-12">
+          <label>Имя пользователя
+            <input type="text" id="profile-username" readonly>
+          </label>
+
+          <label>Email
+            <input type="email" id="profile-email" readonly>
+          </label>
+
+          <div id="profile-status" class="mono mt-8"></div>
+        </div>
+      </section>
+
+      <!-- 2) OpenAI доступ -->
+      <section class="tile" id="openai-card">
+        <div class="tile-title">OpenAI доступ</div>
+        <p class="tile-desc">Ключ, режим и параметры генерации ответов</p>
+
+        <form id="form-openai" class="mt-12">
+          <div class="row" style="gap:10px;align-items:center">
+            <label class="inline"><span>Режим</span></label>
+            <label class="inline"><input type="radio" name="openai_mode" value="byok" id="openai-mode-byok" checked> <span>Свой ключ</span></label>
+            <label class="inline"><input type="radio" name="openai_mode" value="managed" id="openai-mode-managed"> <span>Наш ключ</span></label>
+          </div>
+
+          <label>Ключ (BYOK)
+            <input type="password" id="openai-key" name="openai_key" placeholder="sk-...">
+          </label>
+
+          <label>Модель
+            <input type="text" id="openai-model" name="openai_model" placeholder="gpt-4o-mini">
+          </label>
+
+          <label>История сообщений (N)
+            <input type="text" id="openai-history" name="history_limit" placeholder="20">
+          </label>
+
+          <label class="inline">
+            <span>Голос</span>
+            <input type="checkbox" id="openai-voice" name="voice_enabled"/>
+          </label>
+
+          <div class="actions">
+            <button type="button" id="btn-openai-test" class="btn">Проверить ключ</button>
+            <button type="button" id="btn-openai-save" class="btn primary">Сохранить</button>
+          </div>
+          <div id="openai-status" class="mono mt-8"></div>
+        </form>
+      </section>
+
+      <!-- 3) Подписка и лимиты -->
+      <section class="tile" id="billing-card">
+        <div class="tile-title">Подписка и лимиты</div>
+        <p class="tile-desc">Текущий план и использование за период</p>
+
+        <div class="mt-12">
+          <div class="mono">План: <span id="plan-name">—</span></div>
+          <div class="mono mt-8">Период: <span id="plan-period">—</span></div>
+          <div class="mono mt-8">Лимиты: <span id="plan-limits">—</span></div>
+
+          <div class="actions">
+            <a class="btn" href="/billing/plan">Изменить план</a>
+            <a class="btn" href="/billing/history">История платежей</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4) Мои подключения -->
+      <section class="tile" id="services-card">
+        <div class="tile-title">Мои подключения</div>
+        <p class="tile-desc">Аккаунты/сессии на площадках (вкл/выкл, промпт, логи)</p>
+
+        <div class="actions">
+          <a class="btn primary" href="/resources">Открыть ресурсы</a>
+        </div>
+
+        <table class="mt-12">
+          <thead>
+            <tr>
+              <th>Провайдер</th>
+              <th>Метка</th>
+              <th>Статус</th>
+              <th>Промпт</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="svc-tbody">
+            <tr><td colspan="5">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div class="hr"></div>
+
+    <!-- Быстрые ссылки -->
+    <h2 style="margin:0 0 8px">Быстрые ссылки</h2>
+    <p class="subtitle">Инструменты и справка</p>
+
+    <div class="grid">
+      {% if role == "admin" %}
+      <a class="tile" href="/tables">
+        <div class="tile-title">Таблицы БД</div>
+        <p class="tile-desc">Просмотр содержимого всех таблиц</p>
+      </a>
+      {% endif %}
+
+      <a class="tile" href="/qr">
+        <div class="tile-title">QR + Logo</div>
+        <p class="tile-desc">Генерация QR с логотипом (PNG, PDF)</p>
+      </a>
+
+      {% if role == "admin" %}
+      <a class="tile" href="/docs">
+        <div class="tile-title">Документация</div>
+        <p class="tile-desc">Описание API и подсказки по проекту</p>
+      </a>
+      {% endif %}
+
+      <a class="tile" href="https://t.me/assistent_next" target="_blank" rel="noopener">
+        <div class="tile-title">Telegram: assistent_next</div>
+        <p class="tile-desc">Группа с новостями наших сервисов</p>
+      </a>
+
+      <a class="tile" href="/ai">
+        <div class="tile-title">AI-ассистент</div>
+        <p class="tile-desc">Помощь в покупках и продажах</p>
+      </a>
+
+      <a class="tile" href="/callcenter">
+        <div class="tile-title">Колл-центр</div>
+        <p class="tile-desc">Роботизированный приём звонков</p>
+      </a>
+    </div>
+  </div>
 </main>
 
-<script src="/static/js/config.js"></script>
-<script src="/static/js/api.js"></script>
+<!-- Только профильный JS (config/api уже в base.html) -->
 <script src="/static/js/profile.js"></script>
-</body>
-</html>
+{% endblock %}

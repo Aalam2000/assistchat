@@ -1,0 +1,106 @@
+<!-- src/app/templates/all-tables.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>assistchat — Таблицы БД</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="/static/css/base.css" rel="stylesheet" />
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+  <div class="container">
+    <h1>Содержимое всех таблиц</h1>
+
+    <div class="actions" style="margin-bottom:8px">
+      <a class="btn" href="/profile">Назад</a>
+    </div>
+
+    {% for table, info in data.items() %}
+      <section class="table-section" data-table="{{ table }}">
+        <div class="row" style="margin:12px 0">
+          <h2 style="margin:0">Таблица: {{ table }}</h2>
+          <button type="button" class="btn toggle-table" data-state="collapsed">Раскрыть</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              {% for col in info.columns %}
+                <th>{{ col }}</th>
+              {% endfor %}
+              {% if table == "tg_accounts" %}
+                <th>Управление</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody class="table-body hidden">
+            {% for row in info.rows %}
+              <tr>
+                {% for col in info.columns %}
+                  <td>{{ row[col] if col in row._mapping else '' }}</td>
+                {% endfor %}
+                {% if table == "tg_accounts" %}
+                  <td>
+                    <button class="toggle {{ 'on' if row['status']=='active' else 'off' }}"
+                            data-phone="{{ row['phone_e164'] }}">
+                      {{ 'Выключить' if row['status']=='active' else 'Включить' }}
+                    </button>
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endfor %}
+  </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Кнопки раскрытия/сворачивания таблиц
+    document.querySelectorAll(".table-section .toggle-table").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.closest(".table-section");
+        const body = section.querySelector(".table-body");
+        const isCollapsed = btn.dataset.state !== "expanded";
+        if (isCollapsed) {
+          body.classList.remove("hidden");
+          btn.textContent = "Свернуть";
+          btn.dataset.state = "expanded";
+        } else {
+          body.classList.add("hidden");
+          btn.textContent = "Раскрыть";
+          btn.dataset.state = "collapsed";
+        }
+      });
+    });
+
+    // Тоггл статуса для tg_accounts
+    document.querySelectorAll("button.toggle").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const phone = btn.dataset.phone;
+        const resp = await fetch("/api/toggle", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone })
+        });
+
+        const data = await resp.json();
+        if (data.status) {
+          if (data.status === "active") {
+            btn.textContent = "Выключить";
+            btn.classList.remove("off");
+            btn.classList.add("on");
+          } else {
+            btn.textContent = "Включить";
+            btn.classList.remove("on");
+            btn.classList.add("off");
+          }
+        }
+      });
+    });
+  });
+  </script>
+</body>
+</html>

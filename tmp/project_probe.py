@@ -1,246 +1,110 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Собирает метаданные проекта в JSON: tmp/project_report.json
+Интерактивный сбор метаданных проекта в JSON: tmp/project_report.json
 Запускать ИЗ КОРНЯ проекта:  python tmp/project_probe.py
+Можно запускать и прямо в PyCharm («Запустить текущий файл»).
 """
 
 from __future__ import annotations
-import os, re, sys, json, subprocess, configparser, datetime
+import re, sys, json, subprocess, configparser, datetime, ast
 from pathlib import Path
 
-REPORT_DIR = Path("tmp")
-REPORT_PATH = REPORT_DIR / "project_report.json"
-
-# ---------- helpers ----------
-def try_run(cmd: list[str], cwd: Path) -> tuple[int,str,str]:
-    try:
-        p = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=10)
-        return p.returncode, p.stdout.strip(), p.stderr.strip()
-    except Exception as e:
-        return 1, "", f"{type(e).__name__}: {e}"
-
-def read_text(p: Path) -> str|None:
+def read_text(p: Path) -> str | None:
     try:
         return p.read_text(encoding="utf-8", errors="replace")
     except Exception:
         return None
 
-def list_dir(p: Path, max_items=200):
-    out = []
-    if not p.exists(): return out
-    for q in sorted(p.iterdir()):
-        try:
-            out.append({
-                "name": q.name,
-                "is_dir": q.is_dir(),
-                "size": None if q.is_dir() else q.stat().st_size,
-            })
-            if len(out) >= max_items: break
-        except Exception:
-            continue
-    return out
-
-def parse_requirements(req_path: Path):
-    pkgs = []
-    txt = read_text(req_path)
-    if not txt: return pkgs
-    for line in txt.splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"): continue
-        pkgs.append(s)
-    return pkgs
-
-def load_yaml(path: Path):
+# --- анализ кода ---
+def analyze_python_file(path: Path, with_details: bool) -> dict:
+    result = {}
+    if not with_details:
+        return result
+    result = {"imports": [], "functions": []}
     try:
-        import yaml  # type: ignore
-        with path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    except Exception:
-        data = {"services": {}}
-        text = read_text(path) or ""
-        current = None
-        for line in text.splitlines():
-            if line.strip().startswith(("#",";")): continue
-            m = re.match(r"^\s{2}([A-Za-z0-9_.-]+):\s*$", line)
-            if m:
-                current = m.group(1)
-                data["services"][current] = {}
-                continue
-            if current and "ports:" in line:
-                data["services"][current].setdefault("ports", [])
-            m2 = re.match(r"^\s*-\s*\"?(\d+:\d+)\"?\s*$", line)
-            if current and m2:
-                data["services"][current].setdefault("ports", []).append(m2.group(1))
-        return data
+        text = read_text(path)
+        if not text:
+            return result
+        tree = ast.parse(text, filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for n in node.names:
+                    result["imports"].append(n.name)
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                for n in node.names:
+                    result["imports"].append(f"{module}.{n.name}")
+            elif isinstance(node, ast.FunctionDef):
+                result["functions"].append(node.name)
+    except Exception as e:
+        result["error"] = f"{type(e).__name__}: {e}"
+    return result
 
-def parse_env_file(path: Path):
-    keys = []
-    txt = read_text(path)
-    if not txt: return keys
-    for line in txt.splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"): continue
-        if "=" in s:
-            k = s.split("=",1)[0].strip()
-            if k: keys.append(k)
-    return keys
+# --- рекурсивный обход ---
+def scan_dir(path: Path, expand_details: set[str], base: Path) -> list[dict]:
+    out = []
+    if not path.exists():
+        return out
+    for q in sorted(path.iterdir()):
+        entry = {
+            "name": q.name,
+            "is_dir": q.is_dir(),
+            "size": None if q.is_dir() else q.stat().st_size,
+        }
+        if q.is_dir():
+            entry["children"] = scan_dir(q, expand_details, base)
+        else:
+            if q.suffix == ".py":
+                rel = str(q.relative_to(base).parts[0])
+                entry.update(analyze_python_file(q, rel in expand_details))
+        out.append(entry)
+    return out
 
 def resolve_project_root():
     cur = Path.cwd()
     for _ in range(6):
-        if (cur/"docker-compose.yml").exists() or (cur/".git").exists():
+        if (cur / "docker-compose.yml").exists() or (cur / ".git").exists():
             return cur
         cur = cur.parent
     return Path.cwd()
 
-def alembic_script_location(project_root: Path):
-    ini = project_root/"alembic.ini"
-    script_loc = None
-    if ini.exists():
-        cp = configparser.ConfigParser()
-        cp.read(ini, encoding="utf-8")
-        if cp.has_section("alembic") and cp.has_option("alembic","script_location"):
-            script_loc = cp.get("alembic","script_location").strip()
-    if not script_loc:
-        if (project_root/"src/alembic").exists():
-            script_loc = "src/alembic"
-        else:
-            script_loc = "alembic"
-    return script_loc, ini.exists()
-
-def scan_migrations(versions_dir: Path):
-    migs = []
-    if not versions_dir.exists():
-        return migs, []
-    revs = set()
-    downs = set()
-    for p in sorted(versions_dir.glob("*.py")):
-        txt = read_text(p) or ""
-        rev = None
-        down = None
-        m1 = re.search(r"^revision\s*=\s*[\"']([\w\d]+)[\"']", txt, re.M|re.I)
-        m2 = re.search(r"^down_revision\s*=\s*[\"']?([\w\d]+)?[\"']?", txt, re.M|re.I)
-        if m1: rev = m1.group(1)
-        if m2: down = m2.group(1) if m2.group(1) not in ("None","") else None
-        if rev:
-            migs.append({"file": p.name, "revision": rev, "down_revision": down})
-            revs.add(rev)
-            if down: downs.add(down)
-    heads = sorted(revs - downs)
-    return migs, heads
-
-# ---------- DB schema ----------
-def collect_db_schema():
-    try:
-        from src.common.db import engine
-        from sqlalchemy import inspect
-        insp = inspect(engine)
-        schema = {}
-        for tbl in insp.get_table_names():
-            cols = []
-            for col in insp.get_columns(tbl):
-                cols.append({
-                    "name": col["name"],
-                    "type": str(col["type"]),
-                    "nullable": col.get("nullable", True),
-                    "default": str(col.get("default"))
-                })
-            schema[tbl] = cols
-        return schema
-    except Exception as e:
-        return {"error": repr(e)}
-
 # ---------- main ----------
 def main():
     project_root = resolve_project_root()
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    all_dirs = [d for d in sorted(project_root.iterdir()) if d.is_dir()]
+    print("\nНайденные директории в корне проекта:")
+    for i, d in enumerate(all_dirs, 1):
+        print(f" {i}) {d.name}")
+    choice = input("\nВведите номера директорий для включения (через запятую): ").strip()
+    include_idxs = {int(x) for x in choice.split(",") if x.strip().isdigit()}
+    include_dirs = [all_dirs[i - 1].name for i in include_idxs if 1 <= i <= len(all_dirs)]
+
+    print("\nИз выбранных директорий разворачивать функции и импорты:")
+    for i, d in enumerate(include_dirs, 1):
+        print(f" {i}) {d}")
+    choice2 = input("\nВведите номера директорий для разворачивания (через запятую): ").strip()
+    expand_idxs = {int(x) for x in choice2.split(",") if x.strip().isdigit()}
+    expand_dirs = {include_dirs[i - 1] for i in expand_idxs if 1 <= i <= len(include_dirs)}
+
+    report_dir = project_root / "tmp"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / "project_report.json"
 
     info = {
         "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "project_root": str(project_root.resolve()),
-        "summary": {},
-        "git": {},
-        "python": {},
-        "env": {},
-        "docker_compose": {},
-        "alembic": {},
         "fs": {},
-        "db_schema": {},
-        "warnings": [],
     }
 
-    info["summary"] = {
-        "has_docker_compose": (project_root/"docker-compose.yml").exists(),
-        "has_alembic_ini": (project_root/"alembic.ini").exists(),
-        "has_src_app": (project_root/"src/app").exists(),
-        "has_src_alembic": (project_root/"src/alembic").exists(),
-        "requirements_txt": (project_root/"requirements.txt").exists(),
-    }
+    for d in include_dirs:
+        path = project_root / d
+        info["fs"][d] = scan_dir(path, expand_dirs, project_root)
 
-    code, out, err = try_run(["git","rev-parse","--abbrev-ref","HEAD"], project_root)
-    if code==0: info["git"]["branch"] = out
-    code, out, err = try_run(["git","rev-parse","HEAD"], project_root)
-    if code==0: info["git"]["last_commit"] = out
-    code, out, err = try_run(["git","status","--porcelain"], project_root)
-    if code==0: info["git"]["dirty"] = bool(out.strip())
-
-    req_path = project_root/"requirements.txt"
-    info["python"]["requirements"] = parse_requirements(req_path)
-
-    env_file = project_root/".env"
-    env_example = project_root/".env.example"
-    info["env"][".env_keys"] = parse_env_file(env_file) if env_file.exists() else []
-    info["env"][".env_example_keys"] = parse_env_file(env_example) if env_example.exists() else []
-    info["env"]["present_files"] = [p for p in [".env",".env.example"] if (project_root/p).exists()]
-
-    dc = project_root/"docker-compose.yml"
-    if dc.exists():
-        y = load_yaml(dc) or {}
-        info["docker_compose"]["raw_keys"] = list(y.keys()) if isinstance(y, dict) else []
-        services = {}
-        for name, svc in (y.get("services") or {}).items():
-            if not isinstance(svc, dict): continue
-            services[name] = {
-                "image": svc.get("image"),
-                "build": svc.get("build"),
-                "ports": svc.get("ports"),
-                "env_file": svc.get("env_file"),
-                "environment_keys": sorted(list((svc.get("environment") or {}).keys())) if isinstance(svc.get("environment"), dict) else svc.get("environment"),
-                "volumes": svc.get("volumes"),
-                "depends_on": svc.get("depends_on"),
-            }
-        info["docker_compose"]["services"] = services
-    else:
-        info["warnings"].append("docker-compose.yml not found")
-
-    script_loc, has_ini = alembic_script_location(project_root)
-    alembic_dir = project_root / script_loc
-    versions_dir = alembic_dir / "versions"
-    migs, heads = scan_migrations(versions_dir)
-    info["alembic"] = {
-        "script_location": script_loc,
-        "alembic_ini_present": has_ini,
-        "versions_dir_exists": versions_dir.exists(),
-        "migrations_count": len(migs),
-        "migrations": migs,
-        "heads": heads,
-    }
-
-    info["fs"] = {
-        "src_app": list_dir(project_root/"src/app"),
-        "src_alembic_versions": list_dir(versions_dir),
-        "scripts": list_dir(project_root/"scripts"),
-        "tmp": list_dir(project_root/"tmp"),
-    }
-
-    # новая часть: структура БД
-    info["db_schema"] = collect_db_schema()
-
-    with REPORT_PATH.open("w", encoding="utf-8") as f:
+    with report_path.open("w", encoding="utf-8") as f:
         json.dump(info, f, ensure_ascii=False, indent=2)
 
-    print(f"[OK] Report written to {REPORT_PATH}")
+    print(f"\n[OK] Report written to {report_path}")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
