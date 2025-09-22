@@ -6,13 +6,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const logout = document.getElementById("logout-btn");
     logout?.addEventListener("click", async () => {
         try {
-            const r = await fetch("/api/auth/logout", {method: "POST", credentials: "same-origin"});
+            const r = await fetch("/api/auth/logout", {
+                method: "POST",
+                credentials: "same-origin"
+            });
             const data = await r.json().catch(() => ({}));
-            if (data.redirect) window.location.href = data.redirect;
-        } catch {
+            // после выхода возвращаемся на главную
+            if (data.ok) {
+                window.location.href = "/";
+            } else {
+                console.error("Logout failed", data);
+            }
+        } catch (e) {
+            console.error("Logout error:", e);
         }
     });
 });
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────

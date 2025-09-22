@@ -27,13 +27,17 @@ body{
   margin:0 auto;
   padding:24px 16px;
 }
-.card{
-  background:var(--card);
-  border:1px solid var(--border-soft);
-  border-radius:16px;
-  padding:20px;
-  box-shadow:0 10px 25px rgba(0,0,0,.30);
+.card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;       /* фиксированно светлый фон */
+    color: #111;            /* тёмный текст */
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
 }
+
 .hr{height:1px;background:var(--border-soft);margin:16px 0}
 
 /* ===== Typography ===== */
@@ -133,7 +137,7 @@ input::placeholder{color:#94a3b8}
 .auth-wrap .card{max-width:420px;width:100%}
 .title{margin:0 0 10px;text-align:center}
 
-/* ===== Tables (index.html) ===== */
+/* ===== Tables (all-tables.html) ===== */
 table{
   width:100%;border-collapse:collapse;margin-top:12px;background:var(--neutral);
   border-radius:12px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.20)
@@ -168,4 +172,74 @@ label.inline {
 
 label.inline span {
   min-width: 70px;
+}
+
+/* Кнопка переключения языка */
+#i18n-toggle {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  padding: 6px 10px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  background: #3b82f6; /* синий, чтобы не сливалась */
+  color: #fff;
+  text-decoration: none;
+  font: 14px/1.2 system-ui;
+}
+#i18n-toggle:hover {
+  opacity: 0.9;
+}
+
+/* Шапка */
+.site-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: var(--neutral);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  z-index: 1000;
+}
+.site-header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+}
+.logo {
+  color: var(--text);
+  font-size: 22px;
+  margin: 0;
+}
+.nav-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.nav-links .btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+.btn-login {
+  background: var(--accent);  /* зелёная */
+  color: #fff;
+}
+.btn-lang  {
+  background: var(--accent-2); /* синяя */
+  color: #fff;
+}
+.btn-login:hover,
+.btn-lang:hover {
+  opacity: 0.85;
+}
+.username  { color: var(--text); font-weight: 600; }
+
+/* Mobile */
+@media (max-width: 800px) {
+  .logo { font-size: 18px; }
+  .nav-links .btn { padding: 6px 10px; font-size: 13px; }
 }

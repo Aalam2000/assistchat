@@ -1,0 +1,49 @@
+<!-- src/app/templates/base.html -->
+<!doctype html>
+<html lang="{{ lang|default('ru') }}">
+<head>
+    <meta charset="utf-8"/>
+    <title>{% block title %}bona-plus{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link href="/static/css/modals.css" rel="stylesheet"/>
+    <link href="/static/css/base.css" rel="stylesheet"/>
+    <link href="/static/css/index.css" rel="stylesheet"/>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+    <!-- Фиксированная шапка -->
+    <header class="site-header">
+        <div class="container">
+            <h1 class="logo">bona-plus</h1>
+            <nav class="nav-links">
+                {% if user %}
+                    <span class="username">{{ username }}</span>
+                    <a href="/profile" class="btn">Профиль</a>
+                    <a href="javascript:void(0)" class="btn" id="logout-btn">Выйти</a>
+                {% else %}
+                    <a href="javascript:void(0)" class="btn btn-login" onclick="document.getElementById('login-modal').classList.remove('hidden')">
+                      Войти / Регистрация
+                    </a>
+                {% endif %}
+            </nav>
+            </nav>
+        </div>
+    </header>
+
+
+    <!-- Контент -->
+    <main class="site-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% include "auth/login.html" %}
+
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/auth/tabs.js"></script>
+    <script src="/static/js/auth/login.js"></script>
+    <script src="/static/js/auth/logout.js"></script>
+    <script src="/static/js/auth/register.js"></script>
+
+</body>
+</html>
