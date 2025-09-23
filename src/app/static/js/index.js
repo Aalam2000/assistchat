@@ -42,9 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
         download.download = "qr_with_logo.zip";
         download.classList.remove("hidden");
 
-
         statusEl.textContent = "Готово. Скачайте архив.";
-
       } catch (err) {
         console.error("[qr] error:", err);
         statusEl.textContent = "Ошибка генерации QR.";

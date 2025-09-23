@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-23T14:08:29",
+  "generated_at": "2025-09-23T16:34:43",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -29,7 +29,7 @@
           {
             "name": "login.html",
             "is_dir": false,
-            "size": 2255,
+            "size": 2680,
             "css_used": [],
             "js_used": []
           }
@@ -38,18 +38,14 @@
       {
         "name": "base.html",
         "is_dir": false,
-        "size": 1852,
+        "size": 2358,
         "css_used": [
-          "/static/css/base.css",
-          "/static/css/index.css",
-          "/static/css/modals.css"
+          "/static/css/base-auth-modal.css",
+          "/static/css/base.css"
         ],
         "js_used": [
           "/static/js/api.js",
-          "/static/js/auth/login.js",
-          "/static/js/auth/logout.js",
-          "/static/js/auth/register.js",
-          "/static/js/auth/tabs.js",
+          "/static/js/auth.js",
           "/static/js/config.js"
         ]
       },
@@ -65,8 +61,10 @@
       {
         "name": "index.html",
         "is_dir": false,
-        "size": 4943,
-        "css_used": [],
+        "size": 5201,
+        "css_used": [
+          "/static/css/index.css"
+        ],
         "js_used": [
           "/static/js/index.js"
         ]
@@ -128,19 +126,19 @@
         "size": null,
         "children": [
           {
-            "name": "auth.css",
+            "name": "base-auth-modal.css",
             "is_dir": false,
-            "size": 1687
+            "size": 3263
           },
           {
             "name": "base.css",
             "is_dir": false,
-            "size": 7163
+            "size": 5533
           },
           {
             "name": "index.css",
             "is_dir": false,
-            "size": 2051
+            "size": 1262
           },
           {
             "name": "modals.css",
@@ -165,31 +163,9 @@
             "size": 371
           },
           {
-            "name": "auth",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "login.js",
-                "is_dir": false,
-                "size": 895
-              },
-              {
-                "name": "logout.js",
-                "is_dir": false,
-                "size": 423
-              },
-              {
-                "name": "register.js",
-                "is_dir": false,
-                "size": 865
-              },
-              {
-                "name": "tabs.js",
-                "is_dir": false,
-                "size": 525
-              }
-            ]
+            "name": "auth.js",
+            "is_dir": false,
+            "size": 2569
           },
           {
             "name": "config.js",
@@ -199,7 +175,7 @@
           {
             "name": "index.js",
             "is_dir": false,
-            "size": 1918
+            "size": 1914
           },
           {
             "name": "mess.js",

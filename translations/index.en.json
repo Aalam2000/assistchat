@@ -9,7 +9,6 @@
   "Интеграция с Telegram": "Telegram Integration",
   "Подключение аккаунтов, управление и автоматизация диалогов.": "Account integration, management, and dialog automation.",
   "QR-коды": "QR Codes",
-  "Генерация QR-кодов с логотипом, PDF и PNG.": "QR code generation with logo, PDF, and PNG.",
   "Голосовой чат с аватаром": "Voice chat with avatar",
   "В разработке: живой диалог с AI через видеоаватар.": "In development: live dialogue with AI through a video avatar.",
   "Мультиязычные диалоги": "Multilingual Dialogs",
@@ -25,5 +24,11 @@
   "Войти": "Log In",
   "Email (необязательно)": "Email (optional)",
   "Зарегистрироваться": "Register",
-  "Войти / Регистрация": "Login / Registration"
+  "Войти / Регистрация": "Login / Registration",
+  "Ресурсы": "Resources",
+  "Тут будут ваши ресурсы после входа в систему.": "Here will be your resources after logging in.",
+  "Генерация QR-кода с логотипом. Выберите формат: PNG или PDF.": "Generating a QR code with a logo. Choose a format: PNG or PDF.",
+  "Чтобы пользоваться генератором QR-кодов,": "To use the QR code generator,",
+  "войдите в аккаунт": "log in to your account",
+  ".": "."
 }

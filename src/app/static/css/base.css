@@ -1,4 +1,4 @@
-/* ===== Base theme (как в profile.html) ===== */
+/* ===== Общая тема ===== */
 :root{
   --bg:#2d4680;
   --card:#111827;
@@ -21,40 +21,37 @@ body{
   font:16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* ===== Layout wrappers (общие для всех страниц) ===== */
-.wrap,.container{
-  max-width:960px;
-  margin:0 auto;
-  padding:24px 16px;
-}
-.card {
-    width: 100%;
-    max-width: 420px;
-    background: #fff;       /* фиксированно светлый фон */
-    color: #111;            /* тёмный текст */
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+/* ===== Layout ===== */
+.wrap,.container{max-width:960px;margin:0 auto;padding:24px 16px}
+main.site-main{max-width:960px;margin:80px auto 40px;padding:0 16px}
+
+/* ===== Карточки ===== */
+.card{
+  width:100%;
+  max-width:420px;
+  background:#fff;     /* светлая карточка поверх тёмного фона */
+  color:#111;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
 }
 
-.hr{height:1px;background:var(--border-soft);margin:16px 0}
-
-/* ===== Typography ===== */
+/* ===== Типографика ===== */
 h1{margin:0 0 8px;font-size:28px}
 h2{margin:0 0 8px;font-size:20px}
 .subtitle{color:var(--muted);margin:0 0 16px}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#cbd5e1}
 
-/* ===== Grid / Rows ===== */
+/* ===== Сетки ===== */
 .row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .grid{display:grid;gap:14px;margin-top:8px}
 @media(min-width:740px){.grid{grid-template-columns:repeat(3,1fr)}}
 
-/* ===== Buttons & Links ===== */
-a.btn, .btn{
+/* ===== Кнопки ===== */
+a.btn,.btn{
   display:inline-flex;justify-content:center;align-items:center;gap:8px;
-  padding:12px 16px;border-radius:12px;text-decoration:none;cursor:pointer;
+  padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer;
   background:var(--neutral);border:1px solid var(--border);color:var(--text);font-weight:600;
   transition:transform .08s ease,border-color .08s ease,opacity .08s ease
 }
@@ -63,91 +60,49 @@ a.btn, .btn{
 .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
 .badge{padding:4px 8px;border:1px solid var(--accent-2);border-radius:999px;background:var(--neutral);font-size:12px;color:#cbd5e1}
 
-/* Кнопка входа через Google (рядом с табами) */
-.google-btn {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-
-  padding:10px 12px;
-  border-radius:10px;
-  border:1px solid var(--border);
-
-  background:#fff;
-  color:#444;
-  font-weight:600;
-  font-size:14px;
-  cursor:pointer;
-
-  transition:background 0.2s, box-shadow 0.2s, transform 0.1s ease;
-}
-
-.google-btn:hover {
-  background:#f8f8f8;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
-  transform:translateY(-1px);
-}
-
-.google-btn img {
-  width:16px;
-  height:16px;
-}
-
-/* Кнопки в таблицах (вкл/выкл) */
-button.toggle{padding:6px 10px;border:0;border-radius:8px;font-size:12px;cursor:pointer}
-button.toggle.on{background:#2563eb;color:#fff}
-button.toggle.off{background:#9ca3af;color:#111}
-
-/* ===== Tiles (profile.html) ===== */
-.tile{
-  display:block;padding:16px;border:1px solid var(--border);border-radius:14px;
-  background:var(--neutral);text-decoration:none;color:var(--text);
-  transition:transform .08s ease,border-color .08s ease
-}
-.tile:hover{transform:translateY(-1px);border-color:#475569}
-.tile-title{font-weight:700;margin:0 0 4px}
-.tile-desc{color:var(--muted);font-size:14px;margin:0}
-
-/* ===== Forms (qr.html, login.html) ===== */
+/* ===== Формы (универсально) ===== */
 label{display:block;margin:0 0 6px;color:#cbd5e1}
 input[type="text"],
 input[type="password"],
 input[type="email"],
-input[type="file"]{
-  width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px;
-  background:var(--neutral);color:var(--text);outline:none
+input[type="file"],
+input[type="number"],
+select,
+textarea{
+  width:100%;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--neutral);
+  color:var(--text);
+  outline:none;
 }
-input::placeholder{color:#94a3b8}
+input::placeholder,textarea::placeholder{color:#94a3b8}
+select{appearance:none}
+textarea{resize:vertical;min-height:92px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent-2);box-shadow:0 0 0 2px rgba(31,120,246,.4)}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .error{color:var(--danger);min-height:1.2em;margin-top:8px}
 
-/* ===== Tabs (login.html) ===== */
+/* Удаляем мелкий шрифт у логина/пароля */
+input[name="username"],input[name="password"]{font-size:14px;padding-top:12px;padding-bottom:12px}
+
+/* ===== Табы ===== */
 .tabs{display:flex;gap:8px;margin:0 0 12px}
-.tab-btn{
-  padding:10px 12px;border-radius:10px;border:1px solid var(--border);
-  background:var(--neutral);color:var(--text);cursor:pointer;font-weight:600
-}
+.tab-btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--neutral);color:var(--text);cursor:pointer;font-weight:600}
 .tab-btn.active{background:#0f172a;border-color:#475569}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 
-/* ===== Auth wrapper (login.html) ===== */
+/* ===== Auth wrapper ===== */
 .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
 .auth-wrap .card{max-width:420px;width:100%}
 .title{margin:0 0 10px;text-align:center}
 
-/* ===== Tables (all-tables.html) ===== */
-table{
-  width:100%;border-collapse:collapse;margin-top:12px;background:var(--neutral);
-  border-radius:12px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.20)
-}
-thead th{
-  text-align:left;font-size:12px;color:var(--muted);padding:10px;border-bottom:1px solid #263244
-}
-tbody td{
-  padding:10px;border-bottom:1px solid #1c2738;font-size:14px;color:var(--text)
-}
+/* ===== Таблицы ===== */
+table{width:100%;border-collapse:collapse;margin-top:12px;background:var(--neutral);border-radius:12px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.20)}
+thead th{text-align:left;font-size:12px;color:var(--muted);padding:10px;border-bottom:1px solid #263244}
+tbody td{padding:10px;border-bottom:1px solid #1c2738;font-size:14px;color:var(--text)}
 tbody tr:last-child td{border-bottom:0}
 
 /* ===== Helpers ===== */
@@ -155,23 +110,27 @@ tbody tr:last-child td{border-bottom:0}
 .center{display:grid;place-items:center}
 .mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
 
-/* Поля логина/пароля — делаем выше на 1.5 раза через padding */
-input[name="username"],
-input[name="password"] {
-  padding-top: 10px;   /* вместо 12px */
-  padding-bottom: 10px;
-  font-size: 10px;
+/* ===== Шапка ===== */
+.site-header{
+  position:fixed;top:0;left:0;right:0;
+  background:var(--neutral);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+  z-index:1000;
 }
+.site-header .container{display:flex;justify-content:space-between;align-items:center;padding:14px 20px}
+.logo{color:var(--text);font-size:22px;margin:0}
+.nav-links{display:flex;gap:12px;align-items:center}
+.nav-links .btn{padding:8px 14px;border-radius:8px;font-size:14px;font-weight:600}
+.btn-login{background:var(--accent);color:#fff}
+.btn-lang{background:var(--accent-2);color:#fff}
+.btn-login:hover,.btn-lang:hover{opacity:.85}
+.username{color:var(--text);font-weight:600}
 
-/* Пароль — в одной строке с меткой */
-label.inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-label.inline span {
-  min-width: 70px;
+/* Mobile */
+@media (max-width:800px){
+  .logo{font-size:18px}
+  .nav-links .btn{padding:6px 10px;font-size:13px}
 }
 
 /* Кнопка переключения языка */
@@ -190,56 +149,4 @@ label.inline span {
 }
 #i18n-toggle:hover {
   opacity: 0.9;
-}
-
-/* Шапка */
-.site-header {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  background: var(--neutral);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 2px 6px rgba(0,0,0,.2);
-  z-index: 1000;
-}
-.site-header .container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-}
-.logo {
-  color: var(--text);
-  font-size: 22px;
-  margin: 0;
-}
-.nav-links {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.nav-links .btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-}
-.btn-login {
-  background: var(--accent);  /* зелёная */
-  color: #fff;
-}
-.btn-lang  {
-  background: var(--accent-2); /* синяя */
-  color: #fff;
-}
-.btn-login:hover,
-.btn-lang:hover {
-  opacity: 0.85;
-}
-.username  { color: var(--text); font-weight: 600; }
-
-/* Mobile */
-@media (max-width: 800px) {
-  .logo { font-size: 18px; }
-  .nav-links .btn { padding: 6px 10px; font-size: 13px; }
 }

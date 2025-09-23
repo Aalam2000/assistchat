@@ -5,31 +5,33 @@
       <button class="modal__close" onclick="document.getElementById('login-modal').classList.add('hidden')">×</button>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="login">Вход</button>
-      <button class="tab-btn" data-tab="register">Регистрация</button>
-      <button class="google-btn" onclick="window.location.href='/auth/google'">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
-        Войти через Google
-      </button>
-    </div>
+    <h2 class="welcome-title">Добро пожаловать в bona-plus</h2>
 
     <!-- Вход -->
     <section class="tab-panel active" id="tab-login">
       <form id="login-form" novalidate>
-        <label class="inline">
+        <label>
           <span>Логин</span>
           <input name="username" type="text" autocomplete="username" required />
         </label>
-        <label class="inline">
+        <label>
           <span>Пароль</span>
           <input name="password" type="password" autocomplete="current-password" required />
         </label>
+        <p class="error" id="login-error"></p>
+
         <div class="actions">
           <button type="submit" class="btn primary">Войти</button>
         </div>
-        <p class="error" id="login-error"></p>
+
+        <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+          Войти через Google
+        </button>
+
+        <p class="switch-link">
+          Нет аккаунта? <a href="#" id="switch-to-register">Зарегистрируйтесь</a>
+        </p>
       </form>
     </section>
 
@@ -38,20 +40,30 @@
       <form id="register-form" novalidate>
         <label>
           <span>Логин</span>
-          <input name="username" autocomplete="username" required />
+          <input name="username" type="text" autocomplete="username" required />
         </label>
         <label>
           <span>Email (необязательно)</span>
           <input name="email" type="email" autocomplete="email" />
         </label>
-        <label class="inline">
+        <label>
           <span>Пароль</span>
-          <input name="password" type="password" autocomplete="current-password" required />
+          <input name="password" type="password" autocomplete="new-password" required />
         </label>
-        <div class="actions">
-          <button type="submit" class="btn">Зарегистрироваться</button>
-        </div>
         <p class="error" id="register-error"></p>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Зарегистрироваться</button>
+        </div>
+
+        <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
+          Войти через Google
+        </button>
+
+        <p class="switch-link">
+          Уже есть аккаунт? <a href="#" id="switch-to-login">Войти</a>
+        </p>
       </form>
     </section>
   </div>
