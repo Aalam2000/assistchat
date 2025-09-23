@@ -1,975 +1,247 @@
 {
-  "generated_at": "2025-09-21T14:12:53",
+  "generated_at": "2025-09-23T14:08:29",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
-    "src": [
+    "src/app/templates": [
       {
-        "name": "alembic",
+        "name": "ai.html",
+        "is_dir": false,
+        "size": 3006,
+        "css_used": [
+          "/static/css/base.css"
+        ],
+        "js_used": []
+      },
+      {
+        "name": "all-tables.html",
+        "is_dir": false,
+        "size": 3752,
+        "css_used": [
+          "/static/css/base.css"
+        ],
+        "js_used": []
+      },
+      {
+        "name": "auth",
         "is_dir": true,
         "size": null,
         "children": [
           {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "env.cpython-312.pyc",
-                "is_dir": false,
-                "size": 3698
-              }
-            ]
-          },
-          {
-            "name": "env.py",
+            "name": "login.html",
             "is_dir": false,
-            "size": 2737
-          },
+            "size": 2255,
+            "css_used": [],
+            "js_used": []
+          }
+        ]
+      },
+      {
+        "name": "base.html",
+        "is_dir": false,
+        "size": 1852,
+        "css_used": [
+          "/static/css/base.css",
+          "/static/css/index.css",
+          "/static/css/modals.css"
+        ],
+        "js_used": [
+          "/static/js/api.js",
+          "/static/js/auth/login.js",
+          "/static/js/auth/logout.js",
+          "/static/js/auth/register.js",
+          "/static/js/auth/tabs.js",
+          "/static/js/config.js"
+        ]
+      },
+      {
+        "name": "callcenter.html",
+        "is_dir": false,
+        "size": 3158,
+        "css_used": [
+          "/static/css/base.css"
+        ],
+        "js_used": []
+      },
+      {
+        "name": "index.html",
+        "is_dir": false,
+        "size": 4943,
+        "css_used": [],
+        "js_used": [
+          "/static/js/index.js"
+        ]
+      },
+      {
+        "name": "profile.html",
+        "is_dir": false,
+        "size": 7296,
+        "css_used": [],
+        "js_used": [
+          "/static/js/profile.js"
+        ]
+      },
+      {
+        "name": "qr.html",
+        "is_dir": false,
+        "size": 1306,
+        "css_used": [
+          "/static/css/base.css"
+        ],
+        "js_used": [
+          "/static/js/qr.js"
+        ]
+      },
+      {
+        "name": "resources",
+        "is_dir": true,
+        "size": null,
+        "children": [
           {
-            "name": "script.py.mako",
+            "name": "zoom.html",
             "is_dir": false,
-            "size": 499
-          },
-          {
-            "name": "versions",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": ".gitkeep",
-                "is_dir": false,
-                "size": 2
-              },
-              {
-                "name": "0c7d905c79ff_replace_account_id_with_resource_id_in_.py",
-                "is_dir": false,
-                "size": 1405
-              },
-              {
-                "name": "165ab7be38b4_init_create_tg_accounts.py",
-                "is_dir": false,
-                "size": 2038
-              },
-              {
-                "name": "20250908_avito_flru_and_user_openai_key.py",
-                "is_dir": false,
-                "size": 7138
-              },
-              {
-                "name": "2a2a919a38d6_fix_resources_user_id_to_integer.py",
-                "is_dir": false,
-                "size": 1650
-              },
-              {
-                "name": "38ab48e15002_add_messages_and_updates_seen.py",
-                "is_dir": false,
-                "size": 2751
-              },
-              {
-                "name": "6e79614b2f16_create_users.py",
-                "is_dir": false,
-                "size": 3023
-              },
-              {
-                "name": "70a3c3c0406a_add_tg_accounts_status.py",
-                "is_dir": false,
-                "size": 397
-              },
-              {
-                "name": "7b3c9f3d28c3_create_resources_table.py",
-                "is_dir": false,
-                "size": 2931
-              },
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "0c7d905c79ff_replace_account_id_with_resource_id_in_.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 2057
-                  },
-                  {
-                    "name": "165ab7be38b4_init_create_tg_accounts.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 3376
-                  },
-                  {
-                    "name": "1e9938985fcd_add_status_to_messages.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1024
-                  },
-                  {
-                    "name": "20250908_avito_flru_and_user_openai_key.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 9790
-                  },
-                  {
-                    "name": "2421a49e5e68_init.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1459
-                  },
-                  {
-                    "name": "2a2a919a38d6_fix_resources_user_id_to_integer.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1896
-                  },
-                  {
-                    "name": "3445eeab72f3_init.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1459
-                  },
-                  {
-                    "name": "38ab48e15002_add_messages_and_updates_seen.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 4055
-                  },
-                  {
-                    "name": "3b4f2a7d1c0a_drop_messages_create_tg_accounts.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 4629
-                  },
-                  {
-                    "name": "6e79614b2f16_create_users.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 3431
-                  },
-                  {
-                    "name": "70a3c3c0406a_add_tg_accounts_status.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 848
-                  },
-                  {
-                    "name": "7b3c9f3d28c3_create_resources_table.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 4288
-                  },
-                  {
-                    "name": "91f0b6944262_init_messages.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1477
-                  },
-                  {
-                    "name": "c4af6c51f292_add_owner_user_id_to_tg_accounts.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1518
-                  },
-                  {
-                    "name": "c97a5b85842e_drop_messages_create_tg_accounts.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 4676
-                  }
-                ]
-              },
-              {
-                "name": "c4af6c51f292_add_owner_user_id_to_tg_accounts.py",
-                "is_dir": false,
-                "size": 949
-              }
+            "size": 3342,
+            "css_used": [
+              "/static/css/base.css"
+            ],
+            "js_used": [
+              "/static/js/api.js",
+              "/static/js/config.js",
+              "/static/js/resources_zoom.js"
             ]
           }
         ]
       },
       {
-        "name": "app",
+        "name": "resources.html",
+        "is_dir": false,
+        "size": 2820,
+        "css_used": [],
+        "js_used": [
+          "/static/js/resources.js"
+        ]
+      }
+    ],
+    "src/app/static": [
+      {
+        "name": "css",
         "is_dir": true,
         "size": null,
         "children": [
           {
-            "name": "__init__.py",
+            "name": "auth.css",
+            "is_dir": false,
+            "size": 1687
+          },
+          {
+            "name": "base.css",
+            "is_dir": false,
+            "size": 7163
+          },
+          {
+            "name": "index.css",
+            "is_dir": false,
+            "size": 2051
+          },
+          {
+            "name": "modals.css",
+            "is_dir": false,
+            "size": 1773
+          }
+        ]
+      },
+      {
+        "name": "favicon.ico",
+        "is_dir": false,
+        "size": 3718
+      },
+      {
+        "name": "js",
+        "is_dir": true,
+        "size": null,
+        "children": [
+          {
+            "name": "api.js",
+            "is_dir": false,
+            "size": 371
+          },
+          {
+            "name": "auth",
+            "is_dir": true,
+            "size": null,
+            "children": [
+              {
+                "name": "login.js",
+                "is_dir": false,
+                "size": 895
+              },
+              {
+                "name": "logout.js",
+                "is_dir": false,
+                "size": 423
+              },
+              {
+                "name": "register.js",
+                "is_dir": false,
+                "size": 865
+              },
+              {
+                "name": "tabs.js",
+                "is_dir": false,
+                "size": 525
+              }
+            ]
+          },
+          {
+            "name": "config.js",
+            "is_dir": false,
+            "size": 206
+          },
+          {
+            "name": "index.js",
+            "is_dir": false,
+            "size": 1918
+          },
+          {
+            "name": "mess.js",
             "is_dir": false,
             "size": 0
           },
           {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.cpython-312.pyc",
-                "is_dir": false,
-                "size": 121
-              },
-              {
-                "name": "main.cpython-312.pyc",
-                "is_dir": false,
-                "size": 72943
-              },
-              {
-                "name": "providers.cpython-312.pyc",
-                "is_dir": false,
-                "size": 9058
-              }
-            ]
-          },
-          {
-            "name": "dialogs",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "telegram_dialog.py",
-                "is_dir": false,
-                "size": 2783
-              }
-            ]
-          },
-          {
-            "name": "main.py",
+            "name": "profile.js",
             "is_dir": false,
-            "size": 62805
+            "size": 11892
           },
           {
-            "name": "manager",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "bot.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 3866
-                  }
-                ]
-              },
-              {
-                "name": "bot.py",
-                "is_dir": false,
-                "size": 2507
-              }
-            ]
-          },
-          {
-            "name": "models.py",
+            "name": "qr.js",
             "is_dir": false,
-            "size": 86
+            "size": 1374
           },
           {
-            "name": "providers.py",
+            "name": "resources.js",
             "is_dir": false,
-            "size": 16887
+            "size": 21908
           },
           {
-            "name": "static",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "css",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "auth.css",
-                    "is_dir": false,
-                    "size": 1687
-                  },
-                  {
-                    "name": "base.css",
-                    "is_dir": false,
-                    "size": 5551
-                  },
-                  {
-                    "name": "index.css",
-                    "is_dir": false,
-                    "size": 1753
-                  },
-                  {
-                    "name": "modals.css",
-                    "is_dir": false,
-                    "size": 1773
-                  }
-                ]
-              },
-              {
-                "name": "favicon.ico",
-                "is_dir": false,
-                "size": 3718
-              },
-              {
-                "name": "js",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "api.js",
-                    "is_dir": false,
-                    "size": 371
-                  },
-                  {
-                    "name": "auth",
-                    "is_dir": true,
-                    "size": null,
-                    "children": [
-                      {
-                        "name": "login.js",
-                        "is_dir": false,
-                        "size": 789
-                      },
-                      {
-                        "name": "register.js",
-                        "is_dir": false,
-                        "size": 864
-                      },
-                      {
-                        "name": "tabs.js",
-                        "is_dir": false,
-                        "size": 525
-                      }
-                    ]
-                  },
-                  {
-                    "name": "config.js",
-                    "is_dir": false,
-                    "size": 206
-                  },
-                  {
-                    "name": "mess.js",
-                    "is_dir": false,
-                    "size": 0
-                  },
-                  {
-                    "name": "profile.js",
-                    "is_dir": false,
-                    "size": 11609
-                  },
-                  {
-                    "name": "qr.js",
-                    "is_dir": false,
-                    "size": 1374
-                  },
-                  {
-                    "name": "resources.js",
-                    "is_dir": false,
-                    "size": 21908
-                  },
-                  {
-                    "name": "resources_zoom.js",
-                    "is_dir": false,
-                    "size": 15934
-                  }
-                ]
-              },
-              {
-                "name": "lang",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "en.json",
-                    "is_dir": false,
-                    "size": 0
-                  },
-                  {
-                    "name": "ru.json",
-                    "is_dir": false,
-                    "size": 0
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "name": "templates",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "ai.html",
-                "is_dir": false,
-                "size": 3006
-              },
-              {
-                "name": "all-tables.html",
-                "is_dir": false,
-                "size": 3752
-              },
-              {
-                "name": "auth",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "login.html",
-                    "is_dir": false,
-                    "size": 3074
-                  }
-                ]
-              },
-              {
-                "name": "base.html",
-                "is_dir": false,
-                "size": 858
-              },
-              {
-                "name": "callcenter.html",
-                "is_dir": false,
-                "size": 3158
-              },
-              {
-                "name": "index.html",
-                "is_dir": false,
-                "size": 2684
-              },
-              {
-                "name": "profile.html",
-                "is_dir": false,
-                "size": 9141
-              },
-              {
-                "name": "qr.html",
-                "is_dir": false,
-                "size": 1306
-              },
-              {
-                "name": "resources",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "zoom.html",
-                    "is_dir": false,
-                    "size": 3342
-                  }
-                ]
-              },
-              {
-                "name": "resources.html",
-                "is_dir": false,
-                "size": 3425
-              }
-            ]
-          },
-          {
-            "name": "workers",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "base.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 931
-                  },
-                  {
-                    "name": "telegram.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 6815
-                  },
-                  {
-                    "name": "transcribe_worker.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 4975
-                  }
-                ]
-              },
-              {
-                "name": "base.py",
-                "is_dir": false,
-                "size": 493
-              },
-              {
-                "name": "telegram.py",
-                "is_dir": false,
-                "size": 4206
-              },
-              {
-                "name": "transcribe_worker.py",
-                "is_dir": false,
-                "size": 5075
-              }
-            ]
+            "name": "resources_zoom.js",
+            "is_dir": false,
+            "size": 15934
           }
         ]
       },
       {
-        "name": "common",
+        "name": "lang",
         "is_dir": true,
         "size": null,
         "children": [
           {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "db.cpython-312.pyc",
-                "is_dir": false,
-                "size": 1527
-              }
-            ]
-          },
-          {
-            "name": "config.py",
-            "is_dir": false,
-            "size": 987
-          },
-          {
-            "name": "db.py",
-            "is_dir": false,
-            "size": 840
-          }
-        ]
-      },
-      {
-        "name": "integrations",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "__init__.py",
+            "name": "en.json",
             "is_dir": false,
             "size": 0
           },
           {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.cpython-312.pyc",
-                "is_dir": false,
-                "size": 153
-              }
-            ]
-          },
-          {
-            "name": "openai",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.py",
-                "is_dir": false,
-                "size": 0
-              },
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "__init__.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 160
-                  },
-                  {
-                    "name": "client.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 3188
-                  }
-                ]
-              },
-              {
-                "name": "client.py",
-                "is_dir": false,
-                "size": 1749
-              },
-              {
-                "name": "settings.yaml",
-                "is_dir": false,
-                "size": 540
-              }
-            ]
-          },
-          {
-            "name": "telegram",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.py",
-                "is_dir": false,
-                "size": 0
-              },
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "__init__.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 162
-                  },
-                  {
-                    "name": "client.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 2605
-                  }
-                ]
-              },
-              {
-                "name": "client.py",
-                "is_dir": false,
-                "size": 1053
-              },
-              {
-                "name": "settings.yaml",
-                "is_dir": false,
-                "size": 369
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "models",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "__init__.py",
-            "is_dir": false,
-            "size": 360
-          },
-          {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.cpython-312.pyc",
-                "is_dir": false,
-                "size": 459
-              },
-              {
-                "name": "alembic_version.cpython-312.pyc",
-                "is_dir": false,
-                "size": 702
-              },
-              {
-                "name": "lead.cpython-312.pyc",
-                "is_dir": false,
-                "size": 2327
-              },
-              {
-                "name": "message.cpython-312.pyc",
-                "is_dir": false,
-                "size": 2516
-              },
-              {
-                "name": "resource.cpython-312.pyc",
-                "is_dir": false,
-                "size": 1669
-              },
-              {
-                "name": "updates_seen.cpython-312.pyc",
-                "is_dir": false,
-                "size": 1095
-              },
-              {
-                "name": "user.cpython-312.pyc",
-                "is_dir": false,
-                "size": 1567
-              }
-            ]
-          },
-          {
-            "name": "alembic_version.py",
-            "is_dir": false,
-            "size": 295
-          },
-          {
-            "name": "lead.py",
-            "is_dir": false,
-            "size": 1605
-          },
-          {
-            "name": "message.py",
-            "is_dir": false,
-            "size": 1943
-          },
-          {
-            "name": "prompt.py",
-            "is_dir": false,
-            "size": 1257
-          },
-          {
-            "name": "resource.py",
-            "is_dir": false,
-            "size": 1131
-          },
-          {
-            "name": "service_account.py",
-            "is_dir": false,
-            "size": 1568
-          },
-          {
-            "name": "service_rule.py",
-            "is_dir": false,
-            "size": 1161
-          },
-          {
-            "name": "tg_account.py",
-            "is_dir": false,
-            "size": 2207
-          },
-          {
-            "name": "updates_seen.py",
-            "is_dir": false,
-            "size": 697
-          },
-          {
-            "name": "user.py",
-            "is_dir": false,
-            "size": 877
-          }
-        ]
-      },
-      {
-        "name": "observability",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "__init__.py",
+            "name": "ru.json",
             "is_dir": false,
             "size": 0
-          },
-          {
-            "name": "logging",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.py",
-                "is_dir": false,
-                "size": 0
-              },
-              {
-                "name": "settings.yaml",
-                "is_dir": false,
-                "size": 207
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "runners",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "__init__.py",
-            "is_dir": false,
-            "size": 25
-          },
-          {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.cpython-312.pyc",
-                "is_dir": false,
-                "size": 148
-              },
-              {
-                "name": "init_db.cpython-312.pyc",
-                "is_dir": false,
-                "size": 695
-              }
-            ]
-          },
-          {
-            "name": "init_db.py",
-            "is_dir": false,
-            "size": 224
-          },
-          {
-            "name": "run_tg_dm.py",
-            "is_dir": false,
-            "size": 4754
-          }
-        ]
-      },
-      {
-        "name": "runtime",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "__init__.py",
-            "is_dir": false,
-            "size": 0
-          },
-          {
-            "name": "__pycache__",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.cpython-312.pyc",
-                "is_dir": false,
-                "size": 148
-              }
-            ]
-          },
-          {
-            "name": "language",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.py",
-                "is_dir": false,
-                "size": 0
-              },
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "__init__.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 157
-                  },
-                  {
-                    "name": "detector.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 823
-                  }
-                ]
-              },
-              {
-                "name": "detector.py",
-                "is_dir": false,
-                "size": 461
-              },
-              {
-                "name": "settings.yaml",
-                "is_dir": false,
-                "size": 153
-              }
-            ]
-          },
-          {
-            "name": "messaging",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "__init__.py",
-                "is_dir": false,
-                "size": 0
-              },
-              {
-                "name": "__pycache__",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "__init__.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 158
-                  },
-                  {
-                    "name": "memory.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1792
-                  },
-                  {
-                    "name": "rate_limit.cpython-312.pyc",
-                    "is_dir": false,
-                    "size": 1183
-                  }
-                ]
-              },
-              {
-                "name": "memory.py",
-                "is_dir": false,
-                "size": 960
-              },
-              {
-                "name": "rate_limit.py",
-                "is_dir": false,
-                "size": 601
-              },
-              {
-                "name": "settings.yaml",
-                "is_dir": false,
-                "size": 148
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "storage",
-        "is_dir": true,
-        "size": null,
-        "children": [
-          {
-            "name": "user_1",
-            "is_dir": true,
-            "size": null,
-            "children": [
-              {
-                "name": "resource_57d95f36-22b2-482f-a80e-f66d50ff850a",
-                "is_dir": true,
-                "size": null,
-                "children": [
-                  {
-                    "name": "reports",
-                    "is_dir": true,
-                    "size": null,
-                    "children": [
-                      {
-                        "name": "Нейротренажер.mp3_отчет.txt",
-                        "is_dir": false,
-                        "size": 2957
-                      }
-                    ]
-                  },
-                  {
-                    "name": "status.log",
-                    "is_dir": false,
-                    "size": 1378
-                  },
-                  {
-                    "name": "transcripts",
-                    "is_dir": true,
-                    "size": null,
-                    "children": [
-                      {
-                        "name": "Нейротренажер.mp3.txt",
-                        "is_dir": false,
-                        "size": 5375
-                      }
-                    ]
-                  },
-                  {
-                    "name": "uploads",
-                    "is_dir": true,
-                    "size": null,
-                    "children": [
-                      {
-                        "name": "Нейротренажер.mp3",
-                        "is_dir": false,
-                        "size": 3683850
-                      },
-                      {
-                        "name": "Нейротренажер.mp3.deepgram.json",
-                        "is_dir": false,
-                        "size": 166029
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
           }
         ]
       }
