@@ -1,14 +1,14 @@
-<!-- src/app/templates/base.html -->
 <!doctype html>
 <html lang="{{ lang|default('ru') }}">
 <head>
     <meta charset="utf-8"/>
     <title>{% block title %}bona-plus{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link href="/static/css/modals.css" rel="stylesheet"/>
+    <!-- Базовые стили + стили модалок (нужны всегда, т.к. модалка логина инклюдится в базу) -->
     <link href="/static/css/base.css" rel="stylesheet"/>
-    <link href="/static/css/index.css" rel="stylesheet"/>
+    <link href="/static/css/base-auth-modal.css" rel="stylesheet"/>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <!-- Фиксированная шапка -->
@@ -22,14 +22,12 @@
                     <a href="javascript:void(0)" class="btn" id="logout-btn">Выйти</a>
                 {% else %}
                     <a href="javascript:void(0)" class="btn btn-login" onclick="document.getElementById('login-modal').classList.remove('hidden')">
-                      Войти / Регистрация
+                        Войти / Регистрация
                     </a>
                 {% endif %}
             </nav>
-            </nav>
         </div>
     </header>
-
 
     <!-- Контент -->
     <main class="site-main">
@@ -38,12 +36,22 @@
 
     {% include "auth/login.html" %}
 
+    <!-- Общие скрипты (нужны везде) -->
     <script src="/static/js/config.js"></script>
     <script src="/static/js/api.js"></script>
-    <script src="/static/js/auth/tabs.js"></script>
-    <script src="/static/js/auth/login.js"></script>
-    <script src="/static/js/auth/logout.js"></script>
-    <script src="/static/js/auth/register.js"></script>
 
+    <!-- Скрипты модалки (логин/логаут/регистрация + табы) -->
+    <script src="/static/js/auth.js"></script>
+
+
+    <!-- Подстраховка: если шаблон логина вдруг пришёл без .hidden — прячем модалку по умолчанию -->
+    <script>
+      (function(){
+        var m = document.getElementById('login-modal');
+        if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
+      })();
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>
