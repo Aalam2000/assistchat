@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-24T19:21:16",
+  "generated_at": "2025-09-24T21:14:36",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -29,10 +29,8 @@
           {
             "name": "author_modal.html",
             "is_dir": false,
-            "size": 1958,
-            "css_used": [
-              "/static/css/modals.css"
-            ],
+            "size": 1900,
+            "css_used": [],
             "js_used": []
           },
           {
@@ -71,9 +69,10 @@
       {
         "name": "index.html",
         "is_dir": false,
-        "size": 8233,
+        "size": 8291,
         "css_used": [
-          "/static/css/index.css"
+          "/static/css/index.css",
+          "/static/css/modals.css"
         ],
         "js_used": [
           "/static/js/index.js"
@@ -146,12 +145,12 @@
           {
             "name": "base.css",
             "is_dir": false,
-            "size": 5581
+            "size": 5779
           },
           {
             "name": "index.css",
             "is_dir": false,
-            "size": 2125
+            "size": 2403
           },
           {
             "name": "modals-mobile.css",

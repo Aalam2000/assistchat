@@ -12,19 +12,32 @@
 
 
 <section class="sections">
+  {% if user %}
+  <!-- 4) Мои подключения -->
+  <section class="tile" id="services-card">
+    <div class="tile-title">Мои подключения</div>
+    <p class="tile-desc">Аккаунты/сессии на площадках (вкл/выкл, промпт, логи)</p>
+
+    <div class="actions">
+      <a class="btn primary" href="/resources">Открыть ресурсы</a>
+    </div>
+
+    <table class="mt-12">
+      <thead>
+        <tr>
+          <th>Провайдер</th>
+          <th>Метка</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody id="svc-tbody">
+        <tr><td colspan="5">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
   <h2>Разделы платформы</h2>
   <ul class="section-list">
-    <li class="section-item ready">
-      <button class="section-toggle">Ресурсы</button>
-      <div class="section-body">
-        {% if user %}
-          <button class="btn primary" onclick="window.location.href='/resources'">Перейти к ресурсам</button>
-        {% else %}
-          Тут будут ваши ресурсы после входа в систему.
-        {% endif %}
-      </div>
-    </li>
-
     <li class="section-item ready">
       <button class="section-toggle">AI-ассистент для мессенджеров</button>
       <div class="section-body">
