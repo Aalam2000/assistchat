@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-24T10:21:52",
+  "generated_at": "2025-09-24T15:22:58",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -38,7 +38,7 @@
       {
         "name": "base.html",
         "is_dir": false,
-        "size": 2561,
+        "size": 2884,
         "css_used": [
           "/static/css/base-auth-modal.css",
           "/static/css/base.css"
@@ -61,7 +61,7 @@
       {
         "name": "index.html",
         "is_dir": false,
-        "size": 5201,
+        "size": 8204,
         "css_used": [
           "/static/css/index.css"
         ],
@@ -72,8 +72,11 @@
       {
         "name": "profile.html",
         "is_dir": false,
-        "size": 7296,
-        "css_used": [],
+        "size": 6649,
+        "css_used": [
+          "/static/css/theme-simple-nav-desktop.css",
+          "/static/css/theme-simple-nav-mobile.css"
+        ],
         "js_used": [
           "/static/js/profile.js"
         ]
@@ -133,7 +136,7 @@
           {
             "name": "base.css",
             "is_dir": false,
-            "size": 5264
+            "size": 5581
           },
           {
             "name": "index.css",
@@ -144,6 +147,16 @@
             "name": "modals.css",
             "is_dir": false,
             "size": 1773
+          },
+          {
+            "name": "theme-simple-nav-desktop.css",
+            "is_dir": false,
+            "size": 1179
+          },
+          {
+            "name": "theme-simple-nav-mobile.css",
+            "is_dir": false,
+            "size": 794
           }
         ]
       },
@@ -151,6 +164,23 @@
         "name": "favicon.ico",
         "is_dir": false,
         "size": 3718
+      },
+      {
+        "name": "img",
+        "is_dir": true,
+        "size": null,
+        "children": [
+          {
+            "name": "bona.jpeg",
+            "is_dir": false,
+            "size": 115728
+          },
+          {
+            "name": "telegram.svg",
+            "is_dir": false,
+            "size": 510
+          }
+        ]
       },
       {
         "name": "js",

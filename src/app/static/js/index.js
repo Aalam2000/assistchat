@@ -50,3 +50,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+const authorBtn = document.getElementById("author-btn");
+if (authorBtn) {
+  authorBtn.addEventListener("click", () => {
+    document.getElementById("author-modal").classList.remove("hidden");
+  });
+}
