@@ -7,13 +7,8 @@
 {% endblock %}
 
 {% block content %}
-<section class="about">
-  <h2>Об авторе</h2>
-  <p>
-    Меня зовут Андрей Бондаренко. Я создаю платформу bona-plus — место, где собраны
-    инструменты для работы с клиентами, автоматизации и общения.
-  </p>
-</section>
+
+
 
 <section class="sections">
   <h2>Разделы платформы</h2>
@@ -165,6 +160,15 @@
     </li>
   </ul>
 </section>
+
+<section class="author-block">
+  <button id="author-btn" class="author-card">
+    <img src="/static/img/author.jpeg" alt="Автор" class="author-avatar">
+    <div class="author-subtitle">автор платформы</div>
+    <div class="author-name">Андрей Бондаренко</div>
+  </button>
+</section>
+{% include "auth/author_modal.html" %}
 {% endblock %}
 
 {% block scripts %}

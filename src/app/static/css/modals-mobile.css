@@ -1,0 +1,33 @@
+/* ===== Авторская модалка (смартфон) ===== */
+@media (max-width: 800px) {
+  #author-modal .modal__content {
+    width: 96vw;
+    max-height: 92vh;
+    padding: 20px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  #author-modal h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  #author-modal .subtitle {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  #author-modal .modal__avatar img {
+    width: 140px;
+    height: 140px;
+  }
+
+  #author-modal .modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  #author-modal .modal__actions {
+    margin-top: 20px;
+  }
+}

@@ -1,89 +1,122 @@
-/* src/app/static/css/modals.css */
+/* ===== Авторская модалка (резюме) ===== */
 
-.modal {
+/* Общий контейнер */
+#author-modal.modal {
   position: fixed;
   inset: 0;
-  padding: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, .4);
+  background: rgba(0,0,0,.55);
   z-index: 1000;
 }
 
-.modal__content {
-  width: min(900px, 92vw);
+/* ПК версия */
+#author-modal .modal__content {
+  width: min(880px, 95vw);
   max-height: 90vh;
-  overflow: auto;
+  overflow-y: auto;
   background: #fff;
   color: #111;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  font-size: 16px;
+  line-height: 1.65;
 }
 
-.modal__actions {
+#author-modal .modal__header {
   display: flex;
-  gap: 8px;
   justify-content: flex-end;
-  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
-/* Поддержка тёмного фона, если общий базовый стиль делает body тёмным */
-@media (prefers-color-scheme: dark) {
-  .modal__content {
-    background: #0f172a; /* близко к base.css */
-    color: #e5e7eb;
-  }
-}
-
-/* Утилита .hidden уже есть в base.css; здесь её не дублируем */
-
-
-.modal__header {
-  position: sticky;
-  top: 0;
-  background: inherit;
-  display: flex;
-  justify-content: flex-end; /* крестик справа */
-  align-items: center;
-  border-bottom: 2px solid var(--border);
-  padding: 4px 0;
-  z-index: 10;
-}
-
-.modal__bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 4px;
-  width: 100%;
-  background: var(--border);
-}
-
-.modal__close {
+#author-modal .modal__close {
   background: transparent;
   border: none;
-  font-size: 20px;
+  font-size: 26px;
   cursor: pointer;
-  color: var(--muted);
-  margin-right: 4px;
+  color: #6b7280;
+  transition: color .2s ease;
 }
-.modal__close:hover {
-  color: var(--danger);
+#author-modal .modal__close:hover { color: #ef4444; }
+
+#author-modal h2 {
+  font-size: 28px;
+  margin: 16px 0 6px;
+  text-align: center;
 }
 
-.modal__controls {
+#author-modal .subtitle {
+  font-size: 16px;
+  color: #6b7280;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+#author-modal .modal__avatar {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 16px;
-  margin: 12px 0;
+  justify-content: center;
+  margin-bottom: 20px;
 }
-.modal__controls label {
-  white-space: nowrap;
+#author-modal .modal__avatar img {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #e5e7eb;
+  box-shadow: 0 6px 20px rgba(0,0,0,.15);
 }
-.modal__controls input,
-.modal__controls select {
-  min-width: 150px;
+
+#author-modal .modal__grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 20px;
+}
+#author-modal .modal__grid .card {
+  background: #f9fafb;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+#author-modal .modal__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+/* Мобильная версия */
+@media (max-width: 800px) {
+  #author-modal .modal__content {
+    width: 96vw;
+    max-height: 92vh;
+    padding: 20px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  #author-modal h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  #author-modal .subtitle {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  #author-modal .modal__avatar img {
+    width: 140px;
+    height: 140px;
+  }
+
+  #author-modal .modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  #author-modal .modal__actions {
+    margin-top: 20px;
+  }
 }
