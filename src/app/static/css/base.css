@@ -200,3 +200,23 @@ tbody tr:last-child td{border-bottom:0}
   padding: 16px;
   box-shadow: 0 2px 6px rgba(0,0,0,.08);
 }
+
+/* ===== Мобильные правки профиля ===== */
+@media (max-width: 767px) {
+  .profile-page .tile {
+    margin: 0 -8px;       /* чуть растянем, чтобы не слипалось с краями */
+    border-radius: 0;     /* уберём скругление для цельного вида */
+    padding: 16px;        /* одинаковый отступ */
+  }
+
+  .profile-page .actions {
+    flex-direction: column;   /* кнопки в колонку */
+    gap: 12px;
+  }
+
+  .profile-page input,
+  .profile-page select,
+  .profile-page textarea {
+    font-size: 16px;      /* чтобы не вызывалась зум-лупа в iOS/Android */
+  }
+}
