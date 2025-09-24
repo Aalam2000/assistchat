@@ -1,0 +1,36 @@
+/* === Тема: Простая навигация (Mobile) === */
+.profile-page .card{ max-width:100%; }
+
+.profile-page .grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
+}
+
+.profile-page .tile{
+  border-radius:12px;
+  padding:14px;
+}
+
+.profile-page .actions{
+  flex-direction:column;
+  gap:12px;
+}
+.profile-page .btn{ width:100%; justify-content:center; }
+
+/* поля без зума */
+.profile-page input,
+.profile-page select,
+.profile-page textarea{ font-size:16px; }
+
+/* таблица подключений */
+.profile-page table{
+  display:block;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:10px;
+}
+.profile-page table thead,
+.profile-page table tbody tr{
+  display:table; width:100%; table-layout:fixed;
+}

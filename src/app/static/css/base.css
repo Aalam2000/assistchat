@@ -100,9 +100,7 @@ input[name="username"],input[name="password"]{font-size:14px;padding-top:12px;pa
 /* ===== Auth wrapper ===== */
 .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
 /* только для авторизации ограничиваем ширину */
-.auth-wrap .card {
-  max-width: 420px;
-}
+.auth-wrap .card { max-width: 420px; }
 .title{margin:0 0 10px;text-align:center}
 
 /* ===== Таблицы ===== */
@@ -129,15 +127,14 @@ tbody tr:last-child td{border-bottom:0}
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  flex-wrap: wrap; /* добавь это */
+  flex-wrap: wrap;
 }
-
 
 .nav-links {
   display: flex;
   gap: 12px;
   align-items: center;
-  position: relative; /* добавляем */
+  position: relative;
 }
 
 #i18n-toggle {
@@ -156,67 +153,17 @@ tbody tr:last-child td{border-bottom:0}
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  z-index: 2000; /* выше шапки */
+  z-index: 2000;
 }
+#i18n-toggle:hover { opacity: .85; }
 
-#i18n-toggle:hover {
-  opacity: .85;
-}
-
-/* Telegram button (round, brand-colored) */
+/* Telegram button */
 .btn-telegram{
   width:36px;height:36px;flex:0 0 36px;
   display:inline-flex;align-items:center;justify-content:center;
   border-radius:999px;border:none;
-  background:transparent; /* фон не нужен, у svg уже круг */
+  background:transparent;
   transition:transform .08s ease,opacity .08s ease,filter .12s ease;
 }
-.btn-telegram:hover{ transform:translateY(-1px); filter:brightness(.95); }
-.btn-telegram img{ display:block; }
-
-
-/* ===== Профиль (адаптив) ===== */
-.profile-page .grid {
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 768px) {
-  .profile-page .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1200px) {
-  .profile-page .wrap {
-    max-width: 1100px;
-  }
-}
-
-.profile-page .tile {
-  background: #fff;
-  color: #111;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(0,0,0,.08);
-}
-
-/* ===== Мобильные правки профиля ===== */
-@media (max-width: 767px) {
-  .profile-page .tile {
-    margin: 0 -8px;       /* чуть растянем, чтобы не слипалось с краями */
-    border-radius: 0;     /* уберём скругление для цельного вида */
-    padding: 16px;        /* одинаковый отступ */
-  }
-
-  .profile-page .actions {
-    flex-direction: column;   /* кнопки в колонку */
-    gap: 12px;
-  }
-
-  .profile-page input,
-  .profile-page select,
-  .profile-page textarea {
-    font-size: 16px;      /* чтобы не вызывалась зум-лупа в iOS/Android */
-  }
-}
+.btn-telegram:hover{transform:translateY(-1px);filter:brightness(.95);}
+.btn-telegram img{display:block;}

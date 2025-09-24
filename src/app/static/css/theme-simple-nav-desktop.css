@@ -1,0 +1,38 @@
+/* === Тема: Простая навигация (Desktop) === */
+.profile-page .card{ max-width:100%; }
+
+.profile-page .grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:20px;
+  align-items:start;
+}
+
+.profile-page .tile{
+  background:#fff; color:#111;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:16px 18px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  display:flex;
+  flex-direction:column;
+}
+.profile-page .tile-title{ font-size:16px; font-weight:700; margin:0 0 6px; }
+.profile-page .tile-desc{ font-size:14px; color:#6b7280; margin:0; }
+
+.profile-page .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+
+/* таблица подключений */
+.profile-page table{
+  width:100%; border-collapse:collapse; margin-top:12px;
+  background:#0b1220; border-radius:10px; overflow:hidden;
+}
+.profile-page thead th{
+  padding:10px; color:#94a3b8; font-size:12px; text-align:left;
+  border-bottom:1px solid #263244;
+}
+.profile-page tbody td{
+  padding:10px; color:#e5e7eb; font-size:14px;
+  border-bottom:1px solid #1c2738;
+}
+.profile-page tbody tr:last-child td{ border-bottom:0; }

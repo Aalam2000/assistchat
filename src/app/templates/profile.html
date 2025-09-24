@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Личный кабинет | bona-plus{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="/static/css/theme-simple-nav-desktop.css" media="(min-width:768px)">
+  <link rel="stylesheet" href="/static/css/theme-simple-nav-mobile.css"  media="(max-width:767px)">
+{% endblock %}
 
 {% block content %}
 <main class="wrap profile-page">
