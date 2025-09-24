@@ -2,7 +2,7 @@
 {% block title %}Личный кабинет | bona-plus{% endblock %}
 
 {% block content %}
-<main class="wrap">
+<main class="wrap profile-page">
   <div class="card">
     <!-- Шапка карточки -->
     <div class="row">
@@ -19,7 +19,7 @@
     <div class="hr"></div>
 
     <!-- 4 карточки: Бот, Профиль, OpenAI, Подписка, Подключения -->
-    <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="grid">
       <!-- 0) Бот -->
       <section class="tile" id="bot-card">
         <div class="tile-title">Бот</div>
@@ -146,32 +146,12 @@
       </a>
       {% endif %}
 
-      <a class="tile" href="/qr">
-        <div class="tile-title">QR + Logo</div>
-        <p class="tile-desc">Генерация QR с логотипом (PNG, PDF)</p>
-      </a>
-
       {% if role == "admin" %}
       <a class="tile" href="/docs">
         <div class="tile-title">Документация</div>
         <p class="tile-desc">Описание API и подсказки по проекту</p>
       </a>
       {% endif %}
-
-      <a class="tile" href="https://t.me/assistent_next" target="_blank" rel="noopener">
-        <div class="tile-title">Telegram: assistent_next</div>
-        <p class="tile-desc">Группа с новостями наших сервисов</p>
-      </a>
-
-      <a class="tile" href="/ai">
-        <div class="tile-title">AI-ассистент</div>
-        <p class="tile-desc">Помощь в покупках и продажах</p>
-      </a>
-
-      <a class="tile" href="/callcenter">
-        <div class="tile-title">Колл-центр</div>
-        <p class="tile-desc">Роботизированный приём звонков</p>
-      </a>
     </div>
   </div>
 </main>

@@ -26,15 +26,14 @@ body{
 main.site-main{max-width:960px;margin:80px auto 40px;padding:0 16px}
 
 /* ===== Карточки ===== */
-.card{
-  width:100%;
-  max-width:420px;
-  background:#fff;     /* светлая карточка поверх тёмного фона */
-  color:#111;
-  border:1px solid #e5e7eb;
-  border-radius:16px;
-  padding:20px;
-  box-shadow:0 4px 12px rgba(0,0,0,.08);
+.card {
+  width: 100%;
+  background: #fff;
+  color: #111;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
 }
 
 /* ===== Типографика ===== */
@@ -45,7 +44,11 @@ h2{margin:0 0 8px;font-size:20px}
 
 /* ===== Сетки ===== */
 .row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-.grid{display:grid;gap:14px;margin-top:8px}
+.grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
 @media(min-width:740px){.grid{grid-template-columns:repeat(3,1fr)}}
 
 /* ===== Кнопки ===== */
@@ -96,7 +99,10 @@ input[name="username"],input[name="password"]{font-size:14px;padding-top:12px;pa
 
 /* ===== Auth wrapper ===== */
 .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
-.auth-wrap .card{max-width:420px;width:100%}
+/* только для авторизации ограничиваем ширину */
+.auth-wrap .card {
+  max-width: 420px;
+}
 .title{margin:0 0 10px;text-align:center}
 
 /* ===== Таблицы ===== */
@@ -118,35 +124,79 @@ tbody tr:last-child td{border-bottom:0}
   box-shadow:0 2px 6px rgba(0,0,0,.2);
   z-index:1000;
 }
-.site-header .container{display:flex;justify-content:space-between;align-items:center;padding:14px 20px}
-.logo{color:var(--text);font-size:22px;margin:0}
-.nav-links{display:flex;gap:12px;align-items:center}
-.nav-links .btn{padding:8px 14px;border-radius:8px;font-size:14px;font-weight:600}
-.btn-login{background:var(--accent);color:#fff}
-.btn-lang{background:var(--accent-2);color:#fff}
-.btn-login:hover,.btn-lang:hover{opacity:.85}
-.username{color:var(--text);font-weight:600}
-
-/* Mobile */
-@media (max-width:800px){
-  .logo{font-size:18px}
-  .nav-links .btn{padding:6px 10px;font-size:13px}
+.site-header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  flex-wrap: wrap; /* добавь это */
 }
 
-/* Кнопка переключения языка */
+
+.nav-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  position: relative; /* добавляем */
+}
+
 #i18n-toggle {
   position: fixed;
   top: 10px;
-  right: 10px;
-  z-index: 9999;
-  padding: 6px 10px;
-  border: 1px solid #aaa;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
   border-radius: 8px;
-  background: #3b82f6; /* синий, чтобы не сливалась */
+  background: var(--accent-2);
   color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
-  font: 14px/1.2 system-ui;
+  cursor: pointer;
+  z-index: 2000; /* выше шапки */
 }
+
 #i18n-toggle:hover {
-  opacity: 0.9;
+  opacity: .85;
+}
+
+/* Telegram button (round, brand-colored) */
+.btn-telegram{
+  width:36px;height:36px;flex:0 0 36px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:999px;border:none;
+  background:transparent; /* фон не нужен, у svg уже круг */
+  transition:transform .08s ease,opacity .08s ease,filter .12s ease;
+}
+.btn-telegram:hover{ transform:translateY(-1px); filter:brightness(.95); }
+.btn-telegram img{ display:block; }
+
+
+/* ===== Профиль (адаптив) ===== */
+.profile-page .grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .profile-page .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .profile-page .wrap {
+    max-width: 1100px;
+  }
+}
+
+.profile-page .tile {
+  background: #fff;
+  color: #111;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
 }

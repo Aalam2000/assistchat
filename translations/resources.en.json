@@ -1,8 +1,6 @@
 {
-  "Ресурсы | assistchat": "Resources | assistchat",
   "Ресурсы": "Resources",
   "Управление всеми подключениями": "Managing all connections",
-  "← Назад в профиль": "← Back to profile",
   "+ Добавить ресурс": "+ Add Resource",
   "Провайдер": "Provider",
   "Метка": "Label",
@@ -17,5 +15,23 @@
   "Отмена": "Cancel",
   "Создать": "Create",
   "Введите код из Telegram": "Enter the code from Telegram.",
-  "Ок": "OK"
+  "Ок": "OK",
+  "Ресурсы | bona-plus": "Resources | bona-plus",
+  "Перевод страницы, пожалуйста подождите…": "Page translation, please wait...",
+  "bona-plus": "bona-plus",
+  "bona": "good",
+  "Профиль": "Profile",
+  "Выйти": "Exit",
+  "Назад": "Back",
+  "×": "Close",
+  "Добро пожаловать в bona-plus": "Welcome to bona-plus",
+  "Логин": "Login",
+  "Пароль": "Password",
+  "Войти": "Log in",
+  "Войти через Google": "Sign in with Google",
+  "Нет аккаунта?": "No account?",
+  "Зарегистрируйтесь": "Register",
+  "Email (необязательно)": "Email (optional)",
+  "Зарегистрироваться": "Register",
+  "Уже есть аккаунт?": "Already have an account?"
 }

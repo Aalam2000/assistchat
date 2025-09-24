@@ -1,5 +1,4 @@
 {
-  "Личный кабинет | assistchat": "Personal Account | assistchat",
   "Личный кабинет": "Personal account",
   "Добро пожаловать,": "Welcome,",
   "bona": "good",
@@ -15,8 +14,6 @@
   "AI-ассистент": "AI assistant",
   "Колл-центр": "Call center",
   "Роботизированный приём звонков": "Robotic call answering",
-  "На главную": "Home",
-  "К QR-генератору": "To the QR generator",
   "Бот": "Bot",
   "Глобальное управление всеми подключениями": "Global management of all connections",
   "Статус: —": "Status: —",
@@ -56,5 +53,20 @@
   "Инструменты и справка": "Tools and Help",
   "Группа с новостями наших сервисов": "Group with news about our services",
   "Помощь в покупках и продажах": "Assistance with buying and selling",
-  "Открыть ресурсы": "Open resources"
+  "Открыть ресурсы": "Open resources",
+  "Личный кабинет | bona-plus": "Personal Account | bona-plus",
+  "Перевод страницы, пожалуйста подождите…": "Page translation, please wait...",
+  "bona-plus": "bona-plus",
+  "Назад": "Back",
+  "×": "×",
+  "Добро пожаловать в bona-plus": "Welcome to bona-plus",
+  "Логин": "Login",
+  "Пароль": "Password",
+  "Войти": "Login",
+  "Войти через Google": "Sign in with Google",
+  "Нет аккаунта?": "No account?",
+  "Зарегистрируйтесь": "Register",
+  "Email (необязательно)": "Email (optional)",
+  "Зарегистрироваться": "Register",
+  "Уже есть аккаунт?": "Already have an account?"
 }
