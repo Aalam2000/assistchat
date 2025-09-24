@@ -11,11 +11,22 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <div id="lang-wait" class="modal hidden">
+      <div class="modal__content">
+        <p>Перевод страницы, пожалуйста подождите…</p>
+      </div>
+    </div>
+
     <!-- Фиксированная шапка -->
     <header class="site-header">
         <div class="container">
             <h1 class="logo">bona-plus</h1>
             <nav class="nav-links">
+                <nav class="nav-links">
+                    <a href="https://t.me/assistent_next" target="_blank" rel="noopener"
+                       class="btn-telegram" aria-label="Telegram">
+                      <img src="/static/img/telegram.svg" alt="Telegram" width="22" height="22">
+                    </a>
                 {% if user %}
                     <span class="username">{{ username }}</span>
                     <a href="/profile" class="btn">Профиль</a>

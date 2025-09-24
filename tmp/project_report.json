@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-23T16:34:43",
+  "generated_at": "2025-09-24T10:21:52",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -38,7 +38,7 @@
       {
         "name": "base.html",
         "is_dir": false,
-        "size": 2358,
+        "size": 2561,
         "css_used": [
           "/static/css/base-auth-modal.css",
           "/static/css/base.css"
@@ -133,7 +133,7 @@
           {
             "name": "base.css",
             "is_dir": false,
-            "size": 5533
+            "size": 5264
           },
           {
             "name": "index.css",
@@ -170,7 +170,7 @@
           {
             "name": "config.js",
             "is_dir": false,
-            "size": 206
+            "size": 509
           },
           {
             "name": "index.js",
