@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-24T15:22:58",
+  "generated_at": "2025-09-24T17:32:36",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -26,6 +26,13 @@
         "is_dir": true,
         "size": null,
         "children": [
+          {
+            "name": "author_modal.html",
+            "is_dir": false,
+            "size": 1898,
+            "css_used": [],
+            "js_used": []
+          },
           {
             "name": "login.html",
             "is_dir": false,
@@ -61,7 +68,7 @@
       {
         "name": "index.html",
         "is_dir": false,
-        "size": 8204,
+        "size": 8233,
         "css_used": [
           "/static/css/index.css"
         ],
@@ -141,12 +148,17 @@
           {
             "name": "index.css",
             "is_dir": false,
-            "size": 1262
+            "size": 2125
+          },
+          {
+            "name": "modals-mobile.css",
+            "is_dir": false,
+            "size": 631
           },
           {
             "name": "modals.css",
             "is_dir": false,
-            "size": 1773
+            "size": 2409
           },
           {
             "name": "theme-simple-nav-desktop.css",
@@ -170,6 +182,11 @@
         "is_dir": true,
         "size": null,
         "children": [
+          {
+            "name": "author.jpeg",
+            "is_dir": false,
+            "size": 15253
+          },
           {
             "name": "bona.jpeg",
             "is_dir": false,
@@ -205,7 +222,7 @@
           {
             "name": "index.js",
             "is_dir": false,
-            "size": 1914
+            "size": 2118
           },
           {
             "name": "mess.js",
