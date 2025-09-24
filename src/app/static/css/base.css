@@ -167,3 +167,9 @@ tbody tr:last-child td{border-bottom:0}
 }
 .btn-telegram:hover{transform:translateY(-1px);filter:brightness(.95);}
 .btn-telegram img{display:block;}
+
+/* скрытые оверлеи не должны блокировать клики на мобилках */
+.modal.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}

@@ -58,6 +58,9 @@ section h2 { font-size: 20px; margin-bottom: 12px; }
   box-shadow: 0 4px 12px rgba(0,0,0,.12);
   cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease;
+  position: relative;      /* фикс для мобилы: поверх возможных перекрытий */
+  z-index: 10;             /* фикс для мобилы */
+  pointer-events: auto;    /* на случай унаследованного запрета */
 }
 
 .author-card:hover {
