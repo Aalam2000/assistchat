@@ -1,4 +1,4 @@
-/* ===== Общая страница ===== */
+/* ===== BASE (общие стили) ===== */
 body {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
@@ -18,26 +18,43 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  padding-top: 80px; /* отступ под фиксированную шапку */
 }
 
-/* ===== Шапка ===== */
+/* ===== HEADER ===== */
 .site-header {
-  position: fixed;       /* фиксируем наверху */
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 40px;
-  background: transparent;   /* прозрачный фон */
+  background: transparent;
   z-index: 1000;
 }
 
-.site-header .logo {
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-text {
   font-size: 24px;
   font-weight: 700;
   color: #111827;
+}
+
+.logo-img {
+  display: none;
+  height: 32px;
 }
 
 .main-nav a {
@@ -47,62 +64,20 @@ body {
   font-weight: 500;
 }
 
-/* чтобы контент не налезал под fixed-header */
-.page {
-  padding-top: 70px;
+.menu-toggle {
+  display: none;
+  font-size: 28px;
+  cursor: pointer;
+  user-select: none;
 }
-
-/* ===== Mobile ===== */
-@media (max-width: 768px) {
-  .site-header .logo-text {
-    display: none; /* убираем текст */
-  }
-  .site-header .logo-img {
-    display: block; /* показываем картинку */
-    height: 32px;
-  }
-}
-
-.site-header .brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.site-header .logo-img {
-  display: none; /* по умолчанию скрыт */
-  height: 32px;
-}
-
-@media (max-width: 768px) {
-  .site-header .logo-text {
-    display: none; /* скрываем текст на мобилке */
-  }
-  .site-header .logo-img {
-    display: block; /* показываем картинку */
-  }
-}
-
-
 
 /* ===== HERO ===== */
 .hero {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 60px;
-}
-
-.hero-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  border-radius: 24px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-  padding: 40px;
-  max-width: 1000px;
-  width: 100%;
+  gap: 40px;
 }
 
 .hero-text {
@@ -126,8 +101,7 @@ body {
   height: auto;
 }
 
-
-/* ===== Кнопки ===== */
+/* ===== BUTTONS ===== */
 .btn {
   padding: 12px 20px;
   border-radius: 12px;
@@ -259,7 +233,7 @@ body {
   margin-top: 10px;
 }
 
-/* ===== Контентные секции ===== */
+/* ===== SECTION CARDS ===== */
 .section-card {
   background: #fff;
   border-radius: 24px;
@@ -268,47 +242,78 @@ body {
   margin-bottom: 60px;
 }
 
-/* ===== Mobile адаптация ===== */
+/* ===== MOBILE ADAPTATION ===== */
 @media (max-width: 768px) {
+  /* header */
+  .logo-text {
+    display: none;
+  }
+  .logo-img {
+    display: block;
+  }
+  .main-nav {
+    display: none;
+    flex-direction: column;
+    background: rgba(255,255,255,0.95);
+    position: absolute;
+    top: 100%;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 180px;
+  }
+  .main-nav.show {
+    display: flex;
+    animation: dropdown 0.3s ease;
+  }
+  .menu-toggle {
+    display: block;
+  }
+
+  /* hero */
   .hero {
     flex-direction: column;
     text-align: center;
   }
-
   .hero-text {
     max-width: 100%;
   }
-
   .hero-text h2 {
     font-size: 22px;
   }
-
   .hero-text p {
     font-size: 14px;
   }
-
   .hero-image img {
     width: 180px;
     margin-top: 20px;
   }
 
+  /* buttons */
   .btn {
     padding: 10px 16px;
     font-size: 13px;
   }
 
+  /* features */
   .icon {
     width: 64px;
   }
-
   .feature-list {
-    grid-template-columns: 1fr; /* карточки по одной в ряд */
+    grid-template-columns: 1fr;
     gap: 20px;
   }
 
+  /* demo table */
   .demo-table th,
   .demo-table td {
     padding: 10px;
     font-size: 13px;
   }
+}
+
+@keyframes dropdown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
