@@ -254,22 +254,35 @@ body {
   .logo-img {
     display: block;
   }
-  .main-nav {
-    display: none;
+    .main-nav {
     flex-direction: column;
     background: rgba(255,255,255,0.95);
     position: absolute;
     top: 100%;
     right: 20px;
-    padding: 10px 20px;
+    padding: 0 20px;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     min-width: 180px;
+
+    /* для анимации */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.4s ease;
   }
+
   .main-nav.show {
-    display: flex;
-    animation: dropdown 0.3s ease;
+    max-height: 400px; /* достаточно, чтобы вместить все ссылки */
+    opacity: 1;
   }
+
+  .main-nav a {
+    padding: 12px 0;
+    text-align: center;
+  }
+
+
   .menu-toggle {
     display: block;
   }
