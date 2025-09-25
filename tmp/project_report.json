@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-25T13:01:04",
+  "generated_at": "2025-09-25T21:11:43",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -69,7 +69,7 @@
       {
         "name": "demo.html",
         "is_dir": false,
-        "size": 1188,
+        "size": 3747,
         "css_used": [
           "/static/css/demo.css"
         ],
@@ -157,7 +157,7 @@
           {
             "name": "demo.css",
             "is_dir": false,
-            "size": 3106
+            "size": 7560
           },
           {
             "name": "index.css",
@@ -202,14 +202,14 @@
             "size": 15253
           },
           {
-            "name": "bg-desktop.png",
+            "name": "bg-desktop.jpeg",
             "is_dir": false,
-            "size": 1411583
+            "size": 35421
           },
           {
-            "name": "bg-mobile.png",
+            "name": "bg-mobile.jpeg",
             "is_dir": false,
-            "size": 1511853
+            "size": 38027
           },
           {
             "name": "bona.jpeg",
@@ -224,27 +224,37 @@
           {
             "name": "callcenter.png",
             "is_dir": false,
-            "size": 1493649
+            "size": 184544
           },
           {
             "name": "card_blue.png",
             "is_dir": false,
-            "size": 585292
+            "size": 186200
           },
           {
             "name": "data.png",
             "is_dir": false,
-            "size": 1453698
+            "size": 174511
+          },
+          {
+            "name": "favicon.png",
+            "is_dir": false,
+            "size": 207659
+          },
+          {
+            "name": "logo.png",
+            "is_dir": false,
+            "size": 207659
           },
           {
             "name": "messages.png",
             "is_dir": false,
-            "size": 1459881
+            "size": 196109
           },
           {
             "name": "mic.png",
             "is_dir": false,
-            "size": 1464471
+            "size": 215862
           },
           {
             "name": "output.png",
@@ -254,27 +264,27 @@
           {
             "name": "qr.png",
             "is_dir": false,
-            "size": 1458849
+            "size": 200816
           },
           {
             "name": "robot_attention.png",
             "is_dir": false,
-            "size": 1130213
+            "size": 312094
           },
           {
             "name": "robot_invite.png",
             "is_dir": false,
-            "size": 2204723
+            "size": 226875
           },
           {
             "name": "robot_suggest.png",
             "is_dir": false,
-            "size": 2226298
+            "size": 290299
           },
           {
             "name": "robot_thinks.png",
             "is_dir": false,
-            "size": 2284642
+            "size": 329056
           },
           {
             "name": "telegram.svg",
@@ -284,7 +294,7 @@
           {
             "name": "user.png",
             "is_dir": false,
-            "size": 1476926
+            "size": 80202
           }
         ]
       },
@@ -311,7 +321,7 @@
           {
             "name": "demo.js",
             "is_dir": false,
-            "size": 252
+            "size": 1496
           },
           {
             "name": "index.js",
