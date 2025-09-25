@@ -69,7 +69,10 @@ body {
   font-size: 28px;
   cursor: pointer;
   user-select: none;
+  position: relative;
+  z-index: 1100; /* выше всего остального */
 }
+
 
 /* ===== HERO ===== */
 .hero {
