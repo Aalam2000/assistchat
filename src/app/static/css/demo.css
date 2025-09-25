@@ -45,11 +45,16 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;       /* прижимаем к нижней границе */
-  height: 3px;     /* 2–3 мм */
-  background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0));
-  pointer-events: none; /* не мешает кликам */
+  bottom: -12px; /* градиент чуть ниже шапки */
+  height: 12px;  /* толщина плавного перехода */
+  background: linear-gradient(to bottom,
+              rgba(255,255,255,0),   /* сверху полностью прозрачный */
+              rgba(255,255,255,0.001), /* почти прозрачный */
+              rgba(255,255,255,0.05)  /* снизу лёгкая дымка */
+             );
+  pointer-events: none;
 }
+
 
 
 
@@ -164,28 +169,64 @@ body {
   transform: translateY(-2px);
 }
 
-/* ===== FEATURES ===== */
+/* ===== FEATURES (Возможности) ===== */
 .features {
+  text-align: center;
+  background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+  border-radius: 24px;
+  padding: 50px 40px;
   margin-bottom: 60px;
-  text-align: center;
 }
 
-.feature-list {
+.features-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  color: #111827;
+}
+
+.features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 40px;
-  margin-top: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 30px;
 }
 
-.feature-item {
-  text-align: center;
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.icon {
-  width: 96px;
-  height: auto;
-  margin: 0 auto 12px;
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
 }
+
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.feature-card span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+  text-align: left;
+}
+
+/* мобильная адаптация */
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 /* ===== DEMO ===== */
 .demo {
