@@ -30,6 +30,12 @@ body {
   background: transparent;
   z-index: 1000;
 }
+/* ===== HEADER SCROLLED ===== */
+.site-header.scrolled {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* для Safari */
+}
+
 
 .header-inner {
   max-width: 1200px;
