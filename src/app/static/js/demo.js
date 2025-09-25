@@ -32,5 +32,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   // ===== END MOBILE MENU BLOCK =====
+    // ===== HEADER SCROLL EFFECT =====
+  const header = document.querySelector(".site-header");
+  if (header) {
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 0) {
+        header.classList.add("scrolled");
+      } else {
+        header.classList.remove("scrolled");
+      }
+    });
+  }
+  // ===== END HEADER SCROLL EFFECT =====
+
 
 });
