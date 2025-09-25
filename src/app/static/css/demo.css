@@ -34,7 +34,23 @@ body {
 .site-header.scrolled {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px); /* для Safari */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
 }
+
+.site-header.scrolled::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;       /* прижимаем к нижней границе */
+  height: 3px;     /* 2–3 мм */
+  background: linear-gradient(to bottom, rgba(255,255,255,0.6), rgba(255,255,255,0));
+  pointer-events: none; /* не мешает кликам */
+}
+
 
 
 .header-inner {
@@ -44,7 +60,15 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: padding 0.3s ease; /* плавный переход */
 }
+
+/* при скролле убираем верхний паддинг */
+.site-header.scrolled .header-inner {
+  padding-top: 0;
+  padding-bottom: 8px; /* чуть меньше, чтобы не казалось прижатым */
+}
+
 
 .brand {
   display: flex;
