@@ -173,3 +173,11 @@ tbody tr:last-child td{border-bottom:0}
   display: none !important;
   pointer-events: none !important;
 }
+
+/* processing modal (zoom) */
+.pm-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999}
+.pm-hidden{display:none}
+.pm-box{background:#10131a;color:#fff;border:1px solid #2a2f3a;border-radius:10px;padding:16px 20px;min-width:220px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;align-items:center;gap:12px}
+.pm-title{font:16px/1.25 system-ui}
+.pm-spinner{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;animation:pmspin .8s linear infinite}
+@keyframes pmspin{to{transform:rotate(360deg)}}
