@@ -1110,6 +1110,7 @@ async def resource_zoom_page(rid: str, request: Request, db: SASession = Depends
         request,
         "resource_zoom",
         {
+            "user": user,
             "username": user.username,
             "role": user.role.value if hasattr(user.role, "value") else str(user.role),
             "rid": rid,
