@@ -22,10 +22,16 @@ body {
 
 /* ===== Шапка ===== */
 .site-header {
+  position: fixed;       /* фиксируем наверху */
+  top: 0;
+  left: 0;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  padding: 12px 40px;
+  background: transparent;   /* прозрачный фон */
+  z-index: 1000;
 }
 
 .site-header .logo {
@@ -40,6 +46,44 @@ body {
   color: #374151;
   font-weight: 500;
 }
+
+/* чтобы контент не налезал под fixed-header */
+.page {
+  padding-top: 70px;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 768px) {
+  .site-header .logo-text {
+    display: none; /* убираем текст */
+  }
+  .site-header .logo-img {
+    display: block; /* показываем картинку */
+    height: 32px;
+  }
+}
+
+.site-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-header .logo-img {
+  display: none; /* по умолчанию скрыт */
+  height: 32px;
+}
+
+@media (max-width: 768px) {
+  .site-header .logo-text {
+    display: none; /* скрываем текст на мобилке */
+  }
+  .site-header .logo-img {
+    display: block; /* показываем картинку */
+  }
+}
+
+
 
 /* ===== HERO ===== */
 .hero {
