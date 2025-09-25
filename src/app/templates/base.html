@@ -5,6 +5,28 @@
   <title>{% block title %}bona-plus{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- ===== SEO BASICS ===== -->
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <!-- ===== OPEN GRAPH ===== -->
+  <meta property="og:title" content="">
+  <meta property="og:description" content="">
+  <meta property="og:image" content="/static/img/logo.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="">
+
+  <!-- ===== TWITTER CARDS ===== -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="">
+  <meta name="twitter:description" content="">
+  <meta name="twitter:image" content="/static/img/logo.png">
+
+  <!-- ===== CANONICAL & HREFLANG ===== -->
+  <link rel="canonical" href="">
+  <link rel="alternate" href="" hreflang="ru">
+  <link rel="alternate" href="" hreflang="en">
+
   <!-- Стили -->
   <link href="/static/css/base.css" rel="stylesheet"/>
   <link rel="icon" type="image/png" sizes="512x512" href="/static/img/favicon.png">
@@ -49,12 +71,19 @@
   <main class="site-main">
     {% block content %}{% endblock %}
   </main>
+
   <!-- ===== FLOATING TELEGRAM ===== -->
   <div class="telegram-float">
     <a href="https://t.me/assistent_next" target="_blank" rel="noopener">
       <img src="/static/img/telegram.svg" alt="Telegram">
     </a>
   </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="site-footer">
+    <p>&copy; 2025 AI assistent. Все права защищены.</p>
+  </footer>
+
   {% include "auth/login.html" %}
 
   <!-- ===== SCRIPTS ===== -->
