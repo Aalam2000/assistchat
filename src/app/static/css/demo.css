@@ -3,15 +3,19 @@ body {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
   background: url('../img/bg-mobile.jpeg') no-repeat center top;
-  background-size: cover;
+  background-size: contain;
+  background-attachment: fixed;
   min-height: 100vh;
 }
+
 
 @media (min-width: 801px) {
   body {
     background: url('../img/bg-desktop.jpeg') no-repeat center top;
-    background-size: cover;
+    background-size: contain;
+    background-attachment: fixed;
   }
+
 }
 
 .page {
