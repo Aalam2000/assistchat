@@ -1,183 +1,178 @@
-/* ===== Общая тема ===== */
-:root{
-  --bg:#2d4680;
-  --card:#111827;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-  --border:#334155;
-  --border-soft:#1f2937;
-  --accent:#22c55e;
-  --accent-2:#1f78f6;
+/* =========================================================
+   BASE STYLES
+   ========================================================= */
+:root {
+  --text:#374151;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --accent:#6366f1;
+  --accent-2:#3b82f6;
   --danger:#ef4444;
-  --neutral: #adbfea;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  background:var(--bg);
+* { box-sizing:border-box; margin:0; padding:0 }
+html, body { height:100% }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: url('../img/bg-mobile.jpeg') no-repeat center center fixed;
+  background-size: cover;
+  min-height:100vh;
   color:var(--text);
-  font:16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+@media (min-width:801px) {
+  body {
+    background: url('../img/bg-desktop.jpeg') no-repeat center center fixed;
+    background-size: cover;
+  }
 }
 
-/* ===== Layout ===== */
-.wrap,.container{max-width:960px;margin:0 auto;padding:24px 16px}
-main.site-main{max-width:960px;margin:80px auto 40px;padding:0 16px}
-
-/* ===== Карточки ===== */
-.card {
-  width: 100%;
-  background: #fff;
-  color: #111;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+/* =========================================================
+   HEADER
+   ========================================================= */
+.site-header {
+  position:fixed; top:0; left:0; right:0;
+  background:transparent;
+  z-index:1000;
+  transition: all 0.3s ease;
+}
+.site-header.scrolled {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.header-inner {
+  max-width:1200px;
+  margin:0 auto;
+  padding:12px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  transition: padding 0.3s ease;
+}
+.site-header.scrolled .header-inner {
+  padding-top:0;
+  padding-bottom:8px;
+}
+.brand {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.logo-text {
+  font-size:24px;
+  font-weight:700;
+  color:#111827;
+}
+.logo-img {
+  display:none;
+  height:32px;
+}
+.main-nav {
+  display:flex;
+  gap:16px;
+  align-items:center;
+}
+.menu-toggle {
+  display:none;
+  font-size:28px;
+  cursor:pointer;
+  user-select:none;
+  position:relative;
+  z-index:1100;
 }
 
-/* ===== Типографика ===== */
-h1{margin:0 0 8px;font-size:28px}
-h2{margin:0 0 8px;font-size:20px}
-.subtitle{color:var(--muted);margin:0 0 16px}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#cbd5e1}
-
-/* ===== Сетки ===== */
-.row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
-.grid {
-  display: grid;
-  gap: 14px;
-  margin-top: 8px;
+/* Mobile Nav */
+@media (max-width:768px) {
+  .logo-text { display:none; }
+  .logo-img { display:block; }
+  .main-nav {
+    flex-direction:column;
+    background:rgba(255,255,255,0.95);
+    position:absolute;
+    top:100%; right:20px;
+    padding:0 20px;
+    border-radius:0 0 8px 8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    min-width:180px;
+    max-height:0; opacity:0; overflow:hidden;
+    transition:max-height 0.4s ease, opacity 0.4s ease;
+  }
+  .main-nav.show {
+    max-height:400px; opacity:1;
+    display:flex; flex-direction:column; align-items:flex-start;
+    padding:10px 15px; gap:10px;
+  }
+  .main-nav a {
+    width:100%; padding:10px; text-align:left;
+    border-radius:6px; transition:background 0.2s ease;
+  }
+  .main-nav a:hover { background:rgba(0,0,0,0.05); }
+  .menu-toggle { display:block; }
 }
-@media(min-width:740px){.grid{grid-template-columns:repeat(3,1fr)}}
 
-/* ===== Кнопки ===== */
-a.btn,.btn{
-  display:inline-flex;justify-content:center;align-items:center;gap:8px;
-  padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer;
-  background:var(--neutral);border:1px solid var(--border);color:var(--text);font-weight:600;
-  transition:transform .08s ease,border-color .08s ease,opacity .08s ease
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+a.btn, .btn {
+  display:inline-flex; justify-content:center; align-items:center; gap:8px;
+  padding:10px 14px; border-radius:12px; text-decoration:none; cursor:pointer;
+  background:#f3f4f6; border:1px solid var(--border); color:#374151;
+  font-weight:600;
+  transition:transform .15s ease, box-shadow .15s ease, background .3s ease;
 }
-.btn:hover{transform:translateY(-1px);border-color:#475569}
-.btn.primary{background:linear-gradient(135deg,#16a34a,var(--accent));border:none;color:#04110a}
-.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
-.badge{padding:4px 8px;border:1px solid var(--accent-2);border-radius:999px;background:var(--neutral);font-size:12px;color:#cbd5e1}
-
-/* ===== Формы (универсально) ===== */
-label{display:block;margin:0 0 6px;color:#cbd5e1}
-input[type="text"],
-input[type="password"],
-input[type="email"],
-input[type="file"],
-input[type="number"],
-select,
-textarea{
-  width:100%;
-  padding:12px 14px;
-  border:1px solid var(--border);
-  border-radius:12px;
-  background:var(--neutral);
-  color:var(--text);
-  outline:none;
+.btn:hover {
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
 }
-input::placeholder,textarea::placeholder{color:#94a3b8}
-select{appearance:none}
-textarea{resize:vertical;min-height:92px}
-input:focus,select:focus,textarea:focus{border-color:var(--accent-2);box-shadow:0 0 0 2px rgba(31,120,246,.4)}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-.error{color:var(--danger);min-height:1.2em;margin-top:8px}
+.btn.primary {
+  background:linear-gradient(135deg,#6366f1,#3b82f6);
+  color:#fff; border:none;
+  box-shadow:0 4px 12px rgba(99,102,241,0.3);
+}
+.btn.primary:hover {
+  box-shadow:0 6px 16px rgba(99,102,241,0.4);
+}
+.btn-telegram {
+  width:36px; height:36px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:999px; background:#fff;
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  transition:transform 0.2s ease;
+}
+.btn-telegram:hover { transform:scale(1.1) }
+.btn-telegram img { width:22px; height:22px }
 
-/* Удаляем мелкий шрифт у логина/пароля */
-input[name="username"],input[name="password"]{font-size:14px;padding-top:12px;padding-bottom:12px}
-
-/* ===== Табы ===== */
-.tabs{display:flex;gap:8px;margin:0 0 12px}
-.tab-btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--neutral);color:var(--text);cursor:pointer;font-weight:600}
-.tab-btn.active{background:#0f172a;border-color:#475569}
-.tab-panel{display:none}
-.tab-panel.active{display:block}
-
-/* ===== Auth wrapper ===== */
-.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
-/* только для авторизации ограничиваем ширину */
-.auth-wrap .card { max-width: 420px; }
-.title{margin:0 0 10px;text-align:center}
-
-/* ===== Таблицы ===== */
-table{width:100%;border-collapse:collapse;margin-top:12px;background:var(--neutral);border-radius:12px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.20)}
-thead th{text-align:left;font-size:12px;color:var(--muted);padding:10px;border-bottom:1px solid #263244}
-tbody td{padding:10px;border-bottom:1px solid #1c2738;font-size:14px;color:var(--text)}
-tbody tr:last-child td{border-bottom:0}
-
-/* ===== Helpers ===== */
-.hidden{display:none!important}
-.center{display:grid;place-items:center}
+/* =========================================================
+   HELPERS
+   ========================================================= */
+.hidden { display:none!important }
+.center { display:grid; place-items:center }
 .mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
 
-/* ===== Шапка ===== */
-.site-header{
-  position:fixed;top:0;left:0;right:0;
-  background:var(--neutral);
-  border-bottom:1px solid var(--border);
-  box-shadow:0 2px 6px rgba(0,0,0,.2);
-  z-index:1000;
-}
-.site-header .container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-  flex-wrap: wrap;
-}
+/* =========================================================
+   MODALS
+   ========================================================= */
+.modal.hidden { display:none!important; pointer-events:none!important }
 
-.nav-links {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-}
-
-#i18n-toggle {
+/* ===== FLOATING TELEGRAM ICON ===== */
+.telegram-float {
   position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--accent-2);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
+  bottom: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
   z-index: 2000;
 }
-#i18n-toggle:hover { opacity: .85; }
 
-/* Telegram button */
-.btn-telegram{
-  width:36px;height:36px;flex:0 0 36px;
-  display:inline-flex;align-items:center;justify-content:center;
-  border-radius:999px;border:none;
-  background:transparent;
-  transition:transform .08s ease,opacity .08s ease,filter .12s ease;
-}
-.btn-telegram:hover{transform:translateY(-1px);filter:brightness(.95);}
-.btn-telegram img{display:block;}
-
-/* скрытые оверлеи не должны блокировать клики на мобилках */
-.modal.hidden {
-  display: none !important;
-  pointer-events: none !important;
+.telegram-float img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
 }
 
-/* processing modal (zoom) */
-.pm-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:9999}
-.pm-hidden{display:none}
-.pm-box{background:#10131a;color:#fff;border:1px solid #2a2f3a;border-radius:10px;padding:16px 20px;min-width:220px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;align-items:center;gap:12px}
-.pm-title{font:16px/1.25 system-ui}
-.pm-spinner{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;animation:pmspin .8s linear infinite}
-@keyframes pmspin{to{transform:rotate(360deg)}}
+.telegram-float img:hover {
+  transform: scale(1.1);
+}

@@ -1,68 +1,101 @@
 <!doctype html>
 <html lang="{{ lang|default('ru') }}">
 <head>
-    <meta charset="utf-8"/>
-    <title>{% block title %}bona-plus{% endblock %}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8"/>
+  <title>{% block title %}bona-plus{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Базовые стили + стили модалок (нужны всегда, т.к. модалка логина инклюдится в базу) -->
-    <link href="/static/css/base.css" rel="stylesheet"/>
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-    {% block extra_head %}{% endblock %}
+  <!-- Стили -->
+  <link href="/static/css/base.css" rel="stylesheet"/>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <div id="lang-wait" class="modal hidden">
-      <div class="modal__content">
-        <p>Перевод страницы, пожалуйста подождите…</p>
-      </div>
+  <!-- ===== LANG MODAL ===== -->
+  <div id="lang-wait" class="modal hidden">
+    <div class="modal__content">
+      <p>Перевод страницы, пожалуйста подождите…</p>
     </div>
+  </div>
 
-    <!-- Фиксированная шапка -->
-    <header class="site-header">
-        <div class="container">
-            <h1 class="logo">bona-plus</h1>
-            <nav class="nav-links">
-                <nav class="nav-links">
-                    <a href="https://t.me/assistent_next" target="_blank" rel="noopener"
-                       class="btn-telegram" aria-label="Telegram">
-                      <img src="/static/img/telegram.svg" alt="Telegram" width="22" height="22">
-                    </a>
-                {% if user %}
-                    <span class="username">{{ username }}</span>
-                    <a href="/profile" class="btn">Профиль</a>
-                    <a href="javascript:void(0)" class="btn" id="logout-btn">Выйти</a>
-                {% else %}
-                    <a href="javascript:void(0)" class="btn btn-login" onclick="document.getElementById('login-modal').classList.remove('hidden')">
-                        Войти / Регистрация
-                    </a>
-                {% endif %}
-            </nav>
-        </div>
-    </header>
+  <!-- ===== HEADER ===== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <h1 class="logo-text">AI assistent</h1>
+        <img src="/static/img/logo.png" alt="logo" class="logo-img">
+      </div>
 
-    <!-- Контент -->
-    <main class="site-main">
-        {% block content %}{% endblock %}
-    </main>
+      <nav class="main-nav" id="mainNav">
+        <!-- User actions -->
+        {% if user %}
+          <span class="username">{{ username }}</span>
+          <a href="/profile" class="btn">Профиль</a>
+          <a href="javascript:void(0)" class="btn" id="logout-btn">Выйти</a>
+        {% else %}
+          <a href="javascript:void(0)" class="btn btn-login"
+             onclick="document.getElementById('login-modal').classList.remove('hidden')">
+            Войти / Регистрация
+          </a>
+        {% endif %}
+      </nav>
 
-    {% include "auth/login.html" %}
+      <div class="menu-toggle" id="menuToggle">☰</div>
+    </div>
+  </header>
+  <!-- ===== END HEADER ===== -->
 
-    <!-- Общие скрипты (нужны везде) -->
-    <script src="/static/js/config.js"></script>
-    <script src="/static/js/api.js"></script>
+  <!-- ===== MAIN ===== -->
+  <main class="site-main">
+    {% block content %}{% endblock %}
+  </main>
+  <!-- ===== FLOATING TELEGRAM ===== -->
+  <div class="telegram-float">
+    <a href="https://t.me/assistent_next" target="_blank" rel="noopener">
+      <img src="/static/img/telegram.svg" alt="Telegram">
+    </a>
+  </div>
+  {% include "auth/login.html" %}
 
-    <!-- Скрипты модалки (логин/логаут/регистрация + табы) -->
-    <script src="/static/js/auth.js"></script>
+  <!-- ===== SCRIPTS ===== -->
+  <script src="/static/js/config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
 
+  <script>
+    (function(){
+      var m = document.getElementById('login-modal');
+      if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
+    })();
 
-    <!-- Подстраховка: если шаблон логина вдруг пришёл без .hidden — прячем модалку по умолчанию -->
-    <script>
-      (function(){
-        var m = document.getElementById('login-modal');
-        if (m && !m.classList.contains('hidden')) m.classList.add('hidden');
-      })();
-    </script>
+    // мобильное меню и скролл-эффект
+    document.addEventListener("DOMContentLoaded", () => {
+      const menuToggle = document.getElementById("menuToggle");
+      const mainNav = document.getElementById("mainNav");
+      if (menuToggle && mainNav) {
+        menuToggle.addEventListener("click", (e) => {
+          e.preventDefault();
+          mainNav.classList.toggle("show");
+        });
+        mainNav.querySelectorAll("a").forEach(link => {
+          link.addEventListener("click", () => {
+            mainNav.classList.remove("show");
+          });
+        });
+      }
+      const header = document.querySelector(".site-header");
+      if (header) {
+        window.addEventListener("scroll", () => {
+          if (window.scrollY > 0) {
+            header.classList.add("scrolled");
+          } else {
+            header.classList.remove("scrolled");
+          }
+        });
+      }
+    });
+  </script>
 
-    {% block scripts %}{% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>
