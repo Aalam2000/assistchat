@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>Demo standalone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/demo.css" rel="stylesheet"/>
+</head>
+<body>
+  <div class="demo-container">
+    <h2>Демо-страница</h2>
+    <p>Пример с анимацией, таблицами и кнопками.</p>
+
+    <div class="actions">
+      <button id="start-btn" class="btn">Запустить анимацию</button>
+      <button class="btn secondary">Вторая кнопка</button>
+    </div>
+
+    <div id="anim-box" class="anim-box">Анимируемый блок</div>
+
+    <table class="demo-table">
+      <thead>
+        <tr><th>Имя</th><th>Статус</th><th>Баланс</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Андрей</td><td>Активен</td><td>1200 ₽</td></tr>
+        <tr><td>Мария</td><td>Неактивен</td><td>0 ₽</td></tr>
+        <tr><td>Олег</td><td>Активен</td><td>540 ₽</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script src="/static/js/demo.js"></script>
+</body>
+</html>
