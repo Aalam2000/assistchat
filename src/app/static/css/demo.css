@@ -1,0 +1,147 @@
+/* ===== Базовый фон ===== */
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: linear-gradient(135deg, #eef2ff, #f0fdfa);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Карточка ===== */
+.demo-container {
+  max-width: 760px;
+  width: 100%;
+  padding: 40px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  animation: fadeIn 0.8s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Заголовки и текст ===== */
+h2 {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+}
+
+p {
+  margin: 0 0 24px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+/* ===== Кнопки ===== */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.btn {
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: transform .15s ease, box-shadow .15s ease, background .3s ease;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg,#6366f1,#3b82f6);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+}
+.btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99,102,241,0.4);
+}
+
+.btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+.btn.secondary:hover {
+  background: #e5e7eb;
+  transform: translateY(-2px);
+}
+
+/* ===== Анимируемый блок ===== */
+.anim-box {
+  width: 220px;
+  height: 70px;
+  margin: 0 auto 30px;
+  border-radius: 16px;
+  background: linear-gradient(135deg,#06b6d4,#0ea5e9);
+  color: #fff;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .6s ease;
+  box-shadow: 0 4px 16px rgba(14,165,233,0.4);
+}
+
+.anim-box.active {
+  transform: scale(1.25) rotate(8deg);
+  background: linear-gradient(135deg,#8b5cf6,#6366f1);
+  box-shadow: 0 6px 24px rgba(139,92,246,0.5);
+}
+
+/* ===== Таблица ===== */
+.demo-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 15px;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+
+.demo-table th, .demo-table td {
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.demo-table th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.demo-table tr:nth-child(even) {
+  background: #f3f4f6;
+}
+
+.demo-table tr:hover {
+  background: #e0f2fe;
+  transition: background .3s ease;
+}
+
+body {
+  background: url('../img/bg-mobile.png') no-repeat center top;
+  background-size: cover;
+}
+
+@media (min-width: 801px) {
+  body {
+    background: url('../img/bg-desktop.png') no-repeat center top;
+    background-size: cover;
+  }
+}
