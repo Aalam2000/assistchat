@@ -7,28 +7,86 @@
   <link href="/static/css/demo.css" rel="stylesheet"/>
 </head>
 <body>
-  <div class="demo-container">
-    <h2>Демо-страница</h2>
-    <p>Пример с анимацией, таблицами и кнопками.</p>
 
-    <div class="actions">
-      <button id="start-btn" class="btn">Запустить анимацию</button>
-      <button class="btn secondary">Вторая кнопка</button>
-    </div>
+  <div class="page">
 
-    <div id="anim-box" class="anim-box">Анимируемый блок</div>
+    <!-- Шапка -->
+    <header class="site-header">
+      <h1 class="logo">AssistChat</h1>
+      <nav class="main-nav">
+        <a href="#">Главная</a>
+        <a href="#">Функции</a>
+        <a href="#">Демо</a>
+        <a href="#">Контакты</a>
+      </nav>
+    </header>
 
-    <table class="demo-table">
-      <thead>
-        <tr><th>Имя</th><th>Статус</th><th>Баланс</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Андрей</td><td>Активен</td><td>1200 ₽</td></tr>
-        <tr><td>Мария</td><td>Неактивен</td><td>0 ₽</td></tr>
-        <tr><td>Олег</td><td>Активен</td><td>540 ₽</td></tr>
-      </tbody>
-    </table>
-  </div>
+    <!-- Главный экран -->
+    <section class="hero">
+
+        <div class="hero-text">
+          <h2>Добро пожаловать в AssistChat</h2>
+          <p>Ваш умный ассистент для бизнеса и общения</p>
+          <button class="btn primary">Попробовать сейчас</button>
+        </div>
+        <div class="hero-image">
+          <img src="/static/img/robot_attention.png" alt="Робот" />
+        </div>
+
+    </section>
+
+
+    <!-- Блок преимуществ -->
+    <section class="features section-card">
+      <h2>Возможности</h2>
+      <div class="feature-list">
+        <div class="feature-item">
+          <img src="/static/img/callcenter.png" alt="Callcenter" class="icon"/>
+          <p>Поддержка колл-центра</p>
+        </div>
+        <div class="feature-item">
+          <img src="/static/img/qr.png" alt="QR" class="icon"/>
+          <p>Работа с QR-кодами</p>
+        </div>
+        <div class="feature-item">
+          <img src="/static/img/robot_thinks.png" alt="Робот думает" class="icon"/>
+          <p>Умные предложения</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Демонстрация -->
+    <section class="demo section-card">
+      <h2>Демонстрация работы</h2>
+
+      <div class="actions">
+        <button id="start-btn" class="btn primary">Запустить анимацию</button>
+        <button class="btn secondary">Вторая кнопка</button>
+      </div>
+
+      <div id="anim-box" class="anim-box">Анимируемый блок</div>
+
+      <table class="demo-table">
+        <thead>
+          <tr><th>Имя</th><th>Статус</th><th>Баланс</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Андрей</td><td>Активен</td><td>1200 ₽</td></tr>
+          <tr><td>Мария</td><td>Неактивен</td><td>0 ₽</td></tr>
+          <tr><td>Олег</td><td>Активен</td><td>540 ₽</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Подвал -->
+    <footer class="site-footer">
+      <p>&copy; 2025 AssistChat. Все права защищены.</p>
+      <div class="social">
+        <a href="#"><img src="/static/img/telegram.svg" alt="Telegram" class="icon"/></a>
+      </div>
+    </footer>
+
+  </div> <!-- /.page -->
 
   <script src="/static/js/demo.js"></script>
 </body>

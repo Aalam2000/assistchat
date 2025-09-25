@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-09-24T21:14:36",
+  "generated_at": "2025-09-25T13:01:04",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -67,9 +67,20 @@
         "js_used": []
       },
       {
+        "name": "demo.html",
+        "is_dir": false,
+        "size": 1188,
+        "css_used": [
+          "/static/css/demo.css"
+        ],
+        "js_used": [
+          "/static/js/demo.js"
+        ]
+      },
+      {
         "name": "index.html",
         "is_dir": false,
-        "size": 8291,
+        "size": 12471,
         "css_used": [
           "/static/css/index.css",
           "/static/css/modals.css"
@@ -81,7 +92,7 @@
       {
         "name": "profile.html",
         "is_dir": false,
-        "size": 6649,
+        "size": 5569,
         "css_used": [
           "/static/css/theme-simple-nav-desktop.css",
           "/static/css/theme-simple-nav-mobile.css"
@@ -109,13 +120,9 @@
           {
             "name": "zoom.html",
             "is_dir": false,
-            "size": 3342,
-            "css_used": [
-              "/static/css/base.css"
-            ],
+            "size": 1707,
+            "css_used": [],
             "js_used": [
-              "/static/js/api.js",
-              "/static/js/config.js",
               "/static/js/resources_zoom.js"
             ]
           }
@@ -145,7 +152,12 @@
           {
             "name": "base.css",
             "is_dir": false,
-            "size": 5779
+            "size": 6406
+          },
+          {
+            "name": "demo.css",
+            "is_dir": false,
+            "size": 3106
           },
           {
             "name": "index.css",
@@ -190,14 +202,89 @@
             "size": 15253
           },
           {
+            "name": "bg-desktop.png",
+            "is_dir": false,
+            "size": 1411583
+          },
+          {
+            "name": "bg-mobile.png",
+            "is_dir": false,
+            "size": 1511853
+          },
+          {
             "name": "bona.jpeg",
             "is_dir": false,
             "size": 115728
           },
           {
+            "name": "bubble.png",
+            "is_dir": false,
+            "size": 866775
+          },
+          {
+            "name": "callcenter.png",
+            "is_dir": false,
+            "size": 1493649
+          },
+          {
+            "name": "card_blue.png",
+            "is_dir": false,
+            "size": 585292
+          },
+          {
+            "name": "data.png",
+            "is_dir": false,
+            "size": 1453698
+          },
+          {
+            "name": "messages.png",
+            "is_dir": false,
+            "size": 1459881
+          },
+          {
+            "name": "mic.png",
+            "is_dir": false,
+            "size": 1464471
+          },
+          {
+            "name": "output.png",
+            "is_dir": false,
+            "size": 6860
+          },
+          {
+            "name": "qr.png",
+            "is_dir": false,
+            "size": 1458849
+          },
+          {
+            "name": "robot_attention.png",
+            "is_dir": false,
+            "size": 1130213
+          },
+          {
+            "name": "robot_invite.png",
+            "is_dir": false,
+            "size": 2204723
+          },
+          {
+            "name": "robot_suggest.png",
+            "is_dir": false,
+            "size": 2226298
+          },
+          {
+            "name": "robot_thinks.png",
+            "is_dir": false,
+            "size": 2284642
+          },
+          {
             "name": "telegram.svg",
             "is_dir": false,
             "size": 510
+          },
+          {
+            "name": "user.png",
+            "is_dir": false,
+            "size": 1476926
           }
         ]
       },
@@ -222,9 +309,14 @@
             "size": 509
           },
           {
+            "name": "demo.js",
+            "is_dir": false,
+            "size": 252
+          },
+          {
             "name": "index.js",
             "is_dir": false,
-            "size": 2118
+            "size": 3916
           },
           {
             "name": "mess.js",
