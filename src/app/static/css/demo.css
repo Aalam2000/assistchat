@@ -223,3 +223,48 @@ body {
   padding: 40px;
   margin-bottom: 60px;
 }
+
+/* ===== Mobile адаптация ===== */
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .hero-text {
+    max-width: 100%;
+  }
+
+  .hero-text h2 {
+    font-size: 22px;
+  }
+
+  .hero-text p {
+    font-size: 14px;
+  }
+
+  .hero-image img {
+    width: 180px;
+    margin-top: 20px;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .icon {
+    width: 64px;
+  }
+
+  .feature-list {
+    grid-template-columns: 1fr; /* карточки по одной в ряд */
+    gap: 20px;
+  }
+
+  .demo-table th,
+  .demo-table td {
+    padding: 10px;
+    font-size: 13px;
+  }
+}
