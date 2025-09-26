@@ -163,8 +163,11 @@ section h2 {
     font-size: 14px;
   }
   .hero-image img {
-    width: 120px;   /* подгони по вкусу */
+    display: block;
+    width: 100%;          /* всегда вписывается в ширину экрана */
+    max-width: 160px;     /* но не больше 160px */
     height: auto;
-    margin-top: 20px;
+    margin: 20px auto 0;  /* центрируем */
   }
+
 }
