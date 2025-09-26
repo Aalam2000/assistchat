@@ -113,12 +113,17 @@ section h2 { font-size: 20px; margin-bottom: 12px; }
 }
 
 .hero-image img {
-  width: 260px;
+  max-width: 260px;
   height: auto;
 }
 
 /* адаптив под мобилу */
 @media (max-width: 768px) {
+  body {
+    background-attachment: scroll; /* отключаем фикс */
+    background-position: top center;
+    background-size: cover;
+  }
   .hero {
     flex-direction: column;
     text-align: center;
