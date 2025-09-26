@@ -6,9 +6,23 @@
 {% endblock %}
 
 {% block content %}
-<a href="/demo" class="btn primary">Открыть демо-страницу</a>
-
-
+{% if not user %}
+  <!-- ===== HERO (главный экран) ===== -->
+  <section class="hero">
+    <div class="hero-text">
+      <h2>Добро пожаловать в AssistChat</h2>
+      <p>Ваш умный ассистент для бизнеса и общения</p>
+      <button class="btn primary btn-login"
+              onclick="document.getElementById('login-modal').classList.remove('hidden')">
+        Попробовать сейчас
+      </button>
+    </div>
+    <div class="hero-image">
+      <img src="/static/img/robot_attention.png" alt="Робот">
+    </div>
+  </section>
+  <!-- ===== END HERO ===== -->
+{% endif %}
 
 <section class="sections">
   {% if user %}
