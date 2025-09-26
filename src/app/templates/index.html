@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="page">
 {% if not user %}
   <!-- ===== HERO (главный экран) ===== -->
   <section class="hero">
@@ -259,6 +260,7 @@
   </button>
 </section>
 {% include "auth/author_modal.html" %}
+</div> <!-- /.page -->
 {% endblock %}
 
 {% block scripts %}
