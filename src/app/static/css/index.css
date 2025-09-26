@@ -134,8 +134,7 @@ section h2 {
 
   /* --- фон --- */
   body {
-    background-attachment: scroll;
-    background-position: top center;
+    background: url('../img/bg-desktop.jpeg') no-repeat center center fixed;
     background-size: cover;
   }
 
