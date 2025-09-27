@@ -2,225 +2,490 @@
    BASE STYLES
    ========================================================= */
 :root {
-  --text:#374151;
-  --muted:#6b7280;
-  --border:#e5e7eb;
-  --accent:#6366f1;
-  --accent-2:#3b82f6;
-  --danger:#ef4444;
+    --text: #374151;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #6366f1;
+    --accent-2: #3b82f6;
+    --danger: #ef4444;
 }
 
-* { box-sizing:border-box; margin:0; padding:0 }
-html, body { height:100% }
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: url('../img/bg-mobile.jpeg') no-repeat center center fixed;
-  background-size: cover;
-  min-height:100vh;
-  color:var(--text);
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
-@media (min-width:801px) {
-  body {
+
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
     background: url('../img/bg-desktop.jpeg') no-repeat center center fixed;
     background-size: cover;
-  }
+    min-height: 100vh;
+    color: var(--text);
+}
+
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-top: 80px; /* отступ под фиксированную шапку */
 }
 
 /* =========================================================
    HEADER
    ========================================================= */
 .site-header {
-  position:fixed; top:0; left:0; right:0;
-  background:transparent;
-  z-index:1000;
-  transition: all 0.3s ease;
-}
-.site-header.scrolled {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom:1px solid var(--border);
-}
-.header-inner {
-  max-width:1200px;
-  margin:0 auto;
-  padding:12px 20px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  transition: padding 0.3s ease;
-}
-.site-header.scrolled .header-inner {
-  padding-top:0;
-  padding-bottom:8px;
-}
-.brand {
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.logo-text {
-  font-size:24px;
-  font-weight:700;
-  color:#111827;
-}
-.logo-img {
-  display:none;
-  height:32px;
-}
-.main-nav {
-  display:flex;
-  gap:16px;
-  align-items:center;
-}
-.menu-toggle {
-  display:none;
-  font-size:28px;
-  cursor:pointer;
-  user-select:none;
-  position:relative;
-  z-index:1100;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: transparent;
+    z-index: 1000;
+    transition: all 0.3s ease;
 }
 
-/* Mobile Nav */
-@media (max-width:768px) {
-  .logo-text { display:none; }
-  .logo-img { display:block; }
-  .main-nav {
-    flex-direction:column;
-    background:rgba(255,255,255,0.95);
-    position:absolute;
-    top:100%; right:20px;
-    padding:0 20px;
-    border-radius:0 0 8px 8px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.15);
-    min-width:180px;
-    max-height:0; opacity:0; overflow:hidden;
-    transition:max-height 0.4s ease, opacity 0.4s ease;
-  }
-  .main-nav.show {
-    max-height:400px; opacity:1;
-    display:flex; flex-direction:column; align-items:flex-start;
-    padding:10px 15px; gap:10px;
-  }
-  .main-nav a {
-    width:100%; padding:10px; text-align:left;
-    border-radius:6px; transition:background 0.2s ease;
-  }
-  .main-nav a:hover { background:rgba(0,0,0,0.05); }
-  .menu-toggle { display:block; }
+.site-header.scrolled {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
 }
+
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: padding 0.3s ease;
+}
+
+.site-header.scrolled .header-inner {
+    padding-top: 0;
+    padding-bottom: 8px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.logo-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.logo-img {
+    display: none;
+    height: 32px;
+}
+
+.main-nav {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.menu-toggle {
+    display: none;
+    font-size: 28px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    z-index: 1100;
+}
+
+/* =========================================================
+   TILE spacing
+   ========================================================= */
+.tile {
+    margin-bottom: 32px; /* одинаковый интервал снизу у всех блоков */
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* две колонки */
+    gap: 32px;
+    align-items: start;
+    margin-bottom: 32px;
+}
+
 
 /* =========================================================
    BUTTONS
    ========================================================= */
 a.btn, .btn {
-  display:inline-flex; justify-content:center; align-items:center; gap:8px;
-  padding:10px 14px; border-radius:12px; text-decoration:none; cursor:pointer;
-  background:#f3f4f6; border:1px solid var(--border); color:#374151;
-  font-weight:600;
-  transition:transform .15s ease, box-shadow .15s ease, background .3s ease;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    background: #f3f4f6;
+    border: 1px solid var(--border);
+    color: #374151;
+    font-weight: 600;
+    transition: transform .15s ease, box-shadow .15s ease, background .3s ease;
 }
+
 .btn:hover {
-  transform:translateY(-2px);
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
+
 .btn.primary {
-  background:linear-gradient(135deg,#6366f1,#3b82f6);
-  color:#fff; border:none;
-  box-shadow:0 4px 12px rgba(99,102,241,0.3);
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
+
 .btn.primary:hover {
-  box-shadow:0 6px 16px rgba(99,102,241,0.4);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
 }
+
 .btn-telegram {
-  width:36px; height:36px;
-  display:inline-flex; align-items:center; justify-content:center;
-  border-radius:999px; background:#fff;
-  box-shadow:0 4px 12px rgba(0,0,0,0.15);
-  transition:transform 0.2s ease;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease;
 }
-.btn-telegram:hover { transform:scale(1.1) }
-.btn-telegram img { width:22px; height:22px }
+
+.btn-telegram:hover {
+    transform: scale(1.1)
+}
+
+.btn-telegram img {
+    width: 22px;
+    height: 22px
+}
+
+/* маленькая кнопка Назад */
+.btn.small {
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+}
+
+/* блоки-плитки */
+.tile {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
 
 /* =========================================================
    FOOTER
    ========================================================= */
 .site-footer {
-  text-align:center;
-  padding:20px;
-  font-size:14px;
-  color:#6b7280;
-  margin-top:40px;
+    text-align: center;
+    padding: 20px;
+    font-size: 14px;
+    color: #6b7280;
+    margin-top: 40px;
 }
+
 .site-footer .social {
-  display:flex;
-  justify-content:center;
-  gap:12px;
-  margin-top:8px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
 }
+
 .site-footer .social img {
-  width:24px;
-  height:24px;
-  transition:transform 0.2s ease;
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
 }
+
 .site-footer .social img:hover {
-  transform:scale(1.1);
+    transform: scale(1.1);
 }
 
 /* =========================================================
    HELPERS
    ========================================================= */
-.hidden { display:none!important }
-.center { display:grid; place-items:center }
-.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}
+.hidden {
+    display: none !important
+}
+
+.center {
+    display: grid;
+    place-items: center
+}
+
+.mt-8 {
+    margin-top: 8px
+}
+
+.mt-12 {
+    margin-top: 12px
+}
+
+.mt-16 {
+    margin-top: 16px
+}
 
 /* =========================================================
    MODALS
    ========================================================= */
-.modal.hidden { display:none!important; pointer-events:none!important }
+.modal.hidden {
+    display: none !important;
+    pointer-events: none !important
+}
 
 /* ===== FLOATING TELEGRAM ICON ===== */
 .telegram-float {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 48px;
-  height: 48px;
-  z-index: 2000;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    z-index: 2000;
 }
+
 .telegram-float img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 50%;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: transform 0.2s ease;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
 }
+
 .telegram-float img:hover {
-  transform: scale(1.1);
+    transform: scale(1.1);
 }
 
 /* ===== FLOATING I18N TOGGLE ===== */
 #i18n-toggle {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #3b82f6;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  z-index: 2000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: transform 0.2s ease, opacity 0.2s ease;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 2000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 #i18n-toggle:hover {
-  transform: scale(1.05);
-  opacity: 0.9;
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+/* =========================================================
+   TABLES (унифицированный стиль)
+   ========================================================= */
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 15px;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.styled-table th, .styled-table td {
+    padding: 14px 16px;
+    text-align: left;
+}
+
+.styled-table th {
+    background: #e5e7eb; /* более тёмный фон */
+    color: #111827; /* тёмный текст */
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.styled-table tr:nth-child(even) {
+    background: #f3f4f6;
+}
+
+.styled-table tr:hover {
+    background: #e0f2fe;
+    transition: background .3s ease;
+}
+
+/* контейнер для таблиц со скроллом */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto; /* включаем горизонтальный скролл */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* плавный скролл на мобилках */
+}
+
+.table-wrapper .styled-table {
+    min-width: 600px; /* чтобы колонки не слипались */
+}
+
+/* =========================================================
+   PROCESSING MODAL — Desktop
+   ========================================================= */
+.pm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+.pm-box {
+    background: #fff;
+    padding: 24px 32px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    min-width: 300px;
+}
+
+.pm-spinner {
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid var(--accent-2);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 14px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.pm-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.pm-hidden {
+    display: none !important;
+}
+
+
+/* =========================================================
+   MOBILE (до 768px)
+   ========================================================= */
+@media (max-width: 768px) {
+    body {
+        background: url('../img/bg-mobile.jpeg') no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    .logo-text {
+        display: none;
+    }
+
+    .logo-img {
+        display: block;
+    }
+
+    .main-nav {
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.95);
+        position: absolute;
+        top: 100%;
+        right: 20px;
+        padding: 0 20px;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 180px;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease, opacity 0.4s ease;
+    }
+
+    .main-nav.show {
+        max-height: 400px;
+        opacity: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 15px;
+        gap: 10px;
+    }
+
+    .main-nav a {
+        width: 100%;
+        padding: 10px;
+        text-align: left;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+    }
+
+    .main-nav a:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .tile {
+        margin-bottom: 24px;
+    }
+
+    .grid {
+        grid-template-columns: 1fr; /* одна колонка */
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .page {
+        padding: 16px;
+        padding-top: 70px;
+    }
+
+    /* =========================================================
+   PROCESSING MODAL — Mobile
+   ========================================================= */
+    .pm-box {
+        padding: 16px 20px;
+        border-radius: 12px;
+        min-width: 220px;
+    }
+
+    .pm-spinner {
+        width: 36px;
+        height: 36px;
+        margin: 0 auto 10px;
+    }
+
+    .pm-title {
+        font-size: 14px;
+    }
+
 }

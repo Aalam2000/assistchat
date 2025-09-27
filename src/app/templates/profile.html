@@ -1,135 +1,123 @@
 {% extends "base.html" %}
 {% block title %}Личный кабинет | bona-plus{% endblock %}
-{% block extra_head %}
-  <link rel="stylesheet" href="/static/css/theme-simple-nav-desktop.css" media="(min-width:768px)">
-  <link rel="stylesheet" href="/static/css/theme-simple-nav-mobile.css"  media="(max-width:767px)">
-{% endblock %}
 
 {% block content %}
-<main class="wrap profile-page">
-  <div class="card">
-    <!-- Шапка карточки -->
-    <div class="row">
-      <div>
-        <h1 style="margin:0 0 6px">Личный кабинет</h1>
-        <p class="subtitle">Добро пожаловать, <strong>{{ username }}</strong></p>
-      </div>
-      <div class="user">
-        <span class="badge">роль: {{ role }}</span>
-        <!-- Было: <button id="logout-btn" class="btn">Выйти</button> -->
-        <a href="/" class="btn">Назад</a>
-      </div>
-    </div>
-    <div class="hr"></div>
+<div class="page">
 
-    <!-- 4 карточки: Бот, Профиль, OpenAI, Подписка, Подключения -->
+    <!-- Шапка -->
+    <section class="tile">
+        <div class="tile-title">Личный кабинет</div>
+        <p class="tile-desc">Добро пожаловать, <strong>{{ username }}</strong> (роль: {{ role }})</p>
+    </section>
+
+    <!-- Основные блоки -->
     <div class="grid">
-      <!-- 0) Бот -->
-      <section class="tile" id="bot-card">
-        <div class="tile-title">Бот</div>
-        <p class="tile-desc">Глобальное управление всеми подключениями</p>
 
-        <div class="mt-12">
-          <div class="mono" id="bot-summary">Статус: —</div>
-          <div class="actions">
-            <button type="button" id="btn-bot-toggle" class="btn primary">Включить</button>
-          </div>
-          <div class="mono mt-8" id="bot-status"></div>
-        </div>
-      </section>
+        <!-- 0) Бот -->
+        <section class="tile" id="bot-card">
+            <div class="tile-title">Бот</div>
+            <p class="tile-desc">Глобальное управление всеми подключениями</p>
 
-      <!-- 1) Профиль -->
-      <section class="tile" id="profile-card">
-        <div class="tile-title">Профиль</div>
-        <p class="tile-desc">Данные учётной записи</p>
+            <div class="mt-12">
+                <div class="mono" id="bot-summary">Статус: —</div>
+                <div class="actions">
+                    <button type="button" id="btn-bot-toggle" class="btn primary">Включить</button>
+                </div>
+                <div class="mono mt-8" id="bot-status"></div>
+            </div>
+        </section>
 
-        <div class="mt-12">
-          <label>Имя пользователя
-            <input type="text" id="profile-username" readonly>
-          </label>
+        <!-- 1) Профиль -->
+        <section class="tile" id="profile-card">
+            <div class="tile-title">Профиль</div>
+            <p class="tile-desc">Данные учётной записи</p>
 
-          <label>Email
-            <input type="email" id="profile-email" readonly>
-          </label>
+            <div class="mt-12">
+                <label>Имя пользователя
+                    <input type="text" id="profile-username" readonly>
+                </label>
 
-          <div id="profile-status" class="mono mt-8"></div>
-        </div>
-      </section>
+                <label>Email
+                    <input type="email" id="profile-email" readonly>
+                </label>
 
-      <!-- 2) OpenAI доступ -->
-      <section class="tile" id="openai-card">
-        <div class="tile-title">OpenAI доступ</div>
-        <p class="tile-desc">Ключ, режим и параметры генерации ответов</p>
+                <div id="profile-status" class="mono mt-8"></div>
+            </div>
+        </section>
 
-        <form id="form-openai" class="mt-12">
-          <div class="row" style="gap:10px;align-items:center">
-            <label class="inline"><span>Режим</span></label>
-            <label class="inline"><input type="radio" name="openai_mode" value="byok" id="openai-mode-byok" checked> <span>Свой ключ</span></label>
-            <label class="inline"><input type="radio" name="openai_mode" value="managed" id="openai-mode-managed"> <span>Наш ключ</span></label>
-          </div>
+        <!-- 2) OpenAI доступ -->
+        <section class="tile" id="openai-card">
+            <div class="tile-title">OpenAI доступ</div>
+            <p class="tile-desc">Ключ, режим и параметры генерации ответов</p>
 
-          <label>Ключ (BYOK)
-            <input type="password" id="openai-key" name="openai_key" placeholder="sk-...">
-          </label>
+            <form id="form-openai" class="mt-12">
+                <div class="row" style="gap:10px;align-items:center">
+                    <label class="inline"><span>Режим</span></label>
+                    <label class="inline"><input type="radio" name="openai_mode" value="byok" id="openai-mode-byok"
+                                                 checked> <span>Свой ключ</span></label>
+                    <label class="inline"><input type="radio" name="openai_mode" value="managed"
+                                                 id="openai-mode-managed"> <span>Наш ключ</span></label>
+                </div>
 
-          <label>Модель
-            <input type="text" id="openai-model" name="openai_model" placeholder="gpt-4o-mini">
-          </label>
+                <label>Ключ (BYOK)
+                    <input type="password" id="openai-key" name="openai_key" placeholder="sk-...">
+                </label>
 
-          <label>История сообщений (N)
-            <input type="text" id="openai-history" name="history_limit" placeholder="20">
-          </label>
+                <label>Модель
+                    <input type="text" id="openai-model" name="openai_model" placeholder="gpt-4o-mini">
+                </label>
 
-          <label class="inline">
-            <span>Голос</span>
-            <input type="checkbox" id="openai-voice" name="voice_enabled"/>
-          </label>
+                <label>История сообщений (N)
+                    <input type="text" id="openai-history" name="history_limit" placeholder="20">
+                </label>
 
-          <div class="actions">
-            <button type="button" id="btn-openai-test" class="btn">Проверить ключ</button>
-            <button type="button" id="btn-openai-save" class="btn primary">Сохранить</button>
-          </div>
-          <div id="openai-status" class="mono mt-8"></div>
-        </form>
-      </section>
+                <label class="inline">
+                    <span>Голос</span>
+                    <input type="checkbox" id="openai-voice" name="voice_enabled"/>
+                </label>
 
-      <!-- 3) Подписка и лимиты -->
-      <section class="tile" id="billing-card">
-        <div class="tile-title">Подписка и лимиты</div>
-        <p class="tile-desc">Текущий план и использование за период</p>
+                <div class="actions">
+                    <button type="button" id="btn-openai-test" class="btn">Проверить ключ</button>
+                    <button type="button" id="btn-openai-save" class="btn primary">Сохранить</button>
+                </div>
+                <div id="openai-status" class="mono mt-8"></div>
+            </form>
+        </section>
 
-        <div class="mt-12">
-          <div class="mono">План: <span id="plan-name">—</span></div>
-          <div class="mono mt-8">Период: <span id="plan-period">—</span></div>
-          <div class="mono mt-8">Лимиты: <span id="plan-limits">—</span></div>
+        <!-- 3) Подписка и лимиты -->
+        <section class="tile" id="billing-card">
+            <div class="tile-title">Подписка и лимиты</div>
+            <p class="tile-desc">Текущий план и использование за период</p>
 
-          <div class="actions">
-            <a class="btn" href="/billing/plan">Изменить план</a>
-            <a class="btn" href="/billing/history">История платежей</a>
-          </div>
-        </div>
-      </section>
+            <div class="mt-12">
+                <div class="mono">План: <span id="plan-name">—</span></div>
+                <div class="mono mt-8">Период: <span id="plan-period">—</span></div>
+                <div class="mono mt-8">Лимиты: <span id="plan-limits">—</span></div>
+
+                <div class="actions">
+                    <a class="btn" href="/billing/plan">Изменить план</a>
+                    <a class="btn" href="/billing/history">История платежей</a>
+                </div>
+            </div>
+        </section>
+
+    </div>
 
     <div class="hr"></div>
 
+    <!-- Дополнительные блоки для админа -->
     <div class="grid">
-      {% if role == "admin" %}
-      <a class="tile" href="/tables">
-        <div class="tile-title">Таблицы БД</div>
-        <p class="tile-desc">Просмотр содержимого всех таблиц</p>
-      </a>
-      {% endif %}
-
-      {% if role == "admin" %}
-      <a class="tile" href="/docs">
-        <div class="tile-title">Документация</div>
-        <p class="tile-desc">Описание API и подсказки по проекту</p>
-      </a>
-      {% endif %}
+        {% if role == "admin" %}
+        <a class="btn tile" href="/tables">
+            Таблицы БД
+        </a>
+        <a class="btn tile" href="/docs">
+            Документация
+        </a>
+        {% endif %}
     </div>
-  </div>
-</main>
 
-<!-- Только профильный JS (config/api уже в base.html) -->
+</div>
+
 <script src="/static/js/profile.js"></script>
 {% endblock %}

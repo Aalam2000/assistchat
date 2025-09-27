@@ -2,11 +2,11 @@
 {% block title %}Zoom ресурс | assistchat{% endblock %}
 
 {% block content %}
-<main class="wrap">
-  <div class="card">
-    <div class="row">
+<div class="page">
+  <section class="tile">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
       <div>
-        <h1 style="margin:0 0 6px">Zoom ресурс</h1>
+        <h1>Zoom ресурс</h1>
         <p class="subtitle">ID ресурса: {{ rid }}</p>
       </div>
       <div class="user">
@@ -15,24 +15,24 @@
     </div>
 
     <h2>Загрузить запись</h2>
-    <form id="zoom-upload-form" data-rid="{{ rid }}" enctype="multipart/form-data">
+    <form id="zoom-upload-form" data-rid="{{ rid }}" enctype="multipart/form-data" class="mt-10">
       <input type="file" id="zoom-file" accept=".mp3,.mp4" required>
       <button type="submit" class="btn primary">Загрузить</button>
     </form>
 
     <h2 class="mt-20">Промпт для отчёта</h2>
-    <div class="card" style="margin:10px 0;">
-      <textarea id="report-prompt" rows="8" style="width:100%;resize:vertical;"
+    <section class="tile" style="margin-top:10px;">
+      <textarea id="report-prompt" rows="8" style="width:100%; resize:vertical;"
                 placeholder="Шаблон промпта для отчёта..."></textarea>
-      <div class="mono" style="margin-top:6px;">Шаблон сохраняется локально для этого ресурса.</div>
-    </div>
+      <div class="mono mt-10">Шаблон сохраняется локально для этого ресурса.</div>
+    </section>
 
     <h2 class="mt-20">Файлы</h2>
     <div id="zoom-list" class="mt-10"></div>
 
     <div id="zoom-reports" class="mt-20"></div>
-  </div>
-</main>
+  </section>
+</div>
 
 <!-- processing modal -->
 <div id="processing-modal" class="pm-backdrop pm-hidden">

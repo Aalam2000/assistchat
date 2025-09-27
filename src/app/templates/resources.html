@@ -2,24 +2,18 @@
 {% block title %}Ресурсы | bona-plus{% endblock %}
 
 {% block content %}
-<main class="wrap">
-  <div class="card">
-    <div class="row">
-      <div>
-        <h1 style="margin:0 0 6px">Ресурсы</h1>
-        <p class="subtitle">Управление всеми подключениями</p>
-      </div>
-      <div class="user">
-        <a href="/" class="btn">Назад</a>
-      </div>
-    </div>
-    <div class="hr"></div>
+<div class="page">
+
+  <section class="tile">
+    <div class="tile-title">Ресурсы</div>
+    <p class="tile-desc">Управление всеми подключениями</p>
 
     <div class="actions">
       <button id="btnAddResource" class="btn primary">+ Добавить ресурс</button>
+      <a href="/" class="btn">Назад</a>
     </div>
 
-    <table class="mt-12">
+    <table class="mt-12 styled-table">
       <thead>
         <tr>
           <th>Провайдер</th>
@@ -36,8 +30,9 @@
         </tr>
       </tbody>
     </table>
-  </div>
-</main>
+  </section>
+
+</div>
 
 <script src="/static/js/resources.js"></script>
 

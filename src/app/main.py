@@ -236,7 +236,11 @@ def get_current_user(request: Request, db: SASession) -> Optional[User]:
 # Публичные страницы
 # ────────────────────────────────────────────────────────────────────────────────
 @app.get("/tables", response_class=HTMLResponse)
-async def tables(request: Request, _: User = Depends(require_admin)):
+async def tables(request: Request, db: SASession = Depends(get_db), _: User = Depends(require_admin)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
 
@@ -247,7 +251,17 @@ async def tables(request: Request, _: User = Depends(require_admin)):
             rows = conn.execute(text(f'SELECT * FROM "{table}"')).fetchall()
             data[table] = {"columns": cols, "rows": rows}
 
-    return render_i18n("all-tables.html", request, "tables_index", {"data": data})
+    return render_i18n(
+        "all-tables.html",
+        request,
+        "tables_index",
+        {
+            "user": user,
+            "username": user.username,
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "data": data,
+        },
+    )
 
 
 @app.get("/health")
@@ -620,13 +634,25 @@ def set_lang_ru(request: Request):
 
 
 def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) -> HTMLResponse:
-    lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
-    # всегда добавляем {"request": request}
-    ctx = {**ctx, "request": request}
+    lang_cookie = request.cookies.get("lang")
+    lang_header = tr.detect_browser_lang(request.headers.get("accept-language", ""))
+    lang = lang_cookie or lang_header or "ru"
+
+    print(f"[i18n] render_i18n called")
+    print(f"[i18n] page_key={page_key}, cookie={lang_cookie}, header={lang_header}, final={lang}")
+
+    ctx = {**ctx, "request": request, "page_key": page_key}
     rendered = templates.get_template(template_name).render(ctx)
-    # lang = request.cookies.get("lang") or tr.detect_browser_lang(request.headers.get("accept-language", "")) or "ru"
+
+    print(f"[i18n] template {template_name} rendered, length={len(rendered)} chars")
+
     translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
+
+    print(f"[i18n] translate_html done, lang={lang}, page_key={page_key}, length={len(translated)} chars")
+
     return HTMLResponse(content=_inject_en_button(translated, lang))
+
+
 
 
 # универсальный роут для всех HTML-страниц
@@ -1553,24 +1579,20 @@ def api_zoom_report_delete(
 # -----------------------------------------
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 def render_any_html(request: Request, full_path: str = ""):
-    # URL → шаблон:
-    #   /               -> all-tables.html
-    #   /auth/login     -> auth/login.html
-    #   /docs/          -> docs/all-tables.html
     path = full_path.strip("/")
     if path == "" or path.endswith("/"):
         path = path + "index"
     if not path.endswith(".html"):
         path = path + ".html"
     if ".." in path or path.startswith("/"):
-        return HTMLResponse("Not found", status_code=404)
+        return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
     try:
         rendered = templates.get_template(path).render(request=request)
     except Exception:
-        return HTMLResponse("Not found", status_code=404)
+        return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
     lang = _get_lang(request)
-    page_key = path[:-5].replace("/", "_")  # для раздельного кэша
+    page_key = path[:-5].replace("/", "_")
     translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
     return HTMLResponse(content=_inject_en_button(translated, lang))

@@ -2,12 +2,9 @@
   "Личный кабинет": "Personal account",
   "Добро пожаловать,": "Welcome,",
   "bona": "good",
-  "роль: admin": "role: admin",
   "Выйти": "Logout",
   "Таблицы БД": "Database tables",
-  "Просмотр содержимого всех таблиц": "Viewing the contents of all tables",
   "Документация": "Documentation",
-  "Описание API и подсказки по проекту": "API Description and Project Hints",
   "Бот": "Bot",
   "Глобальное управление всеми подключениями": "Global management of all connections",
   "Статус: —": "Status: —",
@@ -37,7 +34,6 @@
   "История платежей": "Payment history",
   "Личный кабинет | bona-plus": "Personal Account | bona-plus",
   "Перевод страницы, пожалуйста подождите…": "Page translation, please wait...",
-  "bona-plus": "bona-plus",
   "Назад": "Back",
   "×": "×",
   "Добро пожаловать в bona-plus": "Welcome to bona-plus",
@@ -49,5 +45,9 @@
   "Зарегистрируйтесь": "Register",
   "Email (необязательно)": "Email (optional)",
   "Зарегистрироваться": "Register",
-  "Уже есть аккаунт?": "Already have an account?"
+  "Уже есть аккаунт?": "Already have an account?",
+  "AI assistent": "AI assistant",
+  "☰": "☰",
+  "(роль: admin)": "(role: admin)",
+  "© 2025 AI assistent. Все права защищены.": "© 2025 AI assistant. All rights reserved."
 }

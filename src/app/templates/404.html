@@ -1,0 +1,13 @@
+<!--templates/404.html-->
+{% extends "base.html" %}
+{% block title %}Страница не найдена{% endblock %}
+
+{% block content %}
+<div class="page">
+  <section class="tile" style="text-align:center; padding:40px;">
+    <h2>404</h2>
+    <p>{{ error_message }}</p>
+    <a href="/" class="btn">На главную</a>
+  </section>
+</div>
+{% endblock %}
