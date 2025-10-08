@@ -1,0 +1,45 @@
+<!--src/app/templates/resources/telegram.html-->
+{% extends "base.html" %}
+{% block title %}Telegram ассистент | bona-plus{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="tile">
+        <div class="tile-title">Telegram ассистент</div>
+        <p class="tile-desc">Настройки и управление Telegram-сессией</p>
+
+        <div class="actions">
+          <button id="btnActivate" class="btn primary">Активировать</button>
+          <button id="btnReactivate" class="btn">Переактивировать</button>
+          <a href="/resources" class="btn">Назад</a>
+        </div>
+
+        <div id="tgCodeBlock" class="mt-16 hidden">
+          <label for="tgCodeInput">Код подтверждения</label>
+          <input id="tgCodeInput" type="text" placeholder="Введите код из Telegram" style="width:100%;margin:10px 0">
+          <button id="btnConfirmCode" class="btn primary">Подтвердить код</button>
+        </div>
+
+
+        <div class="mt-16">
+            <label for="tgPrompt">Системный промпт</label>
+            <textarea id="tgPrompt" rows="5" style="width:100%;margin-bottom:10px"></textarea>
+
+            <label for="tgRules">Правила ответов</label>
+            <textarea id="tgRules" rows="5" style="width:100%;margin-bottom:10px"></textarea>
+
+            <label for="tgAuto">Автоответы</label>
+            <textarea id="tgAuto" rows="4" style="width:100%;margin-bottom:10px"></textarea>
+        </div>
+
+        <div class="actions">
+            <button id="btnSave" class="btn primary">Сохранить</button>
+        </div>
+    </section>
+</div>
+
+<script>
+    const TG_RID = "{{ rid }}";
+</script>
+<script src="/static/js/telegram.js"></script>
+{% endblock %}
