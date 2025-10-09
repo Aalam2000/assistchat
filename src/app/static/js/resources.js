@@ -87,7 +87,7 @@ function bindResourceActions() {
             const provider = row.querySelector("td")?.textContent?.trim();
 
             if (provider === "zoom_meeting") {
-                window.location.href = `/resources/zoom/${id}`;
+                window.location.href = `../../resources/zoom/${id}`;
             } else {
                 openEditModal(id);
             }
