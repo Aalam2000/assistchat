@@ -66,6 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // ───────────────────────────────────────────────────────────────────────────
 
     loadPairs(rid);
+    loadReports(rid);
+
 
     if (!form || !fileInput) return;
 

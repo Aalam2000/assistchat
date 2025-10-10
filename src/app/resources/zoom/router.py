@@ -24,6 +24,8 @@ from openai import OpenAI
 router = APIRouter()
 client = OpenAI()
 
+AUDIO_EXTS = {".mp3", ".mp4", ".m4a", ".wav", ".ogg", ".webm"}
+
 
 @router.post("/api/zoom/{rid}/upload")
 async def api_zoom_upload(rid: str, request: Request, file: UploadFile = File(...), db: SASession = Depends(get_db)):
@@ -125,3 +127,106 @@ def api_zoom_report_open(rid: str, filename: str, request: Request, db: SASessio
     if not path.exists():
         raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
     return path.read_text(encoding="utf-8")
+
+
+@router.get("/api/zoom/{rid}/items")
+def api_zoom_items(rid: str, request: Request, db: SASession = Depends(get_db)):
+    """Возвращает список аудио, транскриптов и отчётов для Zoom-ресурса."""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
+    uploads_dir = user_dir / "uploads"
+    transcripts_dir = user_dir / "transcripts"
+    reports_dir = user_dir / "reports"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    items = []
+
+    # пары аудио и транскриптов
+    for p in sorted(uploads_dir.glob("*")):
+        if not p.is_file() or p.suffix.lower() not in AUDIO_EXTS:
+            continue
+        t_name = p.name + ".txt"
+        t_path = transcripts_dir / t_name
+        items.append({
+            "audio": {
+                "filename": p.name,
+                "size": p.stat().st_size,
+                "uploaded": datetime.fromtimestamp(p.stat().st_mtime).isoformat(),
+            },
+            "transcript": {
+                "filename": t_name,
+                "exists": t_path.exists(),
+                "size": (t_path.stat().st_size if t_path.exists() else 0),
+            },
+        })
+
+    # транскрипты без исходников
+    for t in sorted(transcripts_dir.glob("*.txt")):
+        if not any(it["transcript"]["filename"] == t.name for it in items):
+            items.append({
+                "audio": None,
+                "transcript": {
+                    "filename": t.name,
+                    "exists": True,
+                    "size": t.stat().st_size,
+                },
+            })
+
+    # отчёты
+    for it in items:
+        tr_name = it["transcript"]["filename"] if it.get("transcript") else None
+        if tr_name:
+            base = tr_name.replace(".txt", "_отчет.txt")
+            r_path = reports_dir / base
+            if r_path.exists():
+                it["report"] = {
+                    "filename": base,
+                    "exists": True,
+                    "size": r_path.stat().st_size,
+                }
+            else:
+                it["report"] = {"exists": False}
+
+    return {"ok": True, "items": items}
+
+
+@router.get("/api/zoom/{rid}/reports")
+async def api_zoom_reports(rid: str, request: Request, db: SASession = Depends(get_db)):
+    """Возвращает список готовых отчётов для ресурса."""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+
+    row = db.get(Resource, UUID(rid))
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    reports_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    items = []
+    for path in reports_dir.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            items.append({
+                "filename": path.stem,
+                "summary": data.get("summary", ""),
+                "transcript": data.get("transcript", ""),
+            })
+        except Exception as e:
+            items.append({
+                "filename": path.stem,
+                "summary": f"Ошибка чтения ({e})",
+                "transcript": "",
+            })
+
+    return {"ok": True, "items": items}
