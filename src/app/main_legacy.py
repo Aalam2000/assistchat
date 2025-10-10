@@ -25,7 +25,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-from scripts.QR import generate_qr_with_logo
+from app.modules.qr.QR import generate_qr_with_logo
 from src.app.manager.bot import bot_manager
 from src.app.providers import PROVIDERS, validate_provider_meta
 from src.common.db import SessionLocal  # если уже есть — пропусти

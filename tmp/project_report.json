@@ -1,5 +1,5 @@
 {
-  "generated_at": "2025-10-09T09:27:19",
+  "generated_at": "2025-10-10T17:19:47",
   "project_root": "C:\\DATA\\PROJECTS\\assistchat",
   "fs": {
     "src/app/templates": [
@@ -85,7 +85,7 @@
       {
         "name": "index.html",
         "is_dir": false,
-        "size": 16978,
+        "size": 16974,
         "css_used": [
           "/static/css/index.css",
           "/static/css/modals.css"

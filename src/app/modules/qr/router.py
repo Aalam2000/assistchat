@@ -7,9 +7,9 @@ import io
 import tempfile
 import zipfile
 from fastapi import APIRouter, Request, Depends, Form, File, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session as SASession
-from scripts.QR import generate_qr_with_logo
+from .QR import generate_qr_with_logo
 from src.app.core.db import get_db
 from src.app.core.auth import get_current_user
 from src.app.core.templates import render_i18n
