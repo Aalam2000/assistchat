@@ -1,8 +1,4 @@
-"""
-QR-модуль: страница генерации QR и API-эндпойнт /api/qr/build.
-Извлечено из main_legacy.py без изменения логики.
-"""
-
+# src/app/modules/qr/router.py
 import io
 import tempfile
 import zipfile
@@ -16,25 +12,49 @@ from src.app.core.templates import render_i18n
 
 router = APIRouter(tags=["QR"])
 
-# ---------------------------------------------------------------------------
-
 @router.get("/qr", response_class=HTMLResponse)
 async def qr_page(request: Request, db: SASession = Depends(get_db)):
-    """Страница QR-генерации (доступ только авторизованным)."""
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
     return render_i18n("qr.html", request, "qr", {"username": user.username})
 
-# ---------------------------------------------------------------------------
 
+# ✅ Эндпоинт для превью PNG
+@router.post("/api/qr/preview")
+async def api_qr_preview(text: str = Form(...), logo: UploadFile = File(...)):
+    """Возвращает PNG-файл QR-кода для предпросмотра"""
+    with tempfile.TemporaryDirectory() as tmp:
+        logo_path = f"{tmp}/{logo.filename}"
+        with open(logo_path, "wb") as f:
+            f.write(await logo.read())
+
+        png_path, _ = generate_qr_with_logo(
+            url=text,
+            logo_path=logo_path,
+            out_dir=tmp,
+            file_stem="qr_preview",
+            qr_size_mm=30.0,
+            dpi=150,  # уменьшенный для предпросмотра
+            logo_ratio=0.25,
+            white_pad_mm=1.0,
+        )
+
+        with open(png_path, "rb") as f:
+            data = f.read()
+
+    return StreamingResponse(io.BytesIO(data), media_type="image/png")
+
+
+# ✅ Эндпоинт для ZIP (скачивание)
 @router.post("/api/qr/build")
 async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
     """Создание ZIP-архива с PNG и PDF QR-кода."""
     with tempfile.TemporaryDirectory() as tmp:
         logo_path = f"{tmp}/{logo.filename}"
         with open(logo_path, "wb") as f:
-            f.write(await logo.read())
+            content = await logo.read()
+            f.write(content)
 
         png_path, pdf_path = generate_qr_with_logo(
             url=text,
@@ -43,7 +63,7 @@ async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
             file_stem="qr_with_logo",
             qr_size_mm=30.0,
             dpi=300,
-            logo_ratio=0.1,
+            logo_ratio=0.25,
             white_pad_mm=1.0,
             logo_has_alpha=True,
             try_knockout_white=False,
