@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Text, Integer, DateTime, String, LargeBinary
 from sqlalchemy.dialects.postgresql import JSONB
-from src.common.db import Base
+from src.app.core.db import Base
 
 class ServiceAccount(Base):
     __tablename__ = "service_accounts"

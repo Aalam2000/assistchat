@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from src.app.core.config import BASE_DIR, SESSION_SECRET
+from src.app.core.config import BASE_DIR, SESSION_SECRET, STATIC_DIR
 # ядро
 from src.app.core.middleware import _authflow_trace
 from src.app.modules.bot.router import router as bot_router
@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 # Статика
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Подключаем модули и ресурсы
 app.include_router(qr_router)

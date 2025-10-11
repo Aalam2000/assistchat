@@ -1,5 +1,0 @@
-# Language detection
-auto_detect: true
-method: langid          # используем langid из requirements
-supported: [ru, az, en]
-fallback: ru

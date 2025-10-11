@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import DateTime, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
-from src.common.db import Base
+from src.app.core.db import Base
 
 class UpdateSeen(Base):
     __tablename__ = "updates_seen"

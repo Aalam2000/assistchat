@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from src.models.message import Message
 from src.models.resource import Resource
-from src.common.db import SessionLocal
+from src.app.core.db import SessionLocal
 
 class TelegramDialogEngine:
     """

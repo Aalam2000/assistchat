@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
-from src.common.db import Base
+from src.app.core.db import Base
 
 class Resource(Base):
     __tablename__ = "resources"

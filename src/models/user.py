@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 
 from enum import Enum as PyEnum
-from src.common.db import Base
+from src.app.core.db import Base
 
 class RoleEnum(PyEnum):
     ADMIN = "admin"

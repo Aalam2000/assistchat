@@ -3,8 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session as SASession
 from src.app.core.db import get_db
 from src.app.core.auth import get_current_user
-from src.app.core.templates import render_i18n
-
+from src.app.core.templates import render_i18n, set_lang_en, set_lang_ru
 
 router = APIRouter()
 
@@ -111,3 +110,14 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/", status_code=302)
     return render_i18n("qr.html", request, "qr", {"username": user.username if user else "Гость"})
+
+# -----------------------------------------------------------------------------
+# 🌐 Переключение языка интерфейса
+# -----------------------------------------------------------------------------
+@router.get("/set-lang/en")
+def switch_lang_en(request: Request):
+    return set_lang_en(request)
+
+@router.get("/set-lang/ru")
+def switch_lang_ru(request: Request):
+    return set_lang_ru(request)

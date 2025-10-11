@@ -3,7 +3,7 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
 from src.app.workers.base import BaseWorker
-from src.common.db import SessionLocal
+from src.app.core.db import SessionLocal
 from src.models.message import Message
 
 
@@ -27,7 +27,7 @@ class TelegramWorker(BaseWorker):
         await self.client.connect()
 
         # 🔹 создаём движок диалогов для этой линии
-        from src.app.dialogs.telegram_dialog import TelegramDialogEngine
+        from app.resources.telegram.telegram_dialog import TelegramDialogEngine
         self.dialog_engine = TelegramDialogEngine(self.resource)
 
         # подписка на входящие сообщения

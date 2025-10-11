@@ -1,3 +1,4 @@
+# src/app/resources/telegram/router.py
 """
 Модуль ресурсов: Telegram
 Назначение:

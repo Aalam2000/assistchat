@@ -1,5 +1,5 @@
 """
-core/templates.py — работа с шаблонами Jinja2 и механизмом переводов (i18n).
+src/app/core/templates.py — работа с шаблонами Jinja2 и механизмом переводов (i18n).
 """
 
 from fastapi import Request
@@ -7,9 +7,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from autoi18n import Translator
 from src.app.core.config import BASE_DIR
+from src.app.core.config import TEMPLATES_DIR
 
 # Инициализация шаблонов и переводчика
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
 tr = Translator(cache_dir="./translations")
 
 def _get_lang(request: Request) -> str:

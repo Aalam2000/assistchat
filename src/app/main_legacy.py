@@ -26,10 +26,10 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 
 from app.modules.qr.QR import generate_qr_with_logo
-from src.app.manager.bot import bot_manager
+# from src.app.manager.bot import bot_manager
 from src.app.providers import PROVIDERS, validate_provider_meta
-from src.common.db import SessionLocal  # если уже есть — пропусти
-from src.common.db import engine
+from src.app.core.db import SessionLocal  # если уже есть — пропусти
+from src.app.core.db import engine
 from src.models import Resource
 from src.models.user import User, RoleEnum
 
@@ -112,7 +112,7 @@ app.add_middleware(
 )
 
 app.mount(
-    "/static",
+    "../web/static",
     StaticFiles(directory=str(BASE_DIR / "static")),
     name="static"
 )
@@ -1299,7 +1299,8 @@ async def api_zoom_process(
         return JSONResponse({"ok": False, "error": "FILE_NOT_FOUND"}, status_code=404)
 
     # 🔹 Транскрипция (Deepgram)
-    from src.app.workers.transcribe_worker import transcribe_audio
+    from src.app.resources.zoom.transcribe import transcribe_audio
+
 
     try:
         text = transcribe_audio(str(file_path))

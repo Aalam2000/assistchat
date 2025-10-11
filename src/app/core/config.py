@@ -1,5 +1,5 @@
 """
-core/config.py — базовые параметры конфигурации приложения.
+src/app/core/config.py — базовые параметры конфигурации приложения.
 Содержит пути, секреты и глобальные константы, используемые во всех модулях.
 """
 
@@ -8,7 +8,10 @@ from pathlib import Path
 from passlib.context import CryptContext
 
 # Корневая директория приложения
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]  # src/
+WEB_DIR = BASE_DIR / "web"
+TEMPLATES_DIR = WEB_DIR / "templates"
+STATIC_DIR = WEB_DIR / "static"
 
 # Директория для хранения пользовательских файлов (аудио, отчёты, пр.)
 BASE_STORAGE = BASE_DIR.parent / "storage"

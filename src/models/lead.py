@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Text, DateTime, String, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
-from src.common.db import Base
+from src.app.core.db import Base
 
 class Lead(Base):
     __tablename__ = "leads"

@@ -1,5 +1,5 @@
 """
-Маршруты авторизации: регистрация, логин, logout, Google OAuth, информация о текущем пользователе.
+src/app/routes/auth_routes.py - Маршруты авторизации: регистрация, логин, logout, Google OAuth, информация о текущем пользователе.
 """
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import JSONResponse, RedirectResponse

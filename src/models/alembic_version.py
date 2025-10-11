@@ -1,7 +1,7 @@
 from __future__ import annotations
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String
-from src.common.db import Base
+from src.app.core.db import Base
 
 class AlembicVersion(Base):
     __tablename__ = "alembic_version"

@@ -18,7 +18,7 @@ from src.app.core.db import get_db
 from src.app.core.auth import get_current_user
 from src.models import Resource
 from src.app.core.config import BASE_STORAGE
-from src.app.workers.transcribe_worker import transcribe_audio
+from src.app.resources.zoom.transcribe import transcribe_audio
 from openai import OpenAI
 
 router = APIRouter()
