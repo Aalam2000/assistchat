@@ -68,6 +68,35 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+
+  botworker:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: assistchat-api
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - "./:/app"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    working_dir: /app
+    command:
+      - watchfiles
+      - "python -m src.app.modules.bot.worker_entry"
+      - /app
+    restart: unless-stopped
+
+
+
+
+
+
 #  n8n:
 #    image: n8nio/n8n
 #    restart: unless-stopped

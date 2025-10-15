@@ -22,3 +22,10 @@ SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 
 # Контекст шифрования паролей
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# -----------------------------------------------------------------------------
+# Настройка подключения к PostgreSQL (используется Alembic и FastAPI)
+# -----------------------------------------------------------------------------
+from src.app.core import db
+
+SQLALCHEMY_DATABASE_URL = db.DATABASE_URL

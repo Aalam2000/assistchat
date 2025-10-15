@@ -1,10 +1,63 @@
 # src/app/providers.py
+import os
+import yaml
 from typing import Any, Dict, List, Tuple, Optional
 
+# ── базовый путь к ресурсам ──────────────────────────────────────────────
+BASE_PATH = os.path.join(os.path.dirname(__file__), "resources")
 
-# ── хелперы ───────────────────────────────────────────────────────────────────────
+# глобальный словарь всех провайдеров
+PROVIDERS: Dict[str, Dict[str, Any]] = {}
+
+
+# ── служебные функции ─────────────────────────────────────────────────────
+def _load_yaml(path: str) -> Dict[str, Any]:
+    """Безопасно читает YAML-файл и возвращает dict."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"[PROVIDERS] Ошибка чтения {path}: {e}")
+        return {}
+
+
+def _normalize_type(t: Optional[str]) -> str:
+    if not t:
+        return "string"
+    t = t.lower()
+    if t in {"str"}:
+        return "string"
+    if t in {"int"}:
+        return "number"
+    if t in {"string", "password", "number", "textarea", "json", "list", "map", "boolean"}:
+        return t
+    return "string"
+
+
+def _flatten_schema(schema_obj: Any) -> Dict[str, Dict[str, Any]]:
+    """Разворачивает groups/fields в плоский словарь ключей."""
+    flat: Dict[str, Dict[str, Any]] = {}
+    if isinstance(schema_obj, dict) and "groups" not in schema_obj:
+        for path, t in schema_obj.items():
+            flat[path] = {"type": _normalize_type(t), "required": True}
+        return flat
+
+    if isinstance(schema_obj, dict) and isinstance(schema_obj.get("groups"), list):
+        for grp in schema_obj["groups"]:
+            for f in grp.get("fields") or []:
+                key = f.get("key")
+                if not key:
+                    continue
+                flat[key] = {
+                    "type": _normalize_type(f.get("type")),
+                    "required": bool(f.get("required", True))
+                }
+    return flat
+
+
 def _get(meta: Dict[str, Any] | None, path: str) -> Any:
-    cur: Any = meta or {}
+    """Получает значение по пути a.b.c из словаря."""
+    cur = meta or {}
     for key in path.split("."):
         if not isinstance(cur, dict) or key not in cur:
             return None
@@ -12,140 +65,41 @@ def _get(meta: Dict[str, Any] | None, path: str) -> Any:
     return cur
 
 
-# ── нормализация схемы ───────────────────────────────────────────────────────────
-# Поддерживаем два формата:
-# 1) ЛЕГАСИ: {"path": "str" | "int" | "list"}
-# 2) НОВЫЙ: {"version": 1, "groups": [{"title":..., "fields":[{"key": "...", "type": "...", "required": bool, ...}]}]}
-#    Типы: string|password|number|textarea|json|list|map|boolean (+ синонимы str/int)
-#
-# На выходе получаем плоский словарь:
-#   { path: {"type": <normalized_type>, "required": <bool>} }
-#
-def _flatten_schema(schema_obj: Any) -> Dict[str, Dict[str, Any]]:
-    flat: Dict[str, Dict[str, Any]] = {}
+# ── загрузка всех провайдеров ─────────────────────────────────────────────
+def load_all_providers() -> Dict[str, Dict[str, Any]]:
+    """Ищет все settings.yaml в подпапках resources/*."""
+    global PROVIDERS
+    PROVIDERS.clear()
 
-    # ЛЕГАСИ
-    if isinstance(schema_obj, dict) and "groups" not in schema_obj:
-        for path, t in schema_obj.items():
-            flat[path] = {"type": _normalize_type(t), "required": True}
-        return flat
+    if not os.path.isdir(BASE_PATH):
+        print(f"[PROVIDERS] Папка {BASE_PATH} не найдена")
+        return PROVIDERS
 
-    # НОВЫЙ
-    if isinstance(schema_obj, dict) and isinstance(schema_obj.get("groups"), list):
-        for grp in schema_obj["groups"]:
-            fields = grp.get("fields") or []
-            for f in fields:
-                path = f.get("key")
-                if not path:
-                    continue
-                t = _normalize_type(f.get("type"))
-                required = bool(f.get("required", True))
-                flat[path] = {"type": t, "required": required}
-        return flat
+    for folder in os.listdir(BASE_PATH):
+        folder_path = os.path.join(BASE_PATH, folder)
+        if not os.path.isdir(folder_path):
+            continue
+        settings_path = os.path.join(folder_path, "settings.yaml")
+        if not os.path.exists(settings_path):
+            continue
 
-    # неизвестный формат — возвращаем пусто
-    return flat
-
-
-def _normalize_type(t: Optional[str]) -> str:
-    if not t:
-        return "string"
-    t = t.lower()
-    # синонимы
-    if t == "str":
-        return "string"
-    if t == "int":
-        return "number"
-    # допустимые
-    if t in {"string", "password", "number", "textarea", "json", "list", "map", "boolean"}:
-        return t
-    # дефолт
-    return "string"
-
-
-# ── валидация meta_json по схеме ────────────────────────────────────────────────
-def validate_provider_meta(provider: str, meta: Dict[str, Any] | None) -> Tuple[bool, List[str]]:
-    """
-    Проверяем meta_json по схеме провайдера.
-    Возвращаем (ok, issues[]), где issues — коды вида:
-      - UNKNOWN_PROVIDER
-      - MISSING:path
-      - TYPE:path
-      - EMPTY:path
-      - SCHEMA:path   (неизвестный тип поля в схеме)
-    Правила:
-      * Для required=False пропускаем MISSING/EMPTY.
-      * list может быть пустым без ошибки.
-      * textarea/password == string по типу.
-      * json → dict, map → dict, boolean → bool, number → int|float (но приводить не пытаемся).
-    """
-    cfg = PROVIDERS.get(provider)
-    if not cfg:
-        return False, ["UNKNOWN_PROVIDER"]
-
-    flat = _flatten_schema(cfg.get("schema"))
-    problems: List[str] = []
-
-    for path, spec in flat.items():
-        typ = spec.get("type") or "string"
-        required = bool(spec.get("required", True))
-
-        val = _get(meta, path)
-
-        # отсутствие значения
-        if val is None:
-            if required:
-                problems.append(f"MISSING:{path}")
-            continue  # к следующему полю
-
-        # приведение логики required для пустых строк/пустых структур
-        if typ in {"string", "password", "textarea"}:
-            if not isinstance(val, str):
-                problems.append(f"TYPE:{path}")
-            else:
-                if required and not val.strip():
-                    problems.append(f"EMPTY:{path}")
-
-        elif typ == "number":
-            if not isinstance(val, (int, float)):
-                problems.append(f"TYPE:{path}")
-
-        elif typ == "list":
-            if not isinstance(val, list):
-                problems.append(f"TYPE:{path}")
-            # пустой список допустим даже при required=True
-
-        elif typ in {"json", "map"}:
-            if not isinstance(val, dict):
-                problems.append(f"TYPE:{path}")
-            else:
-                if required and len(val) == 0:
-                    # для required json/map пустой словарь считаем пустым
-                    problems.append(f"EMPTY:{path}")
-
-        elif typ == "boolean":
-            if not isinstance(val, bool):
-                problems.append(f"TYPE:{path}")
-
+        data = _load_yaml(settings_path)
+        if isinstance(data, dict) and data:
+            PROVIDERS[folder] = data
+            print(f"[PROVIDERS] Загружен провайдер: {folder}")
         else:
-            problems.append(f"SCHEMA:{path}")  # неизвестный тип в схеме
+            print(f"[PROVIDERS] Пропущен {folder} (пустой settings.yaml)")
 
-    return (len(problems) == 0), problems
+    print(f"[PROVIDERS] Всего загружено: {len(PROVIDERS)} провайдер(ов)")
+    return PROVIDERS
 
 
+# ── API для остального кода ──────────────────────────────────────────────
 def get_provider_ui_schema(provider: str) -> Dict[str, Any]:
-    """
-    Возвращает «расширенную» схему (groups/fields), чтобы UI мог строить форму.
-    Если провайдер задан в легаси-формате — оборачиваем в единственную группу.
-    """
     cfg = PROVIDERS.get(provider) or {}
     sch = cfg.get("schema")
-
-    # если уже расширенная
     if isinstance(sch, dict) and "groups" in sch:
         return sch
-
-    # легаси → упакуем в одну группу
     flat = _flatten_schema(sch)
     fields = []
     for path, spec in flat.items():
@@ -158,207 +112,49 @@ def get_provider_ui_schema(provider: str) -> Dict[str, Any]:
     return {"version": 1, "groups": [{"title": "Параметры", "fields": fields}]}
 
 
-# ── справочник провайдеров ───────────────────────────────────────────────────────
-# NB: prompts.* помечены как required=False — их заполняем в отдельной модалке.
-PROVIDERS: Dict[str, Dict[str, Any]] = {
-    "telegram": {
-        "title": "Telegram",
-        "help": {
-            "about": "Подключение Telegram-клиента через Telethon. Можно активировать сразу, если есть string_session.",
-            "how_to_get_session": "String Session можно получить во время префлайта или заранее вашим CLI-скриптом.",
-        },
-        "schema": {
-            "version": 1,
-            "groups": [
-                {
-                    "title": "Учетные данные (my.telegram.org)",
-                    "fields": [
-                        {"key": "creds.app_id", "label": "App ID", "type": "number", "required": True,
-                         "placeholder": "123456"},
-                        {"key": "creds.app_hash", "label": "App Hash", "type": "password", "required": True,
-                         "placeholder": "xxxxxxxxxxxxxxxx"},
-                        {"key": "creds.string_session", "label": "String Session", "type": "textarea",
-                         "required": False, "help": "Можно оставить пустым и получить в префлайте"},
-                        {"key": "extra.phone_e164", "label": "Номер телефона (E.164)", "type": "string",
-                         "required": False, "placeholder": "+9945XXXXXXX"},
-                        {"key": "creds.code", "label": "Код подтверждения", "type": "string", "required": False},
-                    ],
-                },
-                {
-                    "title": "Фильтры доступа",
-                    "fields": [
-                        {"key": "lists.whitelist", "label": "Whitelist (логины/ID)", "type": "list", "required": False},
-                        {"key": "lists.blacklist", "label": "Blacklist (логины/ID)", "type": "list", "required": False},
-                        {"key": "extra.allow_groups", "label": "Разрешить группы", "type": "boolean",
-                         "required": False},
-                    ],
-                },
-                {
-                    "title": "Промпты и правила (заполняются позже во второй модалке)",
-                    "fields": [
-                        {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea",
-                         "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea",
-                         "required": False},
-                    ],
-                },
-            ],
-        },
-        "template": {
-            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-            "lists": {"whitelist": [], "blacklist": []},
-            "creds": {"app_id": 0, "app_hash": "", "string_session": ""},
-            "extra": {"phone_e164": "", "allow_groups": True},
-        },
-    },
+def validate_provider_meta(provider: str, meta: Dict[str, Any] | None) -> Tuple[bool, List[str]]:
+    """Проверка meta_json по схеме из settings.yaml провайдера."""
+    cfg = PROVIDERS.get(provider)
+    if not cfg:
+        return False, ["UNKNOWN_PROVIDER"]
 
-        "zoom_meeting": {
-        "title": "Zoom",
-        "help": {
-            "about": "Загрузка записей Zoom для автоматической транскрибации и анализа.",
-        },
-        "schema": {
-            "version": 1,
-            "groups": [
-                {
-                    "title": "Основные",
-                    "fields": [
-                        {"key": "extra.note", "label": "Заметка", "type": "string", "required": False},
-                    ],
-                }
-            ],
-        },
-        "template": {
-            "extra": {"note": ""},
-            "creds": {},
-            "lists": {"whitelist": [], "blacklist": []},
-            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-        },
-    },
+    flat = _flatten_schema(cfg.get("schema"))
+    problems: List[str] = []
+
+    for path, spec in flat.items():
+        t = spec.get("type", "string")
+        required = bool(spec.get("required", True))
+        val = _get(meta, path)
+
+        if val is None:
+            if required:
+                problems.append(f"MISSING:{path}")
+            continue
+
+        if t in {"string", "password", "textarea"}:
+            if not isinstance(val, str):
+                problems.append(f"TYPE:{path}")
+            elif required and not val.strip():
+                problems.append(f"EMPTY:{path}")
+        elif t == "number":
+            if not isinstance(val, (int, float)):
+                problems.append(f"TYPE:{path}")
+        elif t == "list":
+            if not isinstance(val, list):
+                problems.append(f"TYPE:{path}")
+        elif t in {"json", "map"}:
+            if not isinstance(val, dict):
+                problems.append(f"TYPE:{path}")
+            elif required and not val:
+                problems.append(f"EMPTY:{path}")
+        elif t == "boolean":
+            if not isinstance(val, bool):
+                problems.append(f"TYPE:{path}")
+        else:
+            problems.append(f"SCHEMA:{path}")
+
+    return (len(problems) == 0), problems
 
 
-    # "avito": {
-    #     "title": "Avito",
-    #     "help": {
-    #         "about": "Подключение аккаунта Avito по cookie и user-agent.",
-    #         "cookie": "Укажите валидный cookie (обычно из браузера), следите за сроком жизни.",
-    #     },
-    #     "schema": {
-    #         "version": 1,
-    #         "groups": [
-    #             {
-    #                 "title": "Авторизация",
-    #                 "fields": [
-    #                     {"key": "creds.cookie", "label": "Cookie", "type": "textarea", "required": True},
-    #                     {"key": "creds.user_agent", "label": "User-Agent", "type": "string", "required": True},
-    #                 ],
-    #             },
-    #             {
-    #                 "title": "Фильтры доступа",
-    #                 "fields": [
-    #                     {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
-    #                     {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
-    #                 ],
-    #             },
-    #             {
-    #                 "title": "Промпты и правила (позже)",
-    #                 "fields": [
-    #                     {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-    #                     {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-    #                     {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
-    #                 ],
-    #             },
-    #         ],
-    #     },
-    #     "template": {
-    #         "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-    #         "lists": {"whitelist": [], "blacklist": []},
-    #         "creds": {"cookie": "", "user_agent": ""},
-    #         "extra": {},
-    #     },
-    # },
-    #
-    # "flru": {
-    #     "title": "FL.ru",
-    #     "help": {
-    #         "about": "Интеграция по API-токену FL.ru.",
-    #     },
-    #     "schema": {
-    #         "version": 1,
-    #         "groups": [
-    #             {
-    #                 "title": "Авторизация",
-    #                 "fields": [
-    #                     {"key": "creds.api_token", "label": "API Token", "type": "password", "required": True},
-    #                 ],
-    #             },
-    #             {
-    #                 "title": "Фильтры доступа",
-    #                 "fields": [
-    #                     {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
-    #                     {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
-    #                 ],
-    #             },
-    #             {
-    #                 "title": "Промпты и правила (позже)",
-    #                 "fields": [
-    #                     {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-    #                     {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea", "required": False},
-    #                     {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea", "required": False},
-    #                 ],
-    #             },
-    #         ],
-    #     },
-    #     "template": {
-    #         "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-    #         "lists": {"whitelist": [], "blacklist": []},
-    #         "creds": {"api_token": ""},
-    #         "extra": {},
-    #     },
-    # },
-
-    "voice": {
-        "title": "Voice",
-        "help": {
-            "about": "Голосовой чат/колл-центр. На старте без обязательных кредов.",
-        },
-        "schema": {
-            "version": 1,
-            "groups": [
-                {
-                    "title": "Опции",
-                    "fields": [
-                        {"key": "extra.provider", "label": "Провайдер голоса", "type": "string", "required": False,
-                         "placeholder": "whisper/…"},
-                        {"key": "extra.lang", "label": "Язык по умолчанию", "type": "string", "required": False,
-                         "placeholder": "ru|en|az"},
-                    ],
-                },
-                {
-                    "title": "Промпты и правила (позже)",
-                    "fields": [
-                        {"key": "prompts.settings", "label": "Настройки", "type": "textarea", "required": False},
-                        {"key": "prompts.rules_common", "label": "Общие правила", "type": "textarea",
-                         "required": False},
-                        {"key": "prompts.rules_dialog", "label": "Правила диалога", "type": "textarea",
-                         "required": False},
-                    ],
-                },
-                {
-                    "title": "Фильтры доступа",
-                    "fields": [
-                        {"key": "lists.whitelist", "label": "Whitelist", "type": "list", "required": False},
-                        {"key": "lists.blacklist", "label": "Blacklist", "type": "list", "required": False},
-                    ],
-                },
-            ],
-        },
-        "template": {
-            "prompts": {"settings": "", "rules_common": "", "rules_dialog": ""},
-            "lists": {"whitelist": [], "blacklist": []},
-            "creds": {},
-            "extra": {"provider": "", "lang": "ru"},
-        },
-    },
-}
+# загружаем при импорте
+load_all_providers()

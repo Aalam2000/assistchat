@@ -1,4 +1,4 @@
-// src/app/static/js/profile.js
+// src/web/static/js/profile.js
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ЛОГАУТ
@@ -164,15 +164,16 @@ async function loadBotStatus() {
     const out = document.getElementById("bot-summary");
     const btn = document.getElementById("btn-bot-toggle");
     try {
-        const r = await fetch("/api/status", {credentials: "same-origin"});
-        if (!r.ok) throw new Error(String(r.status));
-        const d = await r.json();
-        const on = !!d.on;
-        out.textContent = `Статус: ${on ? "активен" : "пауза"} · сервисы ${d.services_active}/${d.services_total} · TG ${d.tg_active}/${d.tg_total}`;
-        btn.textContent = on ? "Выключить" : "Включить";
-        btn.dataset.state = on ? "on" : "off";
+        const r = await fetch("/api/bot/status", {credentials: "same-origin"});
+        const data = await r.json();
+        if (!r.ok || !data.ok) throw new Error("BAD_STATUS");
+
+        const enabled = !!data.bot_enabled;
+        out.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
+        btn.textContent = enabled ? "Выключить" : "Включить";
+        btn.dataset.state = enabled ? "on" : "off";
     } catch (e) {
-        out.textContent = "Статус: ошибка";
+        out.textContent = "БОТ: ошибка статуса";
         console.error("[profile] loadBotStatus error:", e);
     }
 }
@@ -180,58 +181,34 @@ async function loadBotStatus() {
 async function toggleBot() {
     const btn = document.getElementById("btn-bot-toggle");
     const out = document.getElementById("bot-status");
-    const want = (btn.dataset.state === "on") ? "pause" : "activate";
     btn.disabled = true;
-    out.textContent = "Проверяем ресурсы...";
+    out.textContent = "Обновляем состояние...";
 
     try {
-        // 1) префлайт: показываем статусы, но не блокируем запуск, если есть готовые
-        const pre = await fetch("/api/preflight", {credentials: "same-origin"});
-        const preData = await pre.json();
-        if (!pre.ok || !preData.ok) throw new Error("PREFLIGHT");
+        const r = await fetch("/api/bot/toggle", {
+            method: "POST",
+            credentials: "same-origin"
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) throw new Error("TOGGLE_FAILED");
 
-        const results = preData.results || {};
-        const entries = Object.entries(results);
-        const ready = entries.filter(([, r]) => r && r.ok);
-        const notReady = entries.filter(([, r]) => !r || !r.ok);
+        const enabled = !!data.bot_enabled;
+        out.textContent = enabled
+            ? "БОТ включён. Активированы фоновые процессы."
+            : "БОТ выключен. Все процессы остановлены.";
+        btn.textContent = enabled ? "Выключить" : "Включить";
+        btn.dataset.state = enabled ? "on" : "off";
 
-        out.innerHTML = entries.map(([rid, r]) =>
-            `${rid}: ${r && r.ok ? "✅ OK" : `❌ ${r && r.reason || "ERR"}`}`
-        ).join("<br>");
-
-        if (want === "activate") {
-            if (ready.length === 0) {
-                out.innerHTML += "<br>Нет готовых ресурсов для запуска.";
-                return;
-            }
-            // 2) запускаем только готовые (бекенд сам подхватит active/ready)
-            const resp = await fetch("/api/bot/start", {
-                method: "POST",
-                credentials: "same-origin"
-            });
-            const data = await resp.json();
-            if (!resp.ok || !data.ok) throw new Error("START");
-            out.innerHTML += `<br>Запущено: ${Array.isArray(data.started) ? data.started.length : 0}`;
-            btn.dataset.state = "on";
-            btn.textContent = "Пауза";
-        } else {
-            const resp = await fetch("/api/bot/stop", {
-                method: "POST",
-                credentials: "same-origin"
-            });
-            const data = await resp.json();
-            if (!resp.ok || !data.ok) throw new Error("STOP");
-            out.innerHTML += `<br>Остановлено: ${Array.isArray(data.stopped) ? data.stopped.length : 0}`;
-            btn.dataset.state = "off";
-            btn.textContent = "Включить";
-        }
+        document.getElementById("bot-summary").textContent =
+            `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
     } catch (e) {
-        out.textContent = "Ошибка: " + (e && e.message ? e.message : e);
+        out.textContent = "Ошибка переключения.";
         console.error("[profile] toggleBot error:", e);
     } finally {
         btn.disabled = false;
     }
 }
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-<!--src/app/templates/resources/telegram.html-->
+<!--src/web/templates/resources/telegram.html-->
 {% extends "base.html" %}
 {% block title %}Telegram ассистент | bona-plus{% endblock %}
 
@@ -10,15 +10,53 @@
 
         <div class="actions">
           <button id="btnActivate" class="btn primary">Активировать</button>
-          <button id="btnReactivate" class="btn">Переактивировать</button>
-          <a href="/app/resources" class="btn">Назад</a>
+          <button id="btnToggleBot" class="btn accent">💡 Включить БОТ</button>
+          <button id="btnToggleStatus" class="btn">💡 Включить ресурс</button>
+          <a href="/resources" class="btn">Назад</a>
         </div>
 
-        <div id="tgCodeBlock" class="mt-16 hidden">
-          <label for="tgCodeInput">Код подтверждения</label>
-          <input id="tgCodeInput" type="text" placeholder="Введите код из Telegram" style="width:100%;margin:10px 0">
-          <button id="btnConfirmCode" class="btn primary">Подтвердить код</button>
+        <div class="mono mt-8" id="tgBotStatus">БОТ: —</div>
+        <div class="mono mt-4" id="tgResStatus">РЕСУРС: —</div>
+
+
+        <div class="mt-16">
+          <label for="tgAppId">App ID</label>
+          <input id="tgAppId" type="number" placeholder="123456" style="width:100%;margin-bottom:10px">
+
+          <label for="tgAppHash">App Hash</label>
+          <input id="tgAppHash" type="text" placeholder="xxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px">
+
+          <label for="tgPhone">Номер телефона (E.164)</label>
+          <input id="tgPhone" type="text" placeholder="+9945XXXXXXX" style="width:100%;margin-bottom:10px">
+
+                    <label for="tgLabel">Название ресурса</label>
+          <input id="tgLabel" type="text" placeholder="Мой Telegram ассистент" style="width:100%;margin-bottom:20px">
         </div>
+
+        <!-- Фильтры и контекст -->
+        <div class="mt-16">
+          <label for="tgWhitelist">Белый список (логины/ID, через запятую или с новой строки)</label>
+          <textarea id="tgWhitelist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
+
+          <label for="tgBlacklist">Чёрный список (логины/ID, через запятую или с новой строки)</label>
+          <textarea id="tgBlacklist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
+
+          <label for="tgHistory">Количество сообщений в контексте</label>
+          <input id="tgHistory" type="number" min="0" placeholder="20" style="width:100%;margin-bottom:20px">
+        </div>
+
+        <!-- Модалка подтверждения Telegram -->
+        <div id="tgCodeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tgCodeModalTitle">
+          <div class="modal__content" style="max-width:360px">
+            <h3 id="tgCodeModalTitle">Введите код из Telegram</h3>
+            <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
+            <div class="modal__actions">
+              <button id="btnConfirmCode" class="btn primary">Подтвердить</button>
+              <button id="btnCancelCode" class="btn">Отмена</button>
+            </div>
+          </div>
+        </div>
+
 
 
         <div class="mt-16">
@@ -39,7 +77,7 @@
 </div>
 
 <script>
-    const TG_RID = "{{ rid }}";
+  const TG_RID = "{{ rid }}";
 </script>
 <script src="/static/js/telegram.js"></script>
 {% endblock %}

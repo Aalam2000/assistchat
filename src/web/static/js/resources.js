@@ -1,9 +1,9 @@
-// src/app/static/js/resources.js
+// src/web/static/js/resources.js
 
 async function loadResources() {
     const tbody = document.getElementById("resources-tbody");
     try {
-        const r = await fetch("/api/resources/list", {credentials: "same-origin"});
+        const r = await fetch("/api/resources/list", { credentials: "same-origin" });
         if (!r.ok) throw new Error("HTTP " + r.status);
 
         const data = await r.json();
@@ -11,17 +11,25 @@ async function loadResources() {
         tbody.innerHTML = "";
 
         if (!items.length) {
-            tbody.innerHTML = `<tr><td colspan="6">Пока нет ни одного ресурса</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10">Пока нет ни одного ресурса</td></tr>`;
             return;
         }
 
         for (const it of items) {
+            const meta = it.meta_json || {};
+            const creds = meta.creds || {};
+            const extra = meta.extra || {};
+
             const tr = document.createElement("tr");
             const btnText = it.status === "active" ? "Пауза" : "Активировать";
 
             tr.innerHTML = `
+              <td class="mono small">${it.id ?? ""}</td>
               <td>${it.provider ?? ""}</td>
               <td>${it.label ?? ""}</td>
+              <td>${creds.app_id ?? "—"}</td>
+              <td class="mono small">${(creds.app_hash || "").slice(0,8)}...</td>
+              <td>${extra.phone_e164 || creds.phone || "—"}</td>
               <td class="status">${it.status ?? ""}</td>
               <td>${it.phase ?? ""}</td>
               <td>${it.last_error_code ?? "—"}</td>
@@ -34,9 +42,10 @@ async function loadResources() {
         }
     } catch (e) {
         console.error("[resources] loadResources error:", e);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6">Ошибка загрузки</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10">Ошибка загрузки</td></tr>`;
     }
 }
+
 
 window.reloadResources = loadResources;
 
@@ -84,18 +93,22 @@ function bindResourceActions() {
         if (btnEdit) {
             const id = btnEdit.dataset.id;
             const row = btnEdit.closest("tr");
-            const provider = row.querySelector("td")?.textContent?.trim();
+            const provider = row.querySelector("td:nth-child(2)")?.textContent?.trim();
 
             if (provider === "zoom_meeting") {
-                window.location.href = `../../resources/zoom/${id}`;
+                window.location.href = `/resources/zoom/${id}`;
+            } else if (provider === "telegram") {
+                window.location.href = `/resources/telegram/${id}`;
             } else {
                 openEditModal(id);
             }
         }
+
     });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", () => {
+    // гарантируем, что весь DOM загружен перед инициализацией
     loadResources();
     bindResourceActions();
 

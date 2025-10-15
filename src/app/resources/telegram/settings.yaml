@@ -1,16 +1,97 @@
-# Telegram settings (MVP, DM only)
-mode: polling            # polling | webhook
-reply_scope: dm_only     # dm_only | mentions_only | all
+title: "Telegram"
+help:
+  about: "Подключение Telegram-клиента через Telethon. Можно активировать сразу, если есть string_session."
+  how_to_get_session: "String Session можно получить во время префлайта или заранее вашим CLI-скриптом."
 
-limits:
-  max_input_chars: 2000
-  max_output_chars: 800
-  per_chat_cooldown_sec: 2   # анти-флуд на чат
+schema:
+  version: 1
+  groups:
+    - title: "Учетные данные (my.telegram.org)"
+      fields:
+        - key: "creds.app_id"
+          label: "App ID"
+          type: "number"
+          required: true
+          placeholder: "123456"
+        - key: "creds.app_hash"
+          label: "App Hash"
+          type: "password"
+          required: true
+          placeholder: "xxxxxxxxxxxxxxxx"
+        - key: "extra.phone_e164"
+          label: "Номер телефона (E.164)"
+          type: "string"
+          required: false
+          placeholder: "+9945XXXXXXX"
+        - key: "creds.string_session"
+          label: "String Session"
+          type: "textarea"
+          required: false
+          help: "Можно оставить пустым и получить в префлайте"
+        - key: "creds.code"
+          label: "Код подтверждения"
+          type: "string"
+          required: false
 
-timeouts:
-  receive_sec: 30
-  send_sec: 30
+    - title: "Фильтры доступа"
+      fields:
+        - key: "lists.whitelist"
+          label: "Белый список (логины или ID)"
+          type: "list"
+          required: false
+          help: "Если заполнен — бот отвечает только этим пользователям."
+        - key: "lists.blacklist"
+          label: "Чёрный список (логины или ID)"
+          type: "list"
+          required: false
+          help: "Если whitelist пуст — блокируются только эти пользователи."
 
-features:
-  allow_groups: false
-  allow_voice: false
+    - title: "Диалог и контекст"
+      fields:
+        - key: "limits.history_length"
+          label: "Количество сообщений в контексте"
+          type: "number"
+          required: false
+          placeholder: "20"
+          help: "Определяет, сколько последних сообщений используется для понимания контекста."
+
+    - title: "Промпты и правила"
+      fields:
+        - key: "prompts.settings"
+          label: "Системный промпт"
+          type: "textarea"
+          required: false
+          placeholder: "Кто ты, стиль ответов, что делать/чего не делать…"
+        - key: "prompts.rules_common"
+          label: "Правила ответов"
+          type: "textarea"
+          required: false
+          placeholder: "Форматирование, длина, язык, эмодзи…"
+        - key: "prompts.rules_dialog"
+          label: "Правила диалога"
+          type: "textarea"
+          required: false
+          placeholder: "Как вести беседу, приоритеты, тон."
+        - key: "prompts.auto_replies"
+          label: "Автоответы (map)"
+          type: "json"
+          required: false
+          placeholder: "{\"/start\": \"Привет!\", \"help\": \"Список команд…\"}"
+
+template:
+  creds:
+    app_id: 0
+    app_hash: ""
+    string_session: ""
+  extra:
+    phone_e164: ""
+  lists:
+    whitelist: []
+    blacklist: []
+  limits:
+    history_length: 20
+  prompts:
+    settings: ""
+    rules_common: ""
+    rules_dialog: ""
+    auto_replies: {}

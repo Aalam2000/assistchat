@@ -21,4 +21,4 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     openai_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
+    bot_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
