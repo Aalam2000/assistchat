@@ -1,0 +1,24 @@
+title: "Zoom Meeting"
+schema:
+  version: 1
+  groups:
+    - title: "Настройки Zoom"
+      fields:
+        - key: extra.folder
+          label: Рабочая папка
+          type: string
+          required: false
+          help: "Имя внутренней папки для хранения аудио и отчетов Zoom."
+        - key: extra.notes
+          label: Заметки
+          type: textarea
+          required: false
+          help: "Описание ресурса или примечания пользователя."
+template:
+  creds: {}
+  extra:
+    folder: ""
+    notes: ""
+help:
+  folder: "Можно указать логическое имя папки, если ведётся несколько проектов Zoom."
+  notes: "Поле для ваших комментариев — необязательно."

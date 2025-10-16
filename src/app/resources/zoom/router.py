@@ -1,231 +1,375 @@
-"""
-Модуль ресурсов: Zoom
-Назначение:
-    Обрабатывает загрузку, транскрипцию и отчёты по аудиофайлам.
-    Каждый Zoom-ресурс хранит свои файлы и логи в каталоге пользователя.
-"""
+from __future__ import annotations
 
-import json
+import os
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Request, Depends, File, UploadFile, Body, HTTPException
+from fastapi import (
+    APIRouter, Request, Depends, HTTPException,
+    Query, UploadFile, File, Body
+)
 from fastapi.responses import JSONResponse, PlainTextResponse
+from openai import OpenAI
+from sqlalchemy import select
 from sqlalchemy.orm import Session as SASession
 
-from src.app.core.db import get_db
 from src.app.core.auth import get_current_user
-from src.models import Resource
-from src.app.core.config import BASE_STORAGE
+from src.app.core.db import get_db
 from src.app.resources.zoom.transcribe import transcribe_audio
-from openai import OpenAI
+from src.models.resource import Resource
 
-router = APIRouter()
-client = OpenAI()
+# 🔹 создаём независимого клиента для Zoom
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise RuntimeError("OPENAI_API_KEY is not set for Zoom module")
 
-AUDIO_EXTS = {".mp3", ".mp4", ".m4a", ".wav", ".ogg", ".webm"}
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ─────────────────────────────────────────────────────────────
+# 1. ИНИЦИАЛИЗАЦИЯ И КОНСТАНТЫ
+# ─────────────────────────────────────────────────────────────
+router = APIRouter(prefix="/api/zoom", tags=["zoom"])
+
+BASE_STORAGE = Path(__file__).resolve().parents[3] / "storage"
+AUDIO_EXTS = [".mp3", ".wav", ".m4a"]
 
 
-@router.post("/api/zoom/{rid}/upload")
-async def api_zoom_upload(rid: str, request: Request, file: UploadFile = File(...), db: SASession = Depends(get_db)):
-    """Загрузка аудиофайла в ресурс Zoom."""
+# ─────────────────────────────────────────────────────────────
+# 2. СЛУЖЕБНЫЕ ФУНКЦИИ
+# ─────────────────────────────────────────────────────────────
+def _get_resource_or_403(db: SASession, user, rid: str | UUID) -> Resource:
+    try:
+        rid_uuid = UUID(str(rid))
+    except Exception:
+        raise HTTPException(status_code=400, detail="BAD_RESOURCE_ID")
+
+    row = db.execute(
+        select(Resource).where(Resource.id == rid_uuid, Resource.user_id == user.id)
+    ).scalar_one_or_none()
+
+    if not row:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    return row
+
+
+def _storage_root_for(user_id: int, rid: str | UUID) -> Path:
+    path = BASE_STORAGE / f"user_{user_id}" / f"resource_{rid}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+# ─────────────────────────────────────────────────────────────
+# 3. РАБОТА С ЗАДАЧАМИ РЕСУРСА (ЗАГРУЗКА / ТРАНСКРИПЦИЯ / ОТЧЁТ)
+# ─────────────────────────────────────────────────────────────
+
+@router.post("/{rid}/upload")
+async def api_zoom_upload(
+        request: Request,
+        rid: str,
+        file: UploadFile = File(...),
+        db: SASession = Depends(get_db),
+):
+    """Загрузка аудиофайла в uploads/"""
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
 
-    if not file.filename.lower().endswith(".mp3"):
-        return JSONResponse({"ok": False, "error": "ONLY_MP3_ALLOWED"}, status_code=400)
+    if not file.filename.lower().endswith(tuple(AUDIO_EXTS)):
+        return JSONResponse({"ok": False, "error": "INVALID_FILE_TYPE"}, status_code=400)
 
     contents = await file.read()
-    if len(contents) > 10 * 1024 * 1024:
+    if len(contents) > 50 * 1024 * 1024:
         return JSONResponse({"ok": False, "error": "FILE_TOO_LARGE"}, status_code=400)
 
-    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "uploads"
-    user_dir.mkdir(parents=True, exist_ok=True)
-    path = user_dir / file.filename
-    path.write_bytes(contents)
-    return {"ok": True, "filename": file.filename}
+    uploads_dir = _storage_root_for(user.id, rid) / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    dst = uploads_dir / file.filename
+    with dst.open("wb") as f:
+        f.write(contents)
+
+    return {"ok": True, "filename": file.filename, "size": len(contents)}
 
 
-@router.post("/api/zoom/{rid}/process")
-async def api_zoom_process(rid: str, request: Request, payload: dict = Body(...), db: SASession = Depends(get_db)):
-    """Транскрибирует выбранный аудиофайл через внутренний worker."""
+@router.post("/{rid}/process")
+async def api_zoom_process(
+        request: Request,
+        rid: str,
+        payload: dict = Body(...),
+        db: SASession = Depends(get_db),
+):
+    """Транскрибация аудио → текст"""
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
 
     filename = (payload.get("filename") or "").strip()
     if not filename:
         return JSONResponse({"ok": False, "error": "NO_FILENAME"}, status_code=400)
 
-    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
-    uploads = user_dir / "uploads"
-    transcripts = user_dir / "transcripts"
-    transcripts.mkdir(parents=True, exist_ok=True)
+    root = _storage_root_for(user.id, rid)
+    uploads_dir = root / "uploads"
+    transcripts_dir = root / "transcripts"
+    transcripts_dir.mkdir(exist_ok=True)
 
-    path = uploads / filename
-    if not path.exists():
+    src = uploads_dir / filename
+    if not src.exists():
         return JSONResponse({"ok": False, "error": "FILE_NOT_FOUND"}, status_code=404)
 
-    text = transcribe_audio(str(path))
-    out = transcripts / f"{filename}.txt"
-    out.write_text(text, encoding="utf-8")
+    try:
+        text = transcribe_audio(str(src))
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"TRANSCRIBE_FAILED: {e}"}, status_code=500)
+
+    out_path = transcripts_dir / f"{filename}.txt"
+    out_path.write_text(text, encoding="utf-8")
+
+    with (root / "status.log").open("a", encoding="utf-8") as log:
+        log.write(f"{datetime.now().isoformat()} transcribed {filename}\n")
+
     return {"ok": True, "message": "Транскрипция завершена", "length": len(text)}
 
 
-@router.post("/api/zoom/{rid}/report")
-async def api_zoom_report(rid: str, request: Request, payload: dict = Body(...), db: SASession = Depends(get_db)):
-    """Создаёт отчёт на основе транскрипта с помощью OpenAI."""
+@router.post("/{rid}/report")
+async def api_zoom_report(
+        request: Request,
+        rid: str,
+        payload: dict = Body(...),
+        db: SASession = Depends(get_db),
+):
+    """Создание отчёта по транскрипту через OpenAI"""
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
 
     filename = (payload.get("filename") or "").strip()
     prompt = (payload.get("prompt") or "").strip()
     if not filename:
         return JSONResponse({"ok": False, "error": "NO_FILENAME"}, status_code=400)
 
-    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
-    transcripts = user_dir / "transcripts"
-    reports = user_dir / "reports"
-    reports.mkdir(parents=True, exist_ok=True)
+    root = _storage_root_for(user.id, rid)
+    transcripts_dir = root / "transcripts"
+    reports_dir = root / "reports"
+    reports_dir.mkdir(exist_ok=True)
 
     t_name = filename if filename.endswith(".txt") else f"{filename}.txt"
-    t_path = transcripts / t_name
+    t_path = transcripts_dir / t_name
     if not t_path.exists():
         return JSONResponse({"ok": False, "error": "TRANSCRIPT_NOT_FOUND"}, status_code=404)
 
     text = t_path.read_text(encoding="utf-8")
+
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "system", "content": prompt}, {"role": "user", "content": text}],
+            messages=[
+                {"role": "system", "content": prompt or "Создай краткий отчёт по стенограмме."},
+                {"role": "user", "content": text},
+            ],
             temperature=0.3,
         )
-        report = resp.choices[0].message.content.strip()
+        report_text = resp.choices[0].message.content.strip()
     except Exception as e:
         return JSONResponse({"ok": False, "error": f"OPENAI_FAILED: {e}"}, status_code=500)
 
-    out_path = reports / t_name.replace(".txt", "_отчет.txt")
-    out_path.write_text(report, encoding="utf-8")
-    return {"ok": True, "filename": out_path.name, "length": len(report)}
+    out_name = t_name.replace(".txt", "_отчет.txt")
+    (reports_dir / out_name).write_text(report_text, encoding="utf-8")
+
+    return {"ok": True, "filename": out_name, "length": len(report_text)}
 
 
-@router.get("/api/zoom/{rid}/report/open", response_class=PlainTextResponse)
-def api_zoom_report_open(rid: str, filename: str, request: Request, db: SASession = Depends(get_db)):
-    """Возвращает текст отчёта в формате plain/text."""
+# ─────────────────────────────────────────────────────────────
+# 4. ПРЕДСТАВЛЕНИЕ ДАННЫХ (СПИСКИ, ОТКРЫТИЕ, УДАЛЕНИЕ)
+# ─────────────────────────────────────────────────────────────
+
+@router.get("/{rid}/items")
+async def api_zoom_items(request: Request, rid: str, db: SASession = Depends(get_db)):
+    """Отдать фронту комплекс файлов: аудио, транскрипт, отчёт"""
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
 
-    row = db.get(Resource, UUID(rid))
-    if not row or row.user_id != user.id:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
-
-    path = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "reports" / filename
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
-    return path.read_text(encoding="utf-8")
-
-
-@router.get("/api/zoom/{rid}/items")
-def api_zoom_items(rid: str, request: Request, db: SASession = Depends(get_db)):
-    """Возвращает список аудио, транскриптов и отчётов для Zoom-ресурса."""
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    row = db.get(Resource, UUID(rid))
-    if not row or row.user_id != user.id:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
-
-    user_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}"
-    uploads_dir = user_dir / "uploads"
-    transcripts_dir = user_dir / "transcripts"
-    reports_dir = user_dir / "reports"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    transcripts_dir.mkdir(parents=True, exist_ok=True)
-    reports_dir.mkdir(parents=True, exist_ok=True)
+    root = _storage_root_for(user.id, rid)
+    uploads = root / "uploads"
+    transcripts = root / "transcripts"
+    reports = root / "reports"
+    for p in (uploads, transcripts, reports):
+        p.mkdir(exist_ok=True)
 
     items = []
 
-    # пары аудио и транскриптов
-    for p in sorted(uploads_dir.glob("*")):
-        if not p.is_file() or p.suffix.lower() not in AUDIO_EXTS:
+    for audio in sorted(uploads.glob("*")):
+        if not audio.is_file() or audio.suffix.lower() not in AUDIO_EXTS:
             continue
-        t_name = p.name + ".txt"
-        t_path = transcripts_dir / t_name
+        t_name = f"{audio.name}.txt"
+        r_name = t_name.replace(".txt", "_отчет.txt")
+        t_path = transcripts / t_name
+        r_path = reports / r_name
         items.append({
             "audio": {
-                "filename": p.name,
-                "size": p.stat().st_size,
-                "uploaded": datetime.fromtimestamp(p.stat().st_mtime).isoformat(),
+                "filename": audio.name,
+                "size": audio.stat().st_size,
+                "uploaded": datetime.fromtimestamp(audio.stat().st_mtime).isoformat(),
             },
             "transcript": {
                 "filename": t_name,
                 "exists": t_path.exists(),
-                "size": (t_path.stat().st_size if t_path.exists() else 0),
+                "size": t_path.stat().st_size if t_path.exists() else 0,
+            },
+            "report": {
+                "filename": r_name,
+                "exists": r_path.exists(),
+                "size": r_path.stat().st_size if r_path.exists() else 0,
             },
         })
-
-    # транскрипты без исходников
-    for t in sorted(transcripts_dir.glob("*.txt")):
-        if not any(it["transcript"]["filename"] == t.name for it in items):
-            items.append({
-                "audio": None,
-                "transcript": {
-                    "filename": t.name,
-                    "exists": True,
-                    "size": t.stat().st_size,
-                },
-            })
-
-    # отчёты
-    for it in items:
-        tr_name = it["transcript"]["filename"] if it.get("transcript") else None
-        if tr_name:
-            base = tr_name.replace(".txt", "_отчет.txt")
-            r_path = reports_dir / base
-            if r_path.exists():
-                it["report"] = {
-                    "filename": base,
-                    "exists": True,
-                    "size": r_path.stat().st_size,
-                }
-            else:
-                it["report"] = {"exists": False}
 
     return {"ok": True, "items": items}
 
 
-@router.get("/api/zoom/{rid}/reports")
-async def api_zoom_reports(rid: str, request: Request, db: SASession = Depends(get_db)):
-    """Возвращает список готовых отчётов для ресурса."""
+@router.get("/{rid}/transcript/open", response_class=PlainTextResponse)
+async def api_zoom_transcript_open(
+        request: Request,
+        rid: str,
+        filename: str = Query(...),
+        db: SASession = Depends(get_db),
+):
+    """Открытие текста транскрипта"""
+    user = get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    _get_resource_or_403(db, user, rid)
+
+    path = _storage_root_for(user.id, rid) / "transcripts" / (
+        filename if filename.endswith(".txt") else f"{filename}.txt"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+@router.delete("/{rid}/transcript")
+async def api_zoom_transcript_delete(
+        request: Request,
+        rid: str,
+        filename: str = Query(...),
+        db: SASession = Depends(get_db),
+):
+    """Удаление транскрипта"""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
+
+    path = _storage_root_for(user.id, rid) / "transcripts" / (
+        filename if filename.endswith(".txt") else f"{filename}.txt"
+    )
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="TRANSCRIPT_NOT_FOUND")
+
+    path.unlink()
+    return {"ok": True}
+
+@router.delete("/{rid}/audio")
+async def api_zoom_delete_audio(
+    request: Request,
+    rid: str,
+    filename: str = Query(...),
+    db: SASession = Depends(get_db),
+):
+    """Удаляет исходный аудиофайл"""
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
 
-    row = db.get(Resource, UUID(rid))
-    if not row or row.user_id != user.id:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
+    _get_resource_or_403(db, user, rid)
+    file_path = _storage_root_for(user.id, rid) / "uploads" / filename
+    if not file_path.exists():
+        return JSONResponse({"ok": False, "error": "AUDIO_NOT_FOUND"}, status_code=404)
 
-    reports_dir = BASE_STORAGE / f"user_{user.id}" / f"resource_{rid}" / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
+    file_path.unlink()
+    return {"ok": True}
+
+
+
+@router.get("/{rid}/report/open", response_class=PlainTextResponse)
+async def api_zoom_report_open(
+        request: Request,
+        rid: str,
+        filename: str = Query(...),
+        db: SASession = Depends(get_db),
+):
+    """Открытие отчёта"""
+    user = get_current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401)
+    _get_resource_or_403(db, user, rid)
+
+    path = _storage_root_for(user.id, rid) / "reports" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
+
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+@router.delete("/{rid}/report")
+async def api_zoom_report_delete(
+        request: Request,
+        rid: str,
+        filename: str = Query(...),
+        db: SASession = Depends(get_db),
+):
+    """Удаление отчёта"""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
+
+    path = _storage_root_for(user.id, rid) / "reports" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
+
+    path.unlink()
+    return {"ok": True}
+
+
+# ─────────────────────────────────────────────────────────────
+# 5. СПИСОК ГОТОВЫХ ОТЧЁТОВ (для блока loadReports)
+# ─────────────────────────────────────────────────────────────
+@router.get("/{rid}/reports")
+async def api_zoom_reports(
+        request: Request,
+        rid: str,
+        db: SASession = Depends(get_db),
+):
+    """Возвращает список готовых отчётов для ресурса"""
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    _get_resource_or_403(db, user, rid)
+
+    reports_dir = _storage_root_for(user.id, rid) / "reports"
+    reports_dir.mkdir(exist_ok=True)
 
     items = []
-    for path in reports_dir.glob("*.json"):
+    for path in sorted(reports_dir.glob("*_отчет.txt")):
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            # извлекаем первые 300 символов как "summary"
+            summary = text[:300].strip().replace("\n", " ")
             items.append({
-                "filename": path.stem,
-                "summary": data.get("summary", ""),
-                "transcript": data.get("transcript", ""),
+                "filename": path.name,
+                "summary": summary,
+                "transcript": text,
             })
         except Exception as e:
             items.append({
-                "filename": path.stem,
-                "summary": f"Ошибка чтения ({e})",
+                "filename": path.name,
+                "summary": f"Ошибка чтения: {e}",
                 "transcript": "",
             })
 

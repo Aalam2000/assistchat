@@ -3,7 +3,7 @@
 async function loadResources() {
     const tbody = document.getElementById("resources-tbody");
     try {
-        const r = await fetch("/api/resources/list", { credentials: "same-origin" });
+        const r = await fetch("/api/resources/list", {credentials: "same-origin"});
         if (!r.ok) throw new Error("HTTP " + r.status);
 
         const data = await r.json();
@@ -28,7 +28,7 @@ async function loadResources() {
               <td>${it.provider ?? ""}</td>
               <td>${it.label ?? ""}</td>
               <td>${creds.app_id ?? "—"}</td>
-              <td class="mono small">${(creds.app_hash || "").slice(0,8)}...</td>
+              <td class="mono small">${(creds.app_hash || "").slice(0, 8)}...</td>
               <td>${extra.phone_e164 || creds.phone || "—"}</td>
               <td class="status">${it.status ?? ""}</td>
               <td>${it.phase ?? ""}</td>
@@ -36,6 +36,7 @@ async function loadResources() {
               <td>
                 <button class="btn res-toggle" data-id="${it.id}">${btnText}</button>
                 <button class="btn res-edit" data-id="${it.id}">Настроить</button>
+                <button class="btn res-delete" data-id="${it.id}" title="Удалить ресурс">🗑️</button>
               </td>
             `;
             tbody.appendChild(tr);
@@ -104,6 +105,32 @@ function bindResourceActions() {
             }
         }
 
+        // удаление
+        const btnDelete = e.target.closest(".res-delete");
+        if (btnDelete) {
+            const id = btnDelete.dataset.id;
+            const row = btnDelete.closest("tr");
+            const name = row.querySelector("td:nth-child(3)")?.textContent?.trim() || "";
+            if (!confirm(`Удаляем ресурс "${name}"?`)) return;
+
+            try {
+                const r = await fetch(`/api/resources/${id}`, {
+                    method: "DELETE",
+                    credentials: "same-origin"
+                });
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok || !data.ok) {
+                    alert("Ошибка удаления: " + (data.error || "unknown"));
+                    return;
+                }
+                row.remove();
+            } catch (err) {
+                alert("Ошибка при удалении ресурса");
+                console.error(err);
+            }
+            return;
+        }
+
     });
 }
 
@@ -135,7 +162,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const dynForm = $("#dynForm");
     const formErrors = $("#formErrors");
 
-    if (!modal || !btnOpen || !selProv || !inpLabel || !dynForm) return;
+    if (!modal || !btnOpen || !selProv || !inpLabel) return;
 
     const state = {
         providers: [],
@@ -174,12 +201,14 @@ window.addEventListener("DOMContentLoaded", () => {
     };
 
     async function fetchProviders() {
-        const r = await fetch("/api/providers", {credentials: "same-origin"});
+        const r = await fetch("/api/resources/providers", { credentials: "same-origin" });
+        if (!r.ok) throw new Error("HTTP " + r.status);
         const data = await r.json();
-        if (!data.ok) throw new Error("Failed to load providers");
         state.providers = data.providers || [];
         state.byKey = Object.fromEntries(state.providers.map(p => [p.key, p]));
+        console.log("[DEBUG providers]", state.providers);
     }
+
 
     function fillProviderSelect() {
         selProv.innerHTML = "";
@@ -192,7 +221,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     async function fetchProviderSchema(provKey) {
-        const r = await fetch(`/api/providers/${provKey}/schema`, {credentials: "same-origin"});
+        const r = await fetch(`/api/resources/providers/${provKey}/schema`, {credentials: "same-origin"});
         const data = await r.json();
         if (!data.ok) throw new Error(`Schema not found for ${provKey}`);
         state.uiSchema = data.schema || {version: 1, groups: []};
@@ -367,8 +396,6 @@ window.addEventListener("DOMContentLoaded", () => {
             inpLabel.value = "";
             const key = selProv.value;
             autoSetLabel(key);
-            await fetchProviderSchema(key);
-            renderDynForm(state.uiSchema, state.template);
             state.editingId = null;
             btnSubmit.textContent = "Создать";
             open();
@@ -378,17 +405,12 @@ window.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+
     async function onProviderChange() {
-        try {
-            const key = selProv.value;
-            autoSetLabel(key);
-            await fetchProviderSchema(key);
-            renderDynForm(state.uiSchema, state.template);
-        } catch (e) {
-            alert("Не удалось загрузить схему провайдера");
-            console.error(e);
-        }
+        const key = selProv.value;
+        autoSetLabel(key);
     }
+
 
     const btnActivate = $("#addResActivate");
 
@@ -436,7 +458,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 // сервер код отправил — просто открываем модалку для ввода
                 openCodeModal();
             } else if (data.activated) {
-                alert("Telegram-ресурс успешно активирован!");
+                // alert("Telegram-ресурс успешно активирован!");
                 close();
                 if (typeof window.reloadResources === "function") window.reloadResources();
             }
@@ -451,66 +473,34 @@ window.addEventListener("DOMContentLoaded", () => {
     if (btnActivate) btnActivate.addEventListener("click", onActivate);
 
     async function onSubmit() {
-        if (formErrors) formErrors.textContent = "";
-        const {meta, errors} = collectMeta(state.uiSchema);
-        if (errors.length) {
-            if (formErrors) formErrors.textContent = errors.join("; ");
-            return;
-        }
-
-        const payload = {
-            provider: selProv.value,
-            label: inpLabel.value.trim() || selProv.value,
-            meta_json: meta,
-        };
-
-        let url, method, isNew;
-        if (!state.editingId) {
-            url = "/api/resources/add";
-            method = "POST";
-            isNew = true;
-        } else {
-            url = `/api/resource/${state.editingId}`;
-            method = "PUT";
-            isNew = false;
-        }
+        const provider = selProv.value;
+        const label = inpLabel.value.trim() || provider;
 
         try {
-            const r = await fetch(url, {
-                method,
+            const r = await fetch("/api/resources/add", {
+                method: "POST",
                 headers: {"Content-Type": "application/json"},
                 credentials: "same-origin",
-                body: JSON.stringify(payload),
+                body: JSON.stringify({provider, label})
             });
-            const data = await r.json().catch(() => ({}));
-
+            const data = await r.json();
             if (!r.ok || !data.ok) {
-                if (formErrors) formErrors.textContent = "Ошибка: " + (data.error || "unknown");
+                alert("Ошибка создания ресурса: " + (data.error || "unknown"));
                 return;
             }
-
-            // сохранили или обновили ресурс
-            state.editingId = data.id;
-            btnSubmit.textContent = "Сохранить";
-
-            if (isNew) {
-                alert("Ресурс создан. При необходимости его можно активировать позже.");
-            } else {
-                alert("Ресурс обновлён.");
-            }
-
+            // alert("Ресурс создан");
             close();
             if (typeof window.reloadResources === "function") window.reloadResources();
         } catch (err) {
-            if (formErrors) formErrors.textContent = "Ошибка сохранения";
             console.error(err);
+            alert("Ошибка при создании ресурса");
         }
     }
 
 
     async function openEditModal(id) {
         try {
-            const r = await fetch(`/api/resource/${id}`, {credentials: "same-origin"});
+            const r = await fetch(`/api/resource/${id}`, { credentials: "same-origin" });
             const data = await r.json();
             if (!r.ok || !data.ok) throw new Error(data.error || "failed to load resource");
 
@@ -522,15 +512,13 @@ window.addEventListener("DOMContentLoaded", () => {
             state.labelTouched = true;
             state.editingId = id;
             btnSubmit.textContent = "Сохранить";
-
-            await fetchProviderSchema(data.provider);
-            renderDynForm(state.uiSchema, data.meta_json || {});
             open();
         } catch (e) {
             alert("Не удалось загрузить ресурс для редактирования");
             console.error(e);
         }
     }
+
 
     btnOpen.addEventListener("click", onOpenClick);
     if (btnCancel) btnCancel.addEventListener("click", close);
@@ -563,7 +551,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             if (data.activated) {
-                alert("Telegram-ресурс успешно активирован!");
+                // alert("Telegram-ресурс успешно активирован!");
                 closeCodeModal();
                 close(); // закрыть большую модалку
                 if (typeof window.reloadResources === "function") window.reloadResources();

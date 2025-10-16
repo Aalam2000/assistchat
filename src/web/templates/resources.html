@@ -1,3 +1,4 @@
+<!--src/web/templates/resources.html-->
 {% extends "base.html" %}
 {% block title %}Ресурсы | bona-plus{% endblock %}
 
@@ -10,7 +11,6 @@
 
     <div class="actions">
       <button id="btnAddResource" class="btn primary">+ Добавить ресурс</button>
-      <a href="/web/static" class="btn">Назад</a>
     </div>
 
     <table class="mt-12 styled-table">
@@ -38,8 +38,6 @@
 
 </div>
 
-<script src="/static/js/resources.js"></script>
-
 <!-- Модалка добавления ресурса -->
 <div id="addResourceModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addResourceTitle">
   <div class="modal__content">
@@ -57,9 +55,6 @@
       <label for="resLabel">Название (Label)</label>
       <input id="resLabel" type="text" placeholder="Мой ресурс">
     </div>
-
-    <div id="dynForm"></div>
-    <div id="formErrors" class="error"></div>
 
     <div class="modal__actions">
       <button id="addResCancel" class="btn">Отмена</button>
@@ -79,4 +74,8 @@
     </div>
   </div>
 </div>
+
+
+<script src="/static/js/resources.js"></script>
+
 {% endblock %}
