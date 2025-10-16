@@ -232,10 +232,15 @@ def merge_meta_json(old_meta, new_meta):
     old_meta = old_meta or {}
     new_meta = new_meta or {}
     merged = old_meta.copy()
-    creds = old_meta.get("creds") or {}
+
+    old_creds = old_meta.get("creds") or {}
+    new_creds = (new_meta.get("creds") or {}).copy()
+    merged_creds = {**old_creds, **new_creds}
+
     merged.update(new_meta)
-    merged["creds"] = creds
+    merged["creds"] = merged_creds
     return merged
+
 
 # ───────────────────────────────────────────────────────────────
 # 🔹 Удаление ресурса
