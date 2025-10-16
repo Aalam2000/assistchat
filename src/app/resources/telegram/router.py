@@ -83,7 +83,7 @@ async def api_resource_activate(
     meta = row.meta_json or {}
     creds = dict(meta.get("creds") or {})
 
-    phone = payload.get("phone") or creds.get("phone")
+    phone = (payload.get("phone") or creds.get("phone") or "").strip()
     app_id = payload.get("app_id") or creds.get("app_id")
     app_hash = payload.get("app_hash") or creds.get("app_hash")
     code = (payload.get("code") or "").strip() or None
@@ -93,7 +93,8 @@ async def api_resource_activate(
     except Exception:
         app_id = None
 
-    if not phone or not app_id or not app_hash:
+    # если это шаг 2 (пришёл code), разрешаем использовать уже сохранённые данные
+    if not code and (not phone or not app_id or not app_hash):
         return {"ok": False, "error": "MISSING_FIELDS"}
 
     # ── Если уже активирован ──────────────────────────────────────
