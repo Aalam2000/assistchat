@@ -1,12 +1,16 @@
 # src/alembic/env.py
 from __future__ import annotations
 import os
+from dotenv import load_dotenv
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Alembic config
 config = context.config
+
+# Подхватываем .env из корня проекта (docker-compose его монтирует)
+load_dotenv()
 
 # Логи Alembic
 if config.config_file_name is not None:
