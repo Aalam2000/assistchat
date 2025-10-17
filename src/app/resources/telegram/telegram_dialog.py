@@ -1,6 +1,5 @@
-# src/app/resources/telegram/telegram_dialog.py
 """
-TelegramDialogEngine — модуль диалоговой логики ресурса Telegram.
+src/app/resources/telegram/telegram_dialog.py - TelegramDialogEngine — модуль диалоговой логики ресурса Telegram.
 ─────────────────────────────────────────────────────────────────────────────
 Назначение:
     • Управляет логикой общения Telegram-агента с пользователями и группами;
@@ -79,7 +78,9 @@ class TelegramDialogEngine:
 
         # ─── История диалога ────────────────────────────────────────────────
         limit = (self.resource.meta_json or {}).get("limits", {}).get("history_length", 20)
-        context_rows = self.get_context(self.db, peer_id=event.sender_id, limit=limit)
+        peer_id = getattr(event, "chat_id", None) or event.sender_id
+        context_rows = self.get_context(self.db, peer_id=peer_id, limit=limit)
+
         context = [
             {"role": "user" if m.direction == "in" else "assistant", "content": m.text}
             for m in context_rows if m.text

@@ -1,97 +1,70 @@
-title: "Telegram"
+# src/app/resources/telegram/settings.yaml
+title: Telegram
+version: 2
 help:
-  about: "Подключение Telegram-клиента через Telethon. Можно активировать сразу, если есть string_session."
-  how_to_get_session: "String Session можно получить во время префлайта или заранее вашим CLI-скриптом."
-
-schema:
-  version: 1
-  groups:
-    - title: "Учетные данные (my.telegram.org)"
-      fields:
-        - key: "creds.app_id"
-          label: "App ID"
-          type: "number"
-          required: true
-          placeholder: "123456"
-        - key: "creds.app_hash"
-          label: "App Hash"
-          type: "password"
-          required: true
-          placeholder: "xxxxxxxxxxxxxxxx"
-        - key: "extra.phone_e164"
-          label: "Номер телефона (E.164)"
-          type: "string"
-          required: false
-          placeholder: "+9945XXXXXXX"
-        - key: "creds.string_session"
-          label: "String Session"
-          type: "textarea"
-          required: false
-          help: "Можно оставить пустым и получить в префлайте"
-        - key: "creds.code"
-          label: "Код подтверждения"
-          type: "string"
-          required: false
-
-    - title: "Фильтры доступа"
-      fields:
-        - key: "lists.whitelist"
-          label: "Белый список (логины или ID)"
-          type: "list"
-          required: false
-          help: "Если заполнен — бот отвечает только этим пользователям."
-        - key: "lists.blacklist"
-          label: "Чёрный список (логины или ID)"
-          type: "list"
-          required: false
-          help: "Если whitelist пуст — блокируются только эти пользователи."
-
-    - title: "Диалог и контекст"
-      fields:
-        - key: "limits.history_length"
-          label: "Количество сообщений в контексте"
-          type: "number"
-          required: false
-          placeholder: "20"
-          help: "Определяет, сколько последних сообщений используется для понимания контекста."
-
-    - title: "Промпты и правила"
-      fields:
-        - key: "prompts.settings"
-          label: "Системный промпт"
-          type: "textarea"
-          required: false
-          placeholder: "Кто ты, стиль ответов, что делать/чего не делать…"
-        - key: "prompts.rules_common"
-          label: "Правила ответов"
-          type: "textarea"
-          required: false
-          placeholder: "Форматирование, длина, язык, эмодзи…"
-        - key: "prompts.rules_dialog"
-          label: "Правила диалога"
-          type: "textarea"
-          required: false
-          placeholder: "Как вести беседу, приоритеты, тон."
-        - key: "prompts.auto_replies"
-          label: "Автоответы (map)"
-          type: "json"
-          required: false
-          placeholder: "{\"/start\": \"Привет!\", \"help\": \"Список команд…\"}"
+  short: Настройка Telegram-сессии и до 5 индивидуальных ролей
+  long: |
+    В одной сессии можно настроить до пяти разных ролей (учитель, ассистент, консультант и т.д.).
+    Каждая роль имеет собственные промпты и режимы работы, а общие параметры сессии остаются едиными.
 
 template:
-  creds:
-    app_id: 0
-    app_hash: ""
-    string_session: ""
-  extra:
-    phone_e164: ""
-  lists:
+  session:
+    active: false
     whitelist: []
     blacklist: []
-  limits:
-    history_length: 20
-  prompts:
-    settings: ""
-    rules_common: ""
-    rules_dialog: ""
-    auto_replies: {}
+    history_limit: 20
+  roles:
+    - name: ""
+      description: ""
+      system_prompt: ""
+      modes:
+        lesson: ""
+        dialogue: ""
+        quiz: ""
+        translate: ""
+      temperature: 0.7
+      top_p: 1.0
+      max_tokens: 1024
+      voice_enabled: true
+
+schema:
+  version: 2
+  groups:
+    - title: "⚙️ Общие настройки сессии"
+      fields:
+        - key: session.active
+          label: "Активна ли сессия"
+          type: boolean
+          required: true
+        - key: session.whitelist
+          label: "Белый список пользователей"
+          type: list
+          required: false
+        - key: session.blacklist
+          label: "Черный список пользователей"
+          type: list
+          required: false
+        - key: session.history_limit
+          label: "Длина истории сообщений"
+          type: number
+          required: true
+
+    - title: "🎭 Роли (до 5 штук)"
+      fields:
+        - key: roles
+          label: "Роли"
+          type: list
+          required: false
+          item_schema:
+            name: string
+            description: string
+            system_prompt: textarea
+            modes:
+              lesson: string
+              dialogue: string
+              quiz: string
+              translate: string
+            temperature: number
+            top_p: number
+            max_tokens: number
+            voice_enabled: boolean

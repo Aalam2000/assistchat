@@ -76,6 +76,9 @@ class TelegramWorker:
                 @self.client.on(events.NewMessage)
                 async def on_message(event):
                     print(f"[TG][{self.resource.id}] incoming msg from {event.sender_id}: {event.raw_text[:80]!r}")
+                    # --- если сообщение отправил сам бот, пропускаем его ---
+                    if event.out:
+                        return
 
                     db2 = SessionLocal()
                     r = db2.get(Resource, self.resource.id)
@@ -146,9 +149,13 @@ class TelegramWorker:
                                 await self.client.send_file(event.sender_id, reply["audio_bytes"], voice_note=True)
                             else:
                                 # если OpenAI не вернул аудио — fallback на текст
-                                await self.client.send_message(event.sender_id, reply["text"])
+                                sent = await self.client.send_message(event.sender_id, reply["text"])
+                                # ---- сохраняем исходящее сообщение (реальный ответ бота) ----
+                                self._save_message_from_reply(event, sent, reply_text=reply["text"])
                         else:
-                            await self.client.send_message(event.sender_id, reply["text"])
+                            sent = await self.client.send_message(event.sender_id, reply["text"])
+                            # ---- сохраняем исходящее сообщение (реальный ответ бота) ----
+                            self._save_message_from_reply(event, sent, reply_text=reply["text"])
                     except Exception as e:
                         print(f"[TG][{self.resource.id}] send_message error: {e}")
                         self._mark_error(str(e))
@@ -233,7 +240,15 @@ class TelegramWorker:
         db = SessionLocal()
         try:
             # базовая мета из события
-            peer_id = int(event.sender_id)
+            if direction == "in":
+                peer_id = int(event.sender_id)
+            else:
+                try:
+                    # если это исходящее сообщение — берём ID получателя
+                    peer_id = int(event.peer_id.user_id or getattr(event, "chat_id", 0))
+                except Exception:
+                    peer_id = int(getattr(event, "chat_id", 0))
+
             chat_id = getattr(getattr(event, "chat", None), "id", None)
             peer_type = "private"
             if getattr(event, "is_group", False):
@@ -278,6 +293,38 @@ class TelegramWorker:
             db.commit()
         except Exception as e:
             print(f"[TG][{self.resource.id}] save_message error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    def _save_message_from_reply(self, event, sent_msg, reply_text: str):
+        """Сохраняет в БД реальный ответ бота (direction='out')."""
+        db = SessionLocal()
+        try:
+            peer_id = int(event.sender_id)
+            chat_id = getattr(getattr(event, "chat", None), "id", None)
+
+            rec = Message(
+                resource_id=self.resource.id,
+                peer_id=peer_id,
+                peer_type="private",
+                chat_id=chat_id,
+                msg_id=getattr(sent_msg, "id", None),
+                direction="out",
+                msg_type="text",
+                text=reply_text,
+                tokens_in=None,
+                tokens_out=None,
+                latency_ms=None,
+                service_id=str(self.resource.id),
+                provider="telegram",
+                external_chat_id=str(chat_id) if chat_id is not None else None,
+                external_msg_id=str(getattr(sent_msg, "id", None)) if getattr(sent_msg, "id", None) else None,
+            )
+            db.add(rec)
+            db.commit()
+        except Exception as e:
+            print(f"[TG][{self.resource.id}] save_message_from_reply error: {e}")
             db.rollback()
         finally:
             db.close()
