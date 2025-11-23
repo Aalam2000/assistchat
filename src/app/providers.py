@@ -1,18 +1,29 @@
-# src/app/providers.py
+"""
+src/app/providers.py — динамическая загрузка всех провайдеров AssistChat.
+Используется BotManager и FastAPI для импорта router и worker классов.
+"""
+
 import os
 import yaml
+import importlib
 from typing import Any, Dict, List, Tuple, Optional
+from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from src.app.core.db import get_db
+
+from src.models.resource import Resource
+from src.app.core.auth import get_current_user
 
 # ── базовый путь к ресурсам ──────────────────────────────────────────────
 BASE_PATH = os.path.join(os.path.dirname(__file__), "resources")
 
-# глобальный словарь всех провайдеров
+# глобальные словари
 PROVIDERS: Dict[str, Dict[str, Any]] = {}
+WORKER_CACHE: Dict[str, Any] = {}   # provider_name → класс воркера
 
 
 # ── служебные функции ─────────────────────────────────────────────────────
 def _load_yaml(path: str) -> Dict[str, Any]:
-    """Безопасно читает YAML-файл и возвращает dict."""
     try:
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
@@ -35,7 +46,6 @@ def _normalize_type(t: Optional[str]) -> str:
 
 
 def _flatten_schema(schema_obj: Any) -> Dict[str, Dict[str, Any]]:
-    """Разворачивает groups/fields в плоский словарь ключей."""
     flat: Dict[str, Dict[str, Any]] = {}
     if isinstance(schema_obj, dict) and "groups" not in schema_obj:
         for path, t in schema_obj.items():
@@ -56,7 +66,6 @@ def _flatten_schema(schema_obj: Any) -> Dict[str, Dict[str, Any]]:
 
 
 def _get(meta: Dict[str, Any] | None, path: str) -> Any:
-    """Получает значение по пути a.b.c из словаря."""
     cur = meta or {}
     for key in path.split("."):
         if not isinstance(cur, dict) or key not in cur:
@@ -67,7 +76,6 @@ def _get(meta: Dict[str, Any] | None, path: str) -> Any:
 
 # ── загрузка всех провайдеров ─────────────────────────────────────────────
 def load_all_providers() -> Dict[str, Dict[str, Any]]:
-    """Ищет все settings.yaml в подпапках resources/*."""
     global PROVIDERS
     PROVIDERS.clear()
 
@@ -94,7 +102,42 @@ def load_all_providers() -> Dict[str, Dict[str, Any]]:
     return PROVIDERS
 
 
-# ── API для остального кода ──────────────────────────────────────────────
+# ── динамический импорт воркеров ─────────────────────────────────────────
+def import_worker(provider: str):
+    if provider in WORKER_CACHE:
+        return WORKER_CACHE[provider]
+
+    try:
+        module = importlib.import_module(f"src.app.resources.{provider}.{provider}")
+        worker_cls = getattr(module, f"{provider.capitalize()}Worker", None) or getattr(module, "Worker", None)
+        if worker_cls:
+            WORKER_CACHE[provider] = worker_cls
+            print(f"[PROVIDERS] Импортирован воркер: {provider}")
+            return worker_cls
+        print(f"[PROVIDERS] Модуль {provider} без класса воркера")
+    except ModuleNotFoundError:
+        print(f"[PROVIDERS] Провайдер {provider}: модуль не найден (пропущен)")
+    except Exception as e:
+        print(f"[PROVIDERS] Ошибка импорта воркера {provider}: {e}")
+
+    WORKER_CACHE[provider] = None
+    return None
+
+
+# ── получение активных ресурсов из БД ─────────────────────────────────────
+def get_active_resources(db: Session) -> Dict[str, list]:
+    from src.models.resource import Resource
+    result: Dict[str, list] = {}
+    try:
+        rows = db.query(Resource).filter(Resource.status == "active").all()
+        for r in rows:
+            result.setdefault(r.provider, []).append(r)
+    except Exception as e:
+        print(f"[PROVIDERS] Ошибка при получении активных ресурсов: {e}")
+    return result
+
+
+# ── UI схема для фронтенда ────────────────────────────────────────────────
 def get_provider_ui_schema(provider: str) -> Dict[str, Any]:
     cfg = PROVIDERS.get(provider) or {}
     sch = cfg.get("schema")
@@ -112,8 +155,8 @@ def get_provider_ui_schema(provider: str) -> Dict[str, Any]:
     return {"version": 1, "groups": [{"title": "Параметры", "fields": fields}]}
 
 
+# ── валидация meta_json ───────────────────────────────────────────────────
 def validate_provider_meta(provider: str, meta: Dict[str, Any] | None) -> Tuple[bool, List[str]]:
-    """Проверка meta_json по схеме из settings.yaml провайдера."""
     cfg = PROVIDERS.get(provider)
     if not cfg:
         return False, ["UNKNOWN_PROVIDER"]
@@ -156,5 +199,51 @@ def validate_provider_meta(provider: str, meta: Dict[str, Any] | None) -> Tuple[
     return (len(problems) == 0), problems
 
 
-# загружаем при импорте
+# ── API router для фронтенда /api/providers/* ─────────────────────────────
+router = APIRouter(prefix="/api/providers", tags=["Providers"])
+
+@router.get("/list")
+async def list_providers():
+    """Отдаёт список провайдеров, загруженных из settings.yaml"""
+    load_all_providers()
+    providers_info = []
+    for key, cfg in PROVIDERS.items():
+        providers_info.append({
+            "key": key,
+            "name": cfg.get("name", key.title()),
+            "status": "available",
+            "description": cfg.get("description", ""),
+        })
+    return {"ok": True, "providers": providers_info}
+
+@router.get("/{provider}/schema")
+async def provider_schema(provider: str):
+    """Возвращает JSON-схему для UI конкретного провайдера"""
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider}' not found")
+    return {"ok": True, "schema": get_provider_ui_schema(provider)}
+
+
+# ── автозагрузка при импорте ──────────────────────────────────────────────
 load_all_providers()
+
+# ─────────────────────────────────────────────────────────────
+# 📋 1. Список ресурсов пользователя  (для index.js)
+# ─────────────────────────────────────────────────────────────
+@router.get("/resources/list")
+async def user_resources_list(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """Возвращает список ресурсов, принадлежащих текущему пользователю."""
+    try:
+        rows = db.query(Resource).filter(Resource.user_id == user.id).all()
+        items = [{
+            "id": r.id,
+            "provider": r.provider,
+            "label": r.label,
+            "status": r.status,
+            "meta": r.meta_json or {}
+        } for r in rows]
+        return {"ok": True, "items": items}
+    except Exception as e:
+        print(f"[PROVIDERS] user_resources_list error: {e}")
+        return {"ok": False, "items": []}
+

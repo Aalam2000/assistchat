@@ -1,273 +1,214 @@
 """
 src/app/resources/telegram/router.py
-────────────────────────────────────
-API-обработчики для работы с Telegram-ресурсом.
+────────────────────────────────────────────────────────────────────────────
+REST API маршруты Telegram-провайдера.
 
 Назначение:
-    • Привязка Telegram-аккаунта пользователя к ресурсу AssistChat;
-    • Отправка и подтверждение кода авторизации (через Telethon);
-    • Обновление статуса и данных ресурса в таблице resources.
+    • Управляет Telegram-сессиями и их состояниями (activate, start, stop, status);
+    • Поддерживает авторизацию Telethon по session_string;
+    • Предоставляет интерфейс фронтенду для работы с ресурсом Telegram;
+    • Поддерживает ручную отправку сообщений, проверку подключения и голосовую обработку.
 """
 
-import time
-import traceback
-from uuid import UUID
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Request, HTTPException, Depends, Body
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session as SASession
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-from telethon.errors import FloodWaitError, PhoneCodeInvalidError, PhoneNumberInvalidError
+from sqlalchemy.orm import Session
 
 from src.app.core.db import get_db
+from src.models.resource import Resource
+from src.models.user import User
 from src.app.core.auth import get_current_user
-from src.models import Resource
 
-from sse_starlette.sse import EventSourceResponse
-import asyncio
+from src.app.resources.telegram.telegram import session_registry, TelegramWorker
+from src.app.resources.telegram.openai_client import OpenAIClient
+from src.app.providers import get_active_resources, import_worker
 
-router = APIRouter()
+router = APIRouter(prefix="/api/telegram", tags=["Telegram Resource"])
 
-# временное хранилище клиентов, ожидающих подтверждения кода
-PENDING_TG: dict[str, dict] = {}
-PENDING_TG_TTL = 300  # 5 минут
-# Слушатели для событий ресурсов (Server-Sent Events)
-# Каждый слушатель — asyncio.Queue, в которую кладутся уведомления.
-RESOURCE_LISTENERS: set[asyncio.Queue] = set()
 
-async def _notify_resource_update():
-    """Отправить событие update всем активным слушателям."""
-    for queue in list(RESOURCE_LISTENERS):
-        try:
-            await queue.put("data: update\n\n")
-        except Exception:
-            RESOURCE_LISTENERS.discard(queue)
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔑 АКТИВАЦИЯ TELEGRAM СЕССИИ
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/{rid}/activate")
+async def activate_resource(rid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """
+    Активирует Telegram-ресурс (создание воркера, запуск Telethon, проверка ключей).
+    """
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-@router.post("/api/resource/{rid}/activate")
-async def api_resource_activate(
+    try:
+        worker_cls = import_worker("telegram")
+        if not worker_cls:
+            raise HTTPException(status_code=500, detail="Telegram worker not found")
+
+        worker = await session_registry.ensure_started(r)
+        r.status = "active"
+        db.commit()
+        return {"ok": True, "message": f"Telegram worker started for {rid}"}
+    except Exception as e:
+        print(f"[API][Telegram] activate error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ⏹️ ОСТАНОВКА СЕССИИ
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/{rid}/stop")
+async def stop_resource(rid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    await session_registry.stop(rid)
+    r.status = "pause"
+    db.commit()
+    return {"ok": True, "message": f"Telegram worker {rid} stopped"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🧠 ПРОВЕРКА СТАТУСА
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get("/{rid}/status")
+async def get_status(rid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    sessions = session_registry.status()
+    active = rid in sessions
+    return {
+        "ok": True,
+        "active": active,
+        "status": r.status,
+        "provider": "telegram",
+        "last_activity": str(r.last_activity) if r.last_activity else None,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🗣️ ОТПРАВКА СООБЩЕНИЯ (из интерфейса)
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/{rid}/send")
+async def send_message(
     rid: str,
-    request: Request,
-    payload: dict = Body(...),
-    db: SASession = Depends(get_db),
+    peer_id: int = Form(...),
+    text: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    worker = session_registry._workers.get(rid)
+    if not worker:
+        raise HTTPException(status_code=400, detail="Worker not running")
+
+    try:
+        await worker.send_message(peer_id, text)
+        return {"ok": True, "message": "Message sent"}
+    except Exception as e:
+        print(f"[API][Telegram] send_message error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🎧 РАСПОЗНАВАНИЕ ГОЛОСА (upload voice)
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/{rid}/voice")
+async def process_voice(
+    rid: str,
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
-    Активация Telegram-ресурса:
-      • шаг 1 — отправка кода подтверждения;
-      • шаг 2 — подтверждение кода и сохранение string_session.
+    Принимает голосовое сообщение, распознаёт его через OpenAI Whisper и возвращает текст.
     """
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    print(f"[TG_ACT][{rid}] activate called")
+    audio_bytes = await file.read()
+    oai = OpenAIClient(user)
+    text = await oai.transcribe_audio(audio_bytes)
+    return {"ok": True, "text": text}
 
-    # ── Проверяем корректность ID ресурса ─────────────────────────
-    try:
-        rid_uuid = UUID(rid)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="NOT_FOUND")
 
-    # ── Получаем текущего пользователя ────────────────────────────
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False, "error": "UNAUTHORIZED"}, status_code=401)
+# ─────────────────────────────────────────────────────────────────────────────
+# 📜 ИСТОРИЯ СООБЩЕНИЙ (по peer_id)
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get("/{rid}/history")
+async def get_history(
+    rid: str,
+    peer_id: int,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Возвращает историю сообщений Telegram (входящих и исходящих) для заданного peer_id.
+    """
+    from sqlalchemy import select
+    from src.models.message import Message
 
-    # ── Проверяем наличие ресурса ─────────────────────────────────
-    row = db.get(Resource, rid_uuid)
-    if not row or row.user_id != user.id:
-        raise HTTPException(status_code=403, detail="FORBIDDEN")
-    if row.provider != "telegram":
-        return {"ok": False, "error": "NOT_TELEGRAM"}
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    print(f"[TG_ACT][{rid}] bot_enabled={getattr(user, 'bot_enabled', None)} (ignored for activation)")
+    rows = (
+        db.execute(
+            select(Message)
+            .where(Message.resource_id == rid, Message.peer_id == peer_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
 
-    meta = row.meta_json or {}
-    creds = dict(meta.get("creds") or {})
-
-    phone = (payload.get("phone") or creds.get("phone") or "").strip()
-    app_id = payload.get("app_id") or creds.get("app_id")
-    app_hash = payload.get("app_hash") or creds.get("app_hash")
-    code = (payload.get("code") or "").strip() or None
-
-    try:
-        app_id = int(app_id)
-    except Exception:
-        app_id = None
-
-    # если это шаг 2 (пришёл code), разрешаем использовать уже сохранённые данные
-    if not code and (not phone or not app_id or not app_hash):
-        return {"ok": False, "error": "MISSING_FIELDS"}
-
-    # ── Если уже активирован ──────────────────────────────────────
-    if creds.get("string_session"):
-        row.status = "active"
-        row.phase = "ready"
-        row.last_error_code = None
-        row.last_activity = datetime.now(timezone.utc)
-        db.commit()
-        return {"ok": True, "activated": True}
-
-    # === ШАГ 1: отправка кода =====================================
-    if not code:
-        # закрываем старую pending-сессию
-        old = PENDING_TG.pop(rid, None)
-        if old:
-            try:
-                await old["client"].disconnect()
-            except Exception:
-                pass
-
-        client = TelegramClient(StringSession(), app_id, app_hash)
-        await client.connect()
-        print(f"[TG_ACT][{rid}] client CONNECTED")
-
-        try:
-            result = await client.send_code_request(phone)
-        except FloodWaitError as e:
-            wait_sec = getattr(e, "seconds", 0)
-            creds["flood_until_ts"] = int(time.time()) + wait_sec
-            meta["creds"] = creds
-            row.meta_json = meta
-            row.phase = "error"
-            row.last_error_code = "FLOOD_WAIT"
-            db.commit()
-            await client.disconnect()
-            return {"ok": False, "error": "FLOOD_WAIT", "wait_seconds": wait_sec}
-        except PhoneNumberInvalidError:
-            await client.disconnect()
-            return {"ok": False, "error": "PHONE_INVALID"}
-        except Exception as e:
-            traceback.print_exc()
-            await client.disconnect()
-            return {"ok": False, "error": str(e)}
-
-        creds.update({
-            "phone": phone,
-            "phone_code_hash": result.phone_code_hash,
-            "pending_session": client.session.save(),
-        })
-        meta["creds"] = creds
-        row.meta_json = meta
-        row.phase = "waiting_code"
-        row.last_error_code = None
-        db.commit()
-        db.refresh(row)
-
-        PENDING_TG[rid] = {
-            "client": client,
-            "session": creds["pending_session"],
-            "phone": phone,
-            "app_id": app_id,
-            "app_hash": app_hash,
-            "sent_code": result,
-            "ts": time.time(),
+    result = [
+        {
+            "id": m.id,
+            "direction": m.direction,
+            "text": m.text,
+            "msg_type": m.msg_type,
+            "created_at": str(m.created_at),
         }
-        print(f"[TG_ACT][{rid}] waiting for code")
-        return {"ok": True, "need_code": True}
-
-    # === ШАГ 2: подтверждение кода ================================
-    entry = PENDING_TG.get(rid)
-    creds = dict((row.meta_json or {}).get("creds") or {})
-    phone_code_hash = creds.get("phone_code_hash")
-    pending_session = creds.get("pending_session")
-    if not phone_code_hash:
-        return {"ok": False, "error": "MISSING_PHONE_CODE_HASH"}
-
-    # подключаемся к клиенту
-    if entry and time.time() - entry["ts"] <= PENDING_TG_TTL:
-        client = entry["client"]
-        try:
-            await client.sign_in(code=code)
-            final_session = client.session.save()
-        except PhoneCodeInvalidError:
-            return {"ok": False, "error": "CODE_INVALID"}
-    else:
-        if not pending_session:
-            return {"ok": False, "error": "MISSING_PENDING_SESSION"}
-        client = TelegramClient(StringSession(pending_session), app_id, app_hash)
-        await client.connect()
-        try:
-            await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
-            final_session = client.session.save()
-        except PhoneCodeInvalidError:
-            return {"ok": False, "error": "CODE_INVALID"}
-
-    # ── Сохраняем итоговую сессию ─────────────────────────────────
-    creds["string_session"] = final_session
-    creds.pop("phone_code_hash", None)
-    creds.pop("pending_session", None)
-    meta["creds"] = creds
-    row.meta_json = meta
-    row.status = "ready"
-    row.phase = "waiting_start"
-    row.last_error_code = None
-    row.last_activity = datetime.now(timezone.utc)
-    db.commit()
-    await _notify_resource_update()
-
-    # закрываем соединение и очищаем временные данные
-    try:
-        await client.disconnect()
-    except Exception:
-        pass
-    PENDING_TG.pop(rid, None)
-
-    print(f"[TG_ACT][{rid}] activation complete")
-    return {"ok": True, "activated": True}
-
-@router.post("/api/resources/toggle")
-async def api_resources_toggle(
-    data: dict = Body(...),
-    db: SASession = Depends(get_db),
-):
-    """Включение/выключение ресурса (из Telegram.js)."""
-    rid = data.get("id")
-    action = data.get("action")
-
-    if not rid or action not in {"activate", "pause"}:
-        return JSONResponse({"ok": False, "error": "BAD_REQUEST"}, status_code=400)
-
-    try:
-        rid_uuid = UUID(rid)
-    except ValueError:
-        return JSONResponse({"ok": False, "error": "INVALID_ID"}, status_code=400)
-
-    row = db.get(Resource, rid_uuid)
-    if not row:
-        return JSONResponse({"ok": False, "error": "NOT_FOUND"}, status_code=404)
-
-    if action == "activate":
-        row.status = "active"
-        row.phase = "running"
-    else:
-        row.status = "paused"
-        row.phase = "ready"
-
-    row.last_activity = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(row)
-
-    # оповещаем SSE-слушателей
-    await _notify_resource_update()
-
-    print(f"[TG_RES_TOGGLE] {row.label} → {row.status}")
-    return {"ok": True, "status": row.status, "phase": row.phase}
+        for m in reversed(rows)
+    ]
+    return {"ok": True, "messages": result}
 
 
-@router.get("/api/stream/resources")
-async def stream_resources(request: Request):
-    """Поток событий обновления ресурсов (SSE)."""
-    queue = asyncio.Queue()
-    RESOURCE_LISTENERS.add(queue)
+# ─────────────────────────────────────────────────────────────────────────────
+# 🧩 ТЕСТ ПОДКЛЮЧЕНИЯ
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get("/{rid}/test")
+async def test_connection(rid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """
+    Тестирует подключение OpenAI для данного ресурса.
+    """
+    r = db.get(Resource, rid)
+    if not r:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    if r.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    async def event_generator():
-        try:
-            while True:
-                if await request.is_disconnected():
-                    break
-                msg = await queue.get()
-                yield msg
-        finally:
-            RESOURCE_LISTENERS.discard(queue)
-
-    return EventSourceResponse(event_generator())
-
+    oai = OpenAIClient(user)
+    ok = await oai.test_connection()
+    return {"ok": ok}

@@ -1,12 +1,12 @@
-# src/app/resources/__init__.py
 """
-Инициализация модуля ресурсов.
-Автоматически импортирует подпапки (telegram, zoom, voice и т.д.),
-чтобы при загрузке providers.py всё было доступно.
+src/app/resources/__init__.py
+──────────────────────────────
+Инициализация пакета ресурсов.
+
+Назначение:
+    • Не импортирует автоматически подпапки (telegram, zoom и др.);
+    • Работает как корень для динамического сканирования providers.py;
+    • Сохраняет совместимость с FastAPI и внутренними импортами.
 """
 
-import importlib
-import pkgutil
-
-for _, name, _ in pkgutil.iter_modules(__path__):
-    importlib.import_module(f"{__name__}.{name}")
+__all__ = []

@@ -40,6 +40,9 @@ def get_api_key(user: Optional["User"] = None) -> str:
     return api_key
 
 
+# ────────────────────────────────────────────────────────────────
+# 🧠 Клиент OpenAI
+# ────────────────────────────────────────────────────────────────
 class OpenAIClient:
     """
     Класс управления взаимодействием с OpenAI API.
@@ -47,17 +50,19 @@ class OpenAIClient:
     """
 
     def __init__(
-            self,
-            user: Optional["User"] = None,
-            model_text: str = "gpt-4o-mini",
-            model_tts: str = "gpt-4o-mini-tts",
-            model_stt: str = "gpt-4o-mini-transcribe",
-            temperature: float = 0.7,
-            voice: str = "alloy",
-            default_lang: str = "ru",
+        self,
+        user: Optional["User"] = None,
+        api_key_override: Optional[str] = None,
+        model_text: str = "gpt-4o-mini",
+        model_tts: str = "gpt-4o-mini-tts",
+        model_stt: str = "gpt-4o-mini-transcribe",
+        temperature: float = 0.7,
+        voice: str = "alloy",
+        default_lang: str = "ru",
     ):
         """
         :param user: объект пользователя (для персонального ключа)
+        :param api_key_override: внешний ключ, если передан из диалогового движка
         :param model_text: модель для текстовых ответов
         :param model_tts:  модель для генерации голоса (TTS)
         :param model_stt:  модель для распознавания речи (Whisper)
@@ -65,7 +70,7 @@ class OpenAIClient:
         :param voice: тип голоса (alloy, verse, nova и т.п.)
         :param default_lang: язык по умолчанию
         """
-        self.api_key = get_api_key(user)
+        self.api_key = api_key_override or get_api_key(user)
         self.client = AsyncOpenAI(api_key=self.api_key)
         self.model_text = model_text
         self.model_tts = model_tts
@@ -78,12 +83,12 @@ class OpenAIClient:
     # 🧠 ТЕКСТОВЫЙ ДИАЛОГ С КОНТЕКСТОМ
     # ────────────────────────────────────────────────────────────────
     async def reply_text(
-            self,
-            prompt: str,
-            system_prompt: Optional[str] = None,
-            context: Optional[List[Dict[str, Any]]] = None,
-            temperature: Optional[float] = None,
-            model: Optional[str] = None,
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        context: Optional[List[Dict[str, Any]]] = None,
+        temperature: Optional[float] = None,
+        model: Optional[str] = None,
     ) -> Tuple[str, int]:
         messages: List[Dict[str, Any]] = []
 
@@ -97,101 +102,127 @@ class OpenAIClient:
                 if content:
                     messages.append({"role": role, "content": content})
 
-        # текущее сообщение пользователя — последним
+        # Текущее сообщение пользователя — последним
         messages.append({"role": "user", "content": prompt})
 
-        resp = await self.client.chat.completions.create(
-            model=model or self.model_text,
-            temperature=temperature if temperature is not None else self.temperature,
-            messages=messages,
-        )
+        try:
+            resp = await self.client.chat.completions.create(
+                model=model or self.model_text,
+                temperature=temperature if temperature is not None else self.temperature,
+                messages=messages,
+            )
 
-        text = resp.choices[0].message.content.strip()
-        usage = getattr(resp, "usage", None)
-        total_tokens = getattr(usage, "total_tokens", 0) if usage else 0
+            text = (resp.choices[0].message.content or "").strip()
+            usage = getattr(resp, "usage", None)
+            total_tokens = getattr(usage, "total_tokens", 0) if usage else 0
+            return text, total_tokens
 
-        return text, total_tokens
+        except Exception as e:
+            print(f"[OpenAIClient] reply_text error: {e}")
+            return f"⚠️ Ошибка OpenAI: {e}", 0
 
     # ────────────────────────────────────────────────────────────────
     # 🎤 РАСПОЗНАВАНИЕ ГОЛОСА (Speech-to-Text)
     # ────────────────────────────────────────────────────────────────
     async def transcribe_audio(self, audio_bytes: bytes, file_format: str = "ogg") -> str:
-        file_obj = io.BytesIO(audio_bytes)
-        file_obj.name = f"audio.{file_format}"
+        """Распознаёт аудио в текст."""
+        try:
+            file_obj = io.BytesIO(audio_bytes)
+            file_obj.name = f"audio.{file_format}"
 
-        resp = await self.client.audio.transcriptions.create(
-            model=self.model_stt,
-            file=file_obj,
-            language=self.default_lang,
-        )
-        return resp.text.strip()
+            resp = await self.client.audio.transcriptions.create(
+                model=self.model_stt,
+                file=file_obj,
+                language=self.default_lang,
+            )
+            return (resp.text or "").strip()
+        except Exception as e:
+            print(f"[OpenAIClient] transcribe_audio error: {e}")
+            return ""
 
     # ────────────────────────────────────────────────────────────────
     # 🔊 ГЕНЕРАЦИЯ ГОЛОСА (Text-to-Speech)
     # ────────────────────────────────────────────────────────────────
     async def synthesize_speech(
-            self,
-            text: str,
-            voice: Optional[str] = None,
-            model: Optional[str] = None,
-            format: str = "ogg",
+        self,
+        text: str,
+        voice: Optional[str] = None,
+        model: Optional[str] = None,
+        format: str = "ogg",
     ) -> bytes:
-        resp = await self.client.audio.speech.create(
-            model=model or self.model_tts,
-            voice=voice or self.voice,
-            input=text,
-            format=format,
-        )
-        if hasattr(resp, "data"):
-            return base64.b64decode(resp.data[0].b64_json)
-        if hasattr(resp, "content"):
-            return resp.content
-        raise RuntimeError("Не удалось получить аудиоданные")
+        """Генерирует голос по тексту."""
+        try:
+            resp = await self.client.audio.speech.create(
+                model=model or self.model_tts,
+                voice=voice or self.voice,
+                input=text,
+                format=format,
+            )
+            if hasattr(resp, "data"):
+                return base64.b64decode(resp.data[0].b64_json)
+            if hasattr(resp, "content"):
+                return resp.content
+            raise RuntimeError("Не удалось получить аудиоданные")
+        except Exception as e:
+            print(f"[OpenAIClient] synthesize_speech error: {e}")
+            return b""
 
     # ────────────────────────────────────────────────────────────────
     # ⚙️ Универсальный обработчик сообщений
     # ────────────────────────────────────────────────────────────────
     async def handle_message(
-            self,
-            text: Optional[str] = None,
-            audio_bytes: Optional[bytes] = None,
-            prefer_voice_reply: bool = False,
-            system_prompt: Optional[str] = None,
-            context: Optional[List[Dict[str, Any]]] = None,
+        self,
+        text: Optional[str] = None,
+        audio_bytes: Optional[bytes] = None,
+        prefer_voice_reply: bool = False,
+        system_prompt: Optional[str] = None,
+        context: Optional[List[Dict[str, Any]]] = None,
     ) -> dict:
-        if audio_bytes:
-            text = await self.transcribe_audio(audio_bytes)
-            print(f"[OpenAI] Распознан текст: {text}")
+        """Универсальный интерфейс для TelegramDialogEngine."""
+        try:
+            if audio_bytes and not text:
+                text = await self.transcribe_audio(audio_bytes)
+                print(f"[OpenAIClient] Распознан текст: {text}")
 
-        if not text:
-            return {"text": "", "audio_bytes": None, "tokens": 0, "mode": "none"}
+            if not text:
+                return {"text": "", "audio_bytes": None, "tokens": 0, "mode": "none"}
 
-        reply_text, tokens = await self.reply_text(
-            prompt=text,
-            system_prompt=system_prompt,
-            context=context,
-        )
+            reply_text, tokens = await self.reply_text(
+                prompt=text,
+                system_prompt=system_prompt,
+                context=context,
+            )
 
-        if prefer_voice_reply:
-            audio = await self.synthesize_speech(reply_text)
+            if prefer_voice_reply:
+                audio = await self.synthesize_speech(reply_text)
+                return {
+                    "text": reply_text,
+                    "audio_bytes": audio,
+                    "tokens": tokens,
+                    "mode": "voice",
+                }
+
             return {
                 "text": reply_text,
-                "audio_bytes": audio,
+                "audio_bytes": None,
                 "tokens": tokens,
-                "mode": "voice",
+                "mode": "text",
             }
 
-        return {
-            "text": reply_text,
-            "audio_bytes": None,
-            "tokens": tokens,
-            "mode": "text",
-        }
+        except Exception as e:
+            print(f"[OpenAIClient] handle_message error: {e}")
+            return {
+                "text": f"⚠️ Ошибка при работе с OpenAI: {e}",
+                "audio_bytes": None,
+                "tokens": 0,
+                "mode": "text",
+            }
 
     # ────────────────────────────────────────────────────────────────
     # 🧩 Системные методы
     # ────────────────────────────────────────────────────────────────
     async def check_balance(self) -> dict:
+        """Проверяет состояние счёта пользователя в OpenAI."""
         try:
             resp = await self.client.billing.usage()
             return {"ok": True, "data": resp}
@@ -199,10 +230,16 @@ class OpenAIClient:
             return {"ok": False, "error": str(e)}
 
     async def models_list(self) -> list:
-        resp = await self.client.models.list()
-        return [m.id for m in resp.data]
+        """Возвращает список доступных моделей."""
+        try:
+            resp = await self.client.models.list()
+            return [m.id for m in resp.data]
+        except Exception as e:
+            print(f"[OpenAIClient] models_list error: {e}")
+            return []
 
     async def test_connection(self) -> bool:
+        """Проверяет доступность API OpenAI."""
         try:
             await self.models_list()
             return True
@@ -218,6 +255,5 @@ if __name__ == "__main__":
         client = OpenAIClient()
         res = await client.handle_message("Привет, как дела?")
         print("Ответ:", res["text"], "| токены:", res["tokens"])
-
 
     asyncio.run(_demo())

@@ -1,4 +1,4 @@
-// src/web/static/js/telegram.js — финальная версия под новую схему settings.yaml
+// src/web/static/js/telegram.js — обновлённая версия под новую архитектуру Telegram API
 
 document.addEventListener("DOMContentLoaded", () => {
   const id = TG_RID;
@@ -10,7 +10,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const $  = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
 
-  // ── Элементы формы
+  // ───────────────────────────────
+  // ЭЛЕМЕНТЫ И ФОРМА
+  // ───────────────────────────────
   const appId      = $("#tgAppId");
   const appHash    = $("#tgAppHash");
   const phone      = $("#tgPhone");
@@ -20,20 +22,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const historyLen = $("#tgHistory");
   const btnActivate = $("#btnActivate");
   const btnSave     = $("#btnSave");
-
-  // ── Роли
   const rolesContainer = $("#rolesContainer");
   const roleTemplate   = $("#roleTemplate");
   const btnAddRole     = $("#btnAddRole");
   const MAX_ROLES = 5;
 
-  // ── Модалка Telegram
   const tgCodeModal    = document.getElementById("tgCodeModal");
   const codeInput      = document.getElementById("tgCodeInput");
   const btnConfirmCode = document.getElementById("btnConfirmCode");
   const btnCancelCode  = document.getElementById("btnCancelCode");
 
-  // ── Вспомогательные функции
+  const btnToggleBot   = document.getElementById("btnToggleBot");
+  const tgBotStatus    = document.getElementById("tgBotStatus");
+  const btnToggleRes   = document.getElementById("btnToggleStatus");
+  const tgResStatus    = document.getElementById("tgResStatus");
+
+  // ───────────────────────────────
+  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+  // ───────────────────────────────
   const parseList = (s) =>
     (s || "")
       .split(/[\n,;]+|,\s*/g)
@@ -41,13 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(Boolean);
 
   function openCodeModal() {
-    tgCodeModal.classList.remove("hidden");
-    codeInput.focus();
+    tgCodeModal?.classList.remove("hidden");
+    codeInput?.focus();
   }
-
   function closeCodeModal() {
-    tgCodeModal.classList.add("hidden");
-    codeInput.value = "";
+    tgCodeModal?.classList.add("hidden");
+    if (codeInput) codeInput.value = "";
   }
 
   function makeRoleCard(role, index) {
@@ -66,10 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     card.querySelector(".role-tokens").value = role.max_tokens ?? 1024;
     card.querySelector(".role-voice").checked = role.voice_enabled ?? true;
 
-    card.querySelector(".btnDeleteRole").addEventListener("click", () => {
-      card.remove();
-    });
-
+    card.querySelector(".btnDeleteRole").addEventListener("click", () => card.remove());
     return card;
   }
 
@@ -97,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────
-  // ЗАГРУЗКА ДАННЫХ
+  // ЗАГРУЗКА РЕСУРСА
   // ───────────────────────────────
   async function loadData() {
     try {
@@ -119,12 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
       blacklist.value = (session.blacklist || []).join(", ");
       historyLen.value = session.history_limit ?? 20;
 
-      // Роли
       rolesContainer.innerHTML = "";
-      roles.slice(0, MAX_ROLES).forEach((r, i) => {
-        const card = makeRoleCard(r, i);
-        rolesContainer.appendChild(card);
-      });
+      roles.slice(0, MAX_ROLES).forEach((r, i) => rolesContainer.appendChild(makeRoleCard(r, i)));
     } catch (err) {
       console.error("[telegram] load error:", err);
       alert("Ошибка загрузки данных ресурса");
@@ -132,14 +130,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────
-  // СОХРАНЕНИЕ
+  // СОХРАНЕНИЕ РЕСУРСА
   // ───────────────────────────────
   async function saveData() {
     const newMeta = {
-      creds: {
-        app_id: appId.value.trim(),
-        app_hash: appHash.value.trim(),
-      },
+      creds: { app_id: appId.value.trim(), app_hash: appHash.value.trim(), phone: phone.value.trim() },
       session: {
         whitelist: parseList(whitelist.value),
         blacklist: parseList(blacklist.value),
@@ -171,75 +166,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────
-  // АКТИВАЦИЯ TELEGRAM
+  // АКТИВАЦИЯ TELEGRAM-СЕССИИ
   // ───────────────────────────────
   async function activate() {
-    const payload = {
-      phone: phone.value.trim(),
-      app_id: appId.value.trim(),
-      app_hash: appHash.value.trim(),
-      code: null,
-    };
-
-    if (!payload.phone || !payload.app_id || !payload.app_hash) {
+    if (!phone.value || !appId.value || !appHash.value) {
       alert("Заполните App ID, App Hash и телефон");
       return;
     }
 
     try {
-      const r = await fetch(`/api/resource/${id}/activate`, {
+      const r = await fetch(`/api/telegram/${id}/activate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify(payload),
       });
-
       const data = await r.json();
-      if (!r.ok || !data.ok) throw new Error(data.error || "Ошибка активации");
-
-      if (data.need_code) {
-        openCodeModal();
-      } else if (data.activated) {
-        alert("Telegram активирован!");
-        await loadData();
-      }
+      if (!r.ok || !data.ok) throw new Error(data.error || "activation failed");
+      alert(data.message || "Telegram активирован!");
+      await loadData();
     } catch (err) {
       console.error("[telegram] activate error:", err);
-      alert("Ошибка при активации Telegram");
-    }
-  }
-
-  async function confirmCode() {
-    const code = codeInput.value.trim();
-    if (!code) {
-      alert("Введите код подтверждения");
-      return;
-    }
-
-    try {
-      const r = await fetch(`/api/resource/${id}/activate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          phone: phone.value.trim(),
-          app_id: appId.value.trim(),
-          app_hash: appHash.value.trim(),
-          code,
-        }),
-      });
-
-      const data = await r.json();
-      if (!r.ok || !data.ok) throw new Error(data.error || "Ошибка подтверждения");
-
-      if (data.activated) {
-        alert("Telegram успешно активирован!");
-        closeCodeModal();
-        await loadData();
-      }
-    } catch (err) {
-      console.error("[telegram] confirm error:", err);
-      alert("Ошибка при подтверждении кода");
+      alert("Ошибка активации Telegram");
     }
   }
 
@@ -247,41 +193,34 @@ document.addEventListener("DOMContentLoaded", () => {
   // УПРАВЛЕНИЕ БОТОМ
   // ───────────────────────────────
   async function loadBotStatus() {
-    const out = document.getElementById("tgBotStatus");
-    const btn = document.getElementById("btnToggleBot");
     try {
       const r = await fetch("/api/bot/status", { credentials: "same-origin" });
       const data = await r.json();
       if (!r.ok || !data.ok) throw new Error(data.error || "load failed");
       const enabled = !!data.bot_enabled;
-      out.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
-      btn.textContent = enabled ? "💡 Выключить БОТ" : "💡 Включить БОТ";
-      btn.dataset.state = enabled ? "on" : "off";
+      tgBotStatus.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
+      btnToggleBot.textContent = enabled ? "💡 Выключить БОТ" : "💡 Включить БОТ";
+      btnToggleBot.dataset.state = enabled ? "on" : "off";
     } catch (err) {
       console.error("[telegram] loadBotStatus error:", err);
-      out.textContent = "БОТ: ошибка статуса";
+      tgBotStatus.textContent = "БОТ: ошибка статуса";
     }
   }
 
   async function toggleBot() {
-    const btn = document.getElementById("btnToggleBot");
-    const out = document.getElementById("tgBotStatus");
-    btn.disabled = true;
+    btnToggleBot.disabled = true;
     try {
-      const r = await fetch("/api/bot/toggle", {
-        method: "POST",
-        credentials: "same-origin",
-      });
+      const r = await fetch("/api/bot/toggle", { method: "POST", credentials: "same-origin" });
       const data = await r.json();
       if (!r.ok || !data.ok) throw new Error(data.error || "toggle failed");
       const enabled = !!data.bot_enabled;
-      out.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
-      btn.textContent = enabled ? "💡 Выключить БОТ" : "💡 Включить БОТ";
+      tgBotStatus.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
+      btnToggleBot.textContent = enabled ? "💡 Выключить БОТ" : "💡 Включить БОТ";
     } catch (err) {
       console.error("[telegram] toggleBot error:", err);
-      out.textContent = "Ошибка переключения БОТа";
+      tgBotStatus.textContent = "Ошибка переключения БОТа";
     } finally {
-      btn.disabled = false;
+      btnToggleBot.disabled = false;
     }
   }
 
@@ -289,48 +228,33 @@ document.addEventListener("DOMContentLoaded", () => {
   // УПРАВЛЕНИЕ РЕСУРСОМ
   // ───────────────────────────────
   async function loadResStatus() {
-    const out = document.getElementById("tgResStatus");
-    const btn = document.getElementById("btnToggleStatus");
     try {
-      const r = await fetch(`/api/resources/${id}`, { credentials: "same-origin" });
+      const r = await fetch(`/api/telegram/${id}/status`, { credentials: "same-origin" });
       const data = await r.json();
       if (!r.ok || !data.ok) throw new Error(data.error || "load failed");
-      const st = data.status || "—";
-      out.textContent = `РЕСУРС: ${st}`;
-      btn.textContent = st === "active" ? "💡 Остановить ресурс" : "💡 Включить ресурс";
+      tgResStatus.textContent = `РЕСУРС: ${data.status}`;
+      btnToggleRes.textContent = data.active ? "💡 Остановить ресурс" : "💡 Включить ресурс";
     } catch (err) {
       console.error("[telegram] loadResStatus error:", err);
-      out.textContent = "РЕСУРС: ошибка статуса";
+      tgResStatus.textContent = "РЕСУРС: ошибка статуса";
     }
   }
 
   async function toggleResStatus() {
-    const btn = document.getElementById("btnToggleStatus");
-    const out = document.getElementById("tgResStatus");
-    btn.disabled = true;
+    btnToggleRes.disabled = true;
     try {
-      const action = btn.textContent.includes("Остановить") ? "pause" : "activate";
-      const r = await fetch("/api/resources/toggle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ id, action }),
-      });
+      const action = btnToggleRes.textContent.includes("Остановить") ? "stop" : "activate";
+      const url = `/api/telegram/${id}/${action}`;
+      const r = await fetch(url, { method: "POST", credentials: "same-origin" });
       const data = await r.json();
-      if (!r.ok || !data.ok) {
-        const msg = data.message || data.error || "Ошибка переключения ресурса";
-        out.textContent = `РЕСУРС: 🔴 ${msg}`;
-        btn.textContent = "💡 Включить ресурс";
-        return;
-      }
-      const st = data.status || (action === "activate" ? "active" : "paused");
-      out.textContent = `РЕСУРС: ${st}`;
-      btn.textContent = st === "active" ? "💡 Остановить ресурс" : "💡 Включить ресурс";
+      if (!r.ok || !data.ok) throw new Error(data.error || "toggle failed");
+      alert(data.message || "Статус ресурса обновлён");
+      await loadResStatus();
     } catch (err) {
       console.error("[telegram] toggleResStatus error:", err);
-      out.textContent = "Ошибка переключения ресурса";
+      tgResStatus.textContent = "Ошибка переключения ресурса";
     } finally {
-      btn.disabled = false;
+      btnToggleRes.disabled = false;
     }
   }
 
@@ -339,34 +263,28 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────
   btnSave?.addEventListener("click", saveData);
   btnActivate?.addEventListener("click", activate);
-  btnConfirmCode?.addEventListener("click", confirmCode);
+  btnConfirmCode?.addEventListener("click", closeCodeModal);
   btnCancelCode?.addEventListener("click", closeCodeModal);
-  document.getElementById("btnToggleBot")?.addEventListener("click", toggleBot);
-  document.getElementById("btnToggleStatus")?.addEventListener("click", toggleResStatus);
   btnAddRole?.addEventListener("click", () => {
     const current = $$(".role-card").length;
-    if (current >= MAX_ROLES) {
-      alert("Можно добавить максимум 5 ролей");
-      return;
-    }
-    const card = makeRoleCard({}, current);
-    rolesContainer.appendChild(card);
+    if (current >= MAX_ROLES) return alert("Можно добавить максимум 5 ролей");
+    rolesContainer.appendChild(makeRoleCard({}, current));
   });
+  btnToggleBot?.addEventListener("click", toggleBot);
+  btnToggleRes?.addEventListener("click", toggleResStatus);
 
   // ───────────────────────────────
   // ИНИЦИАЛИЗАЦИЯ
   // ───────────────────────────────
+  loadData();
   loadBotStatus();
   loadResStatus();
-  loadData();
-});
 
-// ───────────────────────────────
-  // СКРЫТИЕ / ПОКАЗ НАСТРОЕК ПОДКЛЮЧЕНИЯ
+  // ───────────────────────────────
+  // СКРЫТИЕ/ПОКАЗ НАСТРОЕК
   // ───────────────────────────────
   const btnToggleDetails = document.getElementById("btnToggleDetails");
   const tgConnectionBlock = document.getElementById("tgConnectionBlock");
-
   btnToggleDetails?.addEventListener("click", () => {
     if (!tgConnectionBlock) return;
     const hidden = tgConnectionBlock.classList.toggle("hidden");
@@ -374,3 +292,4 @@ document.addEventListener("DOMContentLoaded", () => {
       ? "⚙️ Показать настройки подключения"
       : "🔽 Скрыть настройки подключения";
   });
+});

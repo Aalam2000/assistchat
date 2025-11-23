@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tbody.innerHTML = `<tr><td colspan="3">Загрузка...</td></tr>`;
 
         try {
-            const resp = await fetch("/api/resources/list", {credentials: "same-origin"});
+            const resp = await fetch("/api/providers/resources/list", {credentials: "same-origin"});
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             const items = data.items || [];

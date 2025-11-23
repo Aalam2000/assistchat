@@ -4,21 +4,18 @@ src/app/modules/bot/manager.py
 Централизованное управление ботами AssistChat.
 
 Назначение:
-    • Запускает и останавливает все активные ресурсы пользователя (Telegram, Voice, Zoom и др.);
+    • Запускает и останавливает все активные ресурсы пользователя;
     • Проверяет флаг user.bot_enabled перед активацией;
+    • Работает с провайдерами динамически через src/app/providers.py;
     • Поддерживает реестр активных воркеров (по user_id и resource_id);
     • Позволяет безопасно перезапускать ресурсы без рестарта сервера.
 """
 
 import asyncio
 from typing import Dict, Any
-
 from src.app.core.db import SessionLocal
 from src.models.user import User
-from src.models.resource import Resource
-
-# импорт воркеров ресурсов
-from src.app.resources.telegram import TelegramWorker
+from src.app import providers
 
 
 class BotManager:
@@ -31,54 +28,54 @@ class BotManager:
     def preflight(self, user_id: int) -> dict:
         """Проверка, активен ли бот у данного пользователя."""
         active = user_id in self.workers and bool(self.workers[user_id])
-        return {"ok": True, "active": active}
+        resources = list(self.workers.get(user_id, {}).keys())
+        return {"ok": True, "active": active, "resources": resources}
 
     async def start(self, user_id: int) -> dict:
-        print(f"[DEBUG][BOT_MANAGER] start() called for user_id={user_id}")
+        print(f"[BOT_MANAGER] ▶ start() called for user_id={user_id}")
         db = SessionLocal()
         user = db.get(User, user_id)
-        print(f"[DEBUG][BOT_MANAGER] user={user}, bot_enabled={getattr(user, 'bot_enabled', None)}")
-
         if not user:
             db.close()
-            print(f"[DEBUG][BOT_MANAGER] user not found → abort")
             return {"ok": False, "error": "USER_NOT_FOUND"}
         if not user.bot_enabled:
             db.close()
-            print(f"[DEBUG][BOT_MANAGER] bot_enabled=False → abort")
             return {"ok": False, "error": "BOT_DISABLED"}
 
-        # получаем активные ресурсы
-        resources = db.query(Resource).filter_by(user_id=user.id, status="active").all()
-        print(f"[DEBUG][BOT_MANAGER] found {len(resources)} active resources for user {user.id}")
-
-        if not resources:
+        # Получаем все активные ресурсы (через providers)
+        active_resources = providers.get_active_resources(db)
+        if not active_resources:
             db.close()
-            print(f"[DEBUG][BOT_MANAGER] no active resources → done")
             return {"ok": True, "message": "no_active_resources"}
 
         # создаём словарь воркеров для пользователя
         self.workers[user.id] = self.workers.get(user.id, {})
-        print(f"[DEBUG][BOT_MANAGER] current worker map keys: {list(self.workers.keys())}")
 
-        for r in resources:
-            print(f"[DEBUG][BOT_MANAGER] checking resource {r.id} ({r.provider}, status={r.status})")
-
-            # избегаем дублирования
-            if str(r.id) in self.workers[user.id]:
-                print(f"[DEBUG][BOT_MANAGER] worker already exists for {r.id} → skip")
+        total_started = 0
+        for provider_name, resources_list in active_resources.items():
+            worker_cls = providers.import_worker(provider_name)
+            if not worker_cls:
+                print(f"[BOT_MANAGER] ❌ Пропущен {provider_name}: нет воркера")
                 continue
 
-            if r.provider == "telegram":
-                print(f"[DEBUG][BOT_MANAGER] creating TelegramWorker for resource {r.id}")
-                worker = TelegramWorker(r)
-                asyncio.create_task(worker.start())
-                self.workers[user.id][str(r.id)] = worker
-                print(f"[DEBUG][BOT_MANAGER] TelegramWorker created for {r.id}")
+            for r in resources_list:
+                if r.user_id != user.id:
+                    continue  # запуск только своих ресурсов
+                if str(r.id) in self.workers[user.id]:
+                    print(f"[BOT_MANAGER] ⏩ {r.id} уже активен → skip")
+                    continue
+
+                try:
+                    print(f"[BOT_MANAGER] 🚀 Запуск {provider_name} для resource={r.id}")
+                    worker = worker_cls(r)
+                    asyncio.create_task(worker.start())
+                    self.workers[user.id][str(r.id)] = worker
+                    total_started += 1
+                except Exception as e:
+                    print(f"[BOT_MANAGER] ❗ Ошибка при запуске {provider_name}/{r.id}: {e}")
 
         db.close()
-        print(f"[DEBUG][BOT_MANAGER] finished start() for user_id={user_id}")
-        return {"ok": True, "message": "bot_started"}
+        return {"ok": True, "message": f"{total_started} worker(s) started"}
 
     async def stop(self, user_id: int) -> dict:
         """Останавливает все активные ресурсы пользователя."""
@@ -89,15 +86,15 @@ class BotManager:
         for rid, worker in list(user_workers.items()):
             try:
                 await worker.stop()
-                print(f"[BOT] stopped worker {rid}")
+                print(f"[BOT_MANAGER] 🟥 stopped worker {rid}")
             except Exception as e:
-                print(f"[BOT] error stopping {rid}: {e}")
+                print(f"[BOT_MANAGER] ⚠️ error stopping {rid}: {e}")
 
         return {"ok": True, "message": "bot_stopped"}
 
 
 # ───────────────────────────────────────────────────────────────────────────────
-# Глобальные функции для API и Telegram router
+# Глобальные функции для API
 # ───────────────────────────────────────────────────────────────────────────────
 
 bot_manager = BotManager()
