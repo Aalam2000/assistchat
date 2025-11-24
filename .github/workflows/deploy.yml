@@ -25,7 +25,10 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 <<'SSH'
           set -euo pipefail
           cd /var/www/assistchat/www
-
+          # === BACKUP SQL BEFORE DEPLOY ===
+          mkdir -p /var/www/assistchat/db_backups
+          docker exec -i assistchat-db-1 pg_dump -U assistuser assistdb > /var/www/assistchat/db_backups/backup.sql
+          # === END BACKUP ===
           # обновляем код
           git fetch origin master
           git reset --hard origin/master
