@@ -1,10 +1,13 @@
 FROM python:3.12-slim
 
 # ffmpeg нужен для конвертации MP3 -> OGG/Opus (voice note)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -o Acquire::CompressionTypes::Order::=gz \
+ && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
+ && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
+
 
 WORKDIR /app
 
