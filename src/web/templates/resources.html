@@ -5,74 +5,82 @@
 {% block content %}
 <div class="page">
 
-  <section class="tile">
-    <div class="tile-title">Ресурсы</div>
-    <p class="tile-desc">Управление всеми подключениями</p>
+    <section class="tile">
+        <div class="tile-title">Ресурсы</div>
+        <p class="tile-desc">Управление всеми подключениями</p>
 
-    <div class="actions">
-      <button id="btnAddResource" class="btn primary">+ Добавить ресурс</button>
-    </div>
-
-    <table class="mt-12 styled-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Провайдер</th>
-          <th>Метка</th>
-          <th>App&nbsp;ID</th>
-          <th>App&nbsp;Hash</th>
-          <th>Телефон</th>
-          <th>Статус</th>
-          <th>Фаза</th>
-          <th>Ошибка</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody id="resources-tbody">
-        <tr>
-          <td colspan="10">Загрузка...</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
+        <div class="actions">
+            <button id="btnAddResource" class="btn primary">+ Добавить ресурс</button>
+        </div>
+        <div class="table-wrapper">
+            <table class="mt-12 styled-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Провайдер</th>
+                    <th>Метка</th>
+                    <th>App&nbsp;ID</th>
+                    <th>App&nbsp;Hash</th>
+                    <th>Телефон</th>
+                    <th>Статус</th>
+                    <th>Фаза</th>
+                    <th>Ошибка</th>
+                    <th>Действия</th>
+                </tr>
+                </thead>
+                <tbody id="resources-tbody">
+                <tr>
+                    <td colspan="10">Загрузка...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <!-- Модалка добавления ресурса -->
 <div id="addResourceModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addResourceTitle">
-  <div class="modal__content">
-    <div class="modal__header">
-      <div class="modal__bar"></div>
-      <button type="button" class="modal__close" id="addResClose" aria-label="Закрыть">✕</button>
+    <div class="modal__content">
+
+        <div class="modal__header">
+            <button type="button" class="modal__close" id="addResClose">✕</button>
+        </div>
+
+        <h3 class="welcome-title" id="addResourceTitle">Добавить ресурс</h3>
+
+        <form id="addResourceForm">
+
+            <label>
+                <span>Провайдер</span>
+                <select id="provSelect"></select>
+            </label>
+
+            <label>
+                <span>Название (Label)</span>
+                <input id="resLabel" type="text" placeholder="Мой ресурс">
+            </label>
+
+            <div class="actions">
+                <button type="button" id="addResCancel" class="btn">Отмена</button>
+                <button type="button" id="addResSubmit" class="btn primary">Создать</button>
+            </div>
+
+        </form>
+
     </div>
-
-    <h3 id="addResourceTitle">Добавить ресурс</h3>
-
-    <div class="modal__controls">
-      <label for="provSelect">Провайдер</label>
-      <select id="provSelect"></select>
-
-      <label for="resLabel">Название (Label)</label>
-      <input id="resLabel" type="text" placeholder="Мой ресурс">
-    </div>
-
-    <div class="modal__actions">
-      <button id="addResCancel" class="btn">Отмена</button>
-      <button id="addResSubmit" class="btn primary">Создать</button>
-    </div>
-  </div>
 </div>
+
 
 <!-- Микромодалка для кода активации Telegram -->
 <div id="codeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
-  <div class="modal__content" style="max-width:360px">
-    <h3 id="codeModalTitle">Введите код из Telegram</h3>
-    <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
-    <div class="modal__actions">
-      <button id="codeOkBtn" class="btn primary">Ок</button>
-      <button id="codeCancelBtn" class="btn">Отмена</button>
+    <div class="modal__content" style="max-width:360px">
+        <h3 id="codeModalTitle">Введите код из Telegram</h3>
+        <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
+        <div class="modal__actions">
+            <button id="codeOkBtn" class="btn primary">Ок</button>
+            <button id="codeCancelBtn" class="btn">Отмена</button>
+        </div>
     </div>
-  </div>
 </div>
 
 

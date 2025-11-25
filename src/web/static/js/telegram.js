@@ -103,11 +103,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────
   async function loadData() {
     try {
-      const r = await fetch(`/api/resources/${id}`, { credentials: "same-origin" });
+      const r = await fetch(`/api/providers/resources/list`, { credentials: "same-origin" });
       const data = await r.json();
       if (!r.ok || !data.ok) throw new Error(data.error || "load failed");
 
-      const meta = data.meta_json || {};
+      const items = data.items || [];
+      const item = items.find(x => x.id === id);
+      if (!item) throw new Error("resource not found");
+
+      const meta = item.meta || {};
       const creds = meta.creds || {};
       const session = meta.session || {};
       const roles = Array.isArray(meta.roles) ? meta.roles : [];
@@ -115,19 +119,22 @@ document.addEventListener("DOMContentLoaded", () => {
       appId.value = creds.app_id || "";
       appHash.value = creds.app_hash || "";
       phone.value = creds.phone || "";
-      label.value = data.label || "";
+      label.value = item.label || "";
 
       whitelist.value = (session.whitelist || []).join(", ");
       blacklist.value = (session.blacklist || []).join(", ");
       historyLen.value = session.history_limit ?? 20;
 
       rolesContainer.innerHTML = "";
-      roles.slice(0, MAX_ROLES).forEach((r, i) => rolesContainer.appendChild(makeRoleCard(r, i)));
+      roles.slice(0, MAX_ROLES).forEach((r, i) => {
+        rolesContainer.appendChild(makeRoleCard(r, i));
+      });
     } catch (err) {
       console.error("[telegram] load error:", err);
       alert("Ошибка загрузки данных ресурса");
     }
   }
+
 
   // ───────────────────────────────
   // СОХРАНЕНИЕ РЕСУРСА

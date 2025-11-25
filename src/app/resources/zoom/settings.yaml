@@ -1,3 +1,4 @@
+#src/app/resources/zoom/settings.yaml
 title: "Zoom Meeting"
 schema:
   version: 1

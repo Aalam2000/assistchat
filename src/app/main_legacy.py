@@ -1,4 +1,4 @@
-# src/app/main.py model:32
+# src/app/main_legacy.py
 import io
 import os
 import tempfile

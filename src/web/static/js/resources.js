@@ -1,4 +1,4 @@
-// src/web/static/js/resources.js (адаптирован под новую архитектуру)
+// src/web/static/js/resources.js
 
 async function loadResources() {
     const tbody = document.getElementById("resources-tbody");
@@ -20,7 +20,7 @@ async function loadResources() {
             const tr = document.createElement("tr");
             tr.innerHTML = `
                 <td>${it.id}</td>
-                <td>${it.provider}</td>
+                <td>${it.provider.toLowerCase()}</td>
                 <td>${it.label || "—"}</td>
                 <td>${creds.app_id || "—"}</td>
                 <td>${creds.app_hash || "—"}</td>
@@ -29,10 +29,7 @@ async function loadResources() {
                 <td>${it.meta?.phase || "—"}</td>
                 <td>${it.meta?.error || "—"}</td>
                 <td>
-                    <button class="btn res-toggle" data-id="${it.id}" data-provider="${it.provider}" data-status="${it.status}">
-                        ${it.status === "active" ? "Пауза" : "Активировать"}
-                    </button>
-                    <button class="btn res-settings" data-id="${it.id}" data-provider="${it.provider}">Открыть</button>
+                    <button class="btn res-delete" data-id="${it.id}" data-provider="${it.provider}">Удалить</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -48,47 +45,102 @@ window.reloadResources = loadResources;
 
 function bindResourceActions() {
     const tbody = document.getElementById("resources-tbody");
-    tbody.addEventListener("click", async (e) => {
-        // переключение статуса
-        const btnToggle = e.target.closest(".res-toggle");
-        if (btnToggle) {
-            const provider = btnToggle.dataset.provider;
-            const current = btnToggle.dataset.status;
-            const want = current === "active" ? "pause" : "activate";
 
-            btnToggle.disabled = true;
+    tbody.addEventListener("click", async (e) => {
+
+        // === DELETE ===
+        const btnDelete = e.target.closest(".res-delete");
+        if (btnDelete) {
+            const id = btnDelete.dataset.id;
+
+            if (!confirm("Удалить ресурс?")) return;
+
+            btnDelete.disabled = true;
             try {
-                const r = await fetch(`/api/${provider}/${want}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "same-origin",
+                const r = await fetch(`/api/providers/resource/${id}`, {
+                    method: "DELETE",
+                    credentials: "same-origin"
                 });
                 const data = await r.json().catch(() => ({}));
 
-                if (!r.ok) {
-                    alert("Ошибка: " + (data.error || "toggle failed"));
-                    return;
+                if (!data.ok) {
+                    alert(data.error || "Ошибка удаления");
+                } else {
+                    reloadResources();
                 }
-
-                const next = data.status || (want === "activate" ? "active" : "paused");
-                btnToggle.textContent = next === "active" ? "Пауза" : "Активировать";
-                btnToggle.dataset.status = next;
-            } catch (err) {
-                alert("Ошибка переключения");
-                console.error("[resources] toggle error:", err);
             } finally {
-                btnToggle.disabled = false;
+                btnDelete.disabled = false;
             }
             return;
         }
 
-        // открыть страницу провайдера
-        const btnSettings = e.target.closest(".res-settings");
-        if (btnSettings) {
-            const provider = btnSettings.dataset.provider;
-            window.location.href = `/resources/${provider}`;
+        // === ОТКРЫТИЕ СТРАНИЦЫ РЕСУРСА ПО КЛИКУ ПО СТРОКЕ ===
+        const tr = e.target.closest("tr");
+        if (!e.target.closest(".res-delete") && tr) {
+            const provider = tr.children[1].textContent.trim().toLowerCase();
+            const rid = tr.children[0].textContent.trim();
+
+            if (provider && rid) {
+                window.location.href = `/resources/${provider}/${rid}`;
+            }
         }
+
     });
+}
+
+
+document.getElementById("btnAddResource").onclick = openAddResourceModal;
+document.getElementById("addResClose").onclick = closeAddResourceModal;
+document.getElementById("addResCancel").onclick = closeAddResourceModal;
+document.getElementById("addResSubmit").onclick = submitAddResource;
+
+// === ADD RESOURCE MODAL ===
+
+function openAddResourceModal() {
+    document.getElementById("addResourceModal").classList.remove("hidden");
+    loadProvidersForSelect();
+}
+
+function closeAddResourceModal() {
+    document.getElementById("addResourceModal").classList.add("hidden");
+}
+
+async function loadProvidersForSelect() {
+    const sel = document.getElementById("provSelect");
+    sel.innerHTML = "";
+    const r = await fetch("/api/providers/list", { credentials: "same-origin" });
+    const data = await r.json();
+    const items = data.providers || [];
+    for (const it of items) {
+        const o = document.createElement("option");
+        o.value = it.key;
+        o.textContent = it.name;
+        sel.appendChild(o);
+    }
+}
+
+async function submitAddResource() {
+    const provider = document.getElementById("provSelect").value;
+    const label = document.getElementById("resLabel").value.trim();
+
+    const fd = new FormData();
+    fd.append("label", label);
+    console.log(`/api/${provider.toLowerCase()}/create`);
+    const r = await fetch(`/api/${provider.toLowerCase()}/create`, {
+        method: "POST",
+        credentials: "same-origin",
+        body: fd
+    });
+
+
+    const data = await r.json();
+    if (!r.ok) {
+        alert(data.error || "Ошибка создания");
+        return;
+    }
+
+    closeAddResourceModal();
+    reloadResources();
 }
 
 window.addEventListener("DOMContentLoaded", () => {

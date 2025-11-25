@@ -10,19 +10,16 @@ REST API маршруты Telegram-провайдера.
     • Поддерживает ручную отправку сообщений, проверку подключения и голосовую обработку.
 """
 
-import asyncio
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from src.app.core.auth import get_current_user
 from src.app.core.db import get_db
+from src.app.providers import import_worker
+from src.app.resources.telegram.openai_client import OpenAIClient
+from src.app.resources.telegram.telegram import session_registry
 from src.models.resource import Resource
 from src.models.user import User
-from src.app.core.auth import get_current_user
-
-from src.app.resources.telegram.telegram import session_registry, TelegramWorker
-from src.app.resources.telegram.openai_client import OpenAIClient
-from src.app.providers import get_active_resources, import_worker
 
 router = APIRouter(prefix="/api/telegram", tags=["Telegram Resource"])
 
@@ -99,11 +96,11 @@ async def get_status(rid: str, db: Session = Depends(get_db), user: User = Depen
 # ─────────────────────────────────────────────────────────────────────────────
 @router.post("/{rid}/send")
 async def send_message(
-    rid: str,
-    peer_id: int = Form(...),
-    text: str = Form(...),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+        rid: str,
+        peer_id: int = Form(...),
+        text: str = Form(...),
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_user),
 ):
     r = db.get(Resource, rid)
     if not r:
@@ -128,10 +125,10 @@ async def send_message(
 # ─────────────────────────────────────────────────────────────────────────────
 @router.post("/{rid}/voice")
 async def process_voice(
-    rid: str,
-    file: UploadFile,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+        rid: str,
+        file: UploadFile,
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_user),
 ):
     """
     Принимает голосовое сообщение, распознаёт его через OpenAI Whisper и возвращает текст.
@@ -153,11 +150,11 @@ async def process_voice(
 # ─────────────────────────────────────────────────────────────────────────────
 @router.get("/{rid}/history")
 async def get_history(
-    rid: str,
-    peer_id: int,
-    limit: int = 20,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+        rid: str,
+        peer_id: int,
+        limit: int = 20,
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_user),
 ):
     """
     Возвращает историю сообщений Telegram (входящих и исходящих) для заданного peer_id.
@@ -212,3 +209,22 @@ async def test_connection(rid: str, db: Session = Depends(get_db), user: User = 
     oai = OpenAIClient(user)
     ok = await oai.test_connection()
     return {"ok": ok}
+
+
+@router.post("/create")
+async def create_telegram_resource(
+    label: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    r = Resource(
+        provider="telegram",  # Telegram фиксированный — OK
+        user_id=user.id,
+        label=label,
+        status="new",
+        meta_json={"creds": {}, "phase": "new", "error": None}
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"ok": True, "id": r.id}

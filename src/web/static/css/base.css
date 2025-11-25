@@ -489,3 +489,7 @@ a.btn, .btn {
     }
 
 }
+
+.styled-table tbody tr {
+    cursor: pointer;
+}

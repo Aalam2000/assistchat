@@ -1,4 +1,4 @@
-// src/app/static/js/resources_zoom.js
+// ssrc/web/static/js/zoom.js
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("zoom-upload-form");
@@ -108,13 +108,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- ДОБАВЬТЕ/ЗАМЕНИТЕ ЭТУ ФУНКЦИЮ ВМЕСТО loadFiles:
-    async function loadPairs(rid) {
-        try {
-            const resp = await fetch(`/api/zoom/${rid}/items`, {credentials: "same-origin"});
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok || !data.ok) throw new Error(data.error || "Ошибка загрузки списка");
 
+    async function loadPairs(rid) {
+        console.log("[zoom] loadPairs START rid =", rid);
+        try {
+            console.log("[zoom] FETCH /api/zoom/" + rid + "/items");
+            const resp = await fetch(`/api/zoom/${rid}/items`, {credentials: "same-origin"});
+            console.log("[zoom] loadPairs RESP STATUS =", resp.status);
+            const raw = await resp.clone().text();
+            console.log("[zoom] loadReports RAW RESPONSE =", raw);
+            const data = await resp.json().catch((e) => {
+                console.error("[zoom] loadReports JSON parse error:", e);
+                return {};
+            });
+            if (!resp.ok || !data.ok) throw new Error(data.error || "Ошибка загрузки списка");
+            console.log("[zoom] loadReports DATA =", data);
             if (!Array.isArray(data.items) || data.items.length === 0) {
                 listEl.innerHTML = `<div class="note">Файлы не найдены</div>`;
                 return;

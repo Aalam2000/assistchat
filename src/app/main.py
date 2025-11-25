@@ -46,7 +46,7 @@ app.include_router(providers.router)
 
 for name in providers.PROVIDERS.keys():
     try:
-        module = __import__(f"src.app.resources.{name}", fromlist=["router"])
+        module = __import__(f"src.app.resources.{name}.router", fromlist=["router"])
         router = getattr(module, "router", None)
         if router:
             app.include_router(router)

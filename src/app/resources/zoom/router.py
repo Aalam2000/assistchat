@@ -1,3 +1,4 @@
+# src/app/resources/zoom/router.py
 from __future__ import annotations
 
 import os
@@ -30,6 +31,26 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # 1. ИНИЦИАЛИЗАЦИЯ И КОНСТАНТЫ
 # ─────────────────────────────────────────────────────────────
 router = APIRouter(prefix="/api/zoom", tags=["zoom"])
+from fastapi import Form
+from src.models.resource import Resource
+
+@router.post("/create")
+async def create_zoom_resource(
+    label: str = Form(...),
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    r = Resource(
+        provider="zoom",
+        user_id=user.id,
+        label=label,
+        status="new",
+        meta_json={"creds": {}, "phase": "new", "error": None}
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"ok": True, "id": r.id}
 
 BASE_STORAGE = Path(__file__).resolve().parents[3] / "storage"
 AUDIO_EXTS = [".mp3", ".wav", ".m4a"]

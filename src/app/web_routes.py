@@ -59,32 +59,18 @@ async def resources_page(request: Request, db: SASession = Depends(get_db)):
 
 
 # -----------------------------------------------------------------------------
-# 📦 Zoom ресурс
+# ⚙️ Универсальная функция открытия ресурсов для настроек!
 # -----------------------------------------------------------------------------
-@router.get("/resources/zoom/{rid}", response_class=HTMLResponse)
-async def resource_zoom_page(rid: str, request: Request, db: SASession = Depends(get_db)):
+@router.get("/resources/{provider}/{rid}", response_class=HTMLResponse)
+async def resource_universal_page(provider: str, rid: str, request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    return render_i18n(
-        "resources/zoom.html",
-        request,
-        "resource_zoom",
-        {"user": user, "username": user.username, "rid": rid}
-    )
 
-# -----------------------------------------------------------------------------
-# 📱 Telegram ресурс
-# -----------------------------------------------------------------------------
-@router.get("/resources/telegram/{rid}", response_class=HTMLResponse)
-async def resource_telegram_page(rid: str, request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/", status_code=302)
     return render_i18n(
-        "resources/telegram.html",
+        f"resources/{provider}.html",
         request,
-        "resource_telegram",
+        f"resource_{provider}",
         {"user": user, "username": user.username, "rid": rid}
     )
 

@@ -240,10 +240,37 @@ async def user_resources_list(db: Session = Depends(get_db), user=Depends(get_cu
             "provider": r.provider,
             "label": r.label,
             "status": r.status,
-            "meta": r.meta_json or {}
+            "meta": r.meta_json or {"creds": {}, "phase": "new", "error": None}
         } for r in rows]
         return {"ok": True, "items": items}
     except Exception as e:
         print(f"[PROVIDERS] user_resources_list error: {e}")
         return {"ok": False, "items": []}
 
+# ─────────────────────────────────────────────────────────────
+# 🗑️  UNIVERSAL DELETE RESOURCE
+# ─────────────────────────────────────────────────────────────
+@router.delete("/resource/{rid}")
+async def delete_resource(
+    rid: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Универсальное удаление ресурса (любой провайдер)."""
+
+    try:
+        row = db.query(Resource).filter(Resource.id == rid).first()
+    except Exception:
+        raise HTTPException(status_code=400, detail="BAD_ID")
+
+    if not row:
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    if row.user_id != user.id:
+        raise HTTPException(status_code=403, detail="FORBIDDEN")
+
+    # Удаляем строку ресурса
+    db.delete(row)
+    db.commit()
+
+    return {"ok": True, "deleted": rid}
