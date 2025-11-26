@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
-    image: assistchat-api
+    image: assistchat-api-local
     env_file: .env
     ports:
       - "8000:8000"
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: assistchat-api
+    image: assistchat-api-local
     env_file: .env
     volumes:
       - "./:/app"
@@ -71,7 +71,7 @@ services:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
-    image: assistchat-api
+    image: assistchat-api-local
     env_file: .env
     environment:
       - PYTHONPATH=/app
