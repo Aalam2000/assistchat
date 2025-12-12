@@ -53,7 +53,7 @@ async def create_zoom_resource(
     return {"ok": True, "id": r.id}
 
 BASE_STORAGE = Path(__file__).resolve().parents[3] / "storage"
-AUDIO_EXTS = [".mp3", ".wav", ".m4a"]
+AUDIO_EXTS = [".mp3", ".wav", ".m4a", ".ogg", ".webm"]
 
 
 # ─────────────────────────────────────────────────────────────
