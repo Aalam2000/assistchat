@@ -1,5 +1,5 @@
 # .github/workflows/deploy.yml
-name: Deploy to Server
+name: Deploy to PROD
 
 on:
   push:
@@ -9,51 +9,33 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
 
-      - name: Deploy to server
-        run: |
-          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 <<'SSH'
-          set -euo pipefail
-          cd /var/www/assistchat/www
-          # === BACKUP SQL BEFORE DEPLOY ===
-          mkdir -p /var/www/assistchat/db_backups
-          docker exec -i assistchat-db-1 pg_dump -U assistuser assistdb > /var/www/assistchat/db_backups/backup.sql
-          # === END BACKUP ===
-          # обновляем код
-          git fetch origin master
-          git reset --hard origin/master
+            cd /var/www/assistchat/www
 
-          # тянем/собираем образы
-          docker compose pull db
-          docker compose build web
+            echo "=== Git pull ==="
+            git pull origin master
 
-          # поднимаем БД и ждём готовности
-          docker compose up -d db
-          DB_CID=$(docker compose ps -q db)
-          echo "Waiting for DB health..."
-          until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
+            echo "=== Stop old containers ==="
+            docker compose -f docker-compose.prod.yml down
 
-          # миграции Alembic
-          if ! docker compose run --rm migrate alembic check; then
-            docker compose run --rm migrate alembic upgrade head
-          else
-            echo "No migrations needed"
-          fi
-          
-          # перезапускаем всё с чистого состояния
-          docker compose down
-          docker compose up -d --build web tg_user db
-          
-          # чистим висячие образы
-          docker image prune -f
-          SSH
+            echo "=== Build new image ==="
+            docker compose -f docker-compose.prod.yml build --no-cache
+
+            echo "=== Start PROD ==="
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "=== Cleanup docker ==="
+            docker system prune -f
