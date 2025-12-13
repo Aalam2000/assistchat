@@ -1,5 +1,5 @@
 # .github/workflows/deploy.yml
-name: Deploy to PROD
+name: Deploy to Server
 
 on:
   push:
@@ -9,33 +9,56 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
 
-            cd /var/www/assistchat/www
+      - name: Deploy to server (PROD)
+        run: |
+          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 <<'SSH'
+          set -euo pipefail
 
-            echo "=== Git pull ==="
-            git pull origin master
+          cd /var/www/assistchat/www
 
-            echo "=== Stop old containers ==="
-            docker compose -f docker-compose.prod.yml down
+          # require prod compose
+          if [ ! -f docker-compose.prod.yml ]; then
+            echo "ERROR: docker-compose.prod.yml not found in /var/www/assistchat/www"
+            exit 1
+          fi
 
-            echo "=== Build new image ==="
-            docker compose -f docker-compose.prod.yml build --no-cache
+          # === BACKUP SQL BEFORE DEPLOY ===
+          mkdir -p /var/www/assistchat/db_backups
+          docker exec -i assistchat-db-1 pg_dump -U assistuser assistdb > "/var/www/assistchat/db_backups/backup_$(date +%Y%m%d_%H%M%S).sql" || true
+          # === END BACKUP ===
 
-            echo "=== Start PROD ==="
-            docker compose -f docker-compose.prod.yml up -d
+          # update code
+          git fetch origin master
+          git reset --hard origin/master
 
-            echo "=== Cleanup docker ==="
-            docker system prune -f
+          # build images (code inside image)
+          docker compose -f docker-compose.prod.yml build --pull
+
+          # start db and wait health
+          docker compose -f docker-compose.prod.yml up -d db
+          DB_CID=$(docker compose -f docker-compose.prod.yml ps -q db)
+          echo "Waiting for DB health..."
+          until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
+
+          # run migrations if service exists
+          if docker compose -f docker-compose.prod.yml config --services | grep -qx migrate; then
+            docker compose -f docker-compose.prod.yml run --rm migrate
+          fi
+
+          # start/refresh all services
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+          # cleanup dangling images
+          docker image prune -f
+          SSH
