@@ -6,6 +6,10 @@ on:
     branches:
       - master
 
+concurrency:
+  group: assistchat-prod-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,40 +29,70 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 <<'SSH'
           set -euo pipefail
 
-          cd /var/www/assistchat/www
+          APP_DIR="/var/www/assistchat/www"
+          COMPOSE_FILE="docker-compose.prod.yml"
+          BACKUP_DIR="/var/www/assistchat/db_backups"
 
-          # require prod compose
-          if [ ! -f docker-compose.prod.yml ]; then
-            echo "ERROR: docker-compose.prod.yml not found in /var/www/assistchat/www"
+          cd "$APP_DIR"
+
+          echo "[DEPLOY] update code"
+          git fetch --prune origin master
+          git reset --hard origin/master
+
+          echo "[DEPLOY] verify compose file exists"
+          if [ ! -f "$COMPOSE_FILE" ]; then
+            echo "ERROR: $COMPOSE_FILE not found in $APP_DIR"
             exit 1
           fi
 
-          # === BACKUP SQL BEFORE DEPLOY ===
-          mkdir -p /var/www/assistchat/db_backups
-          docker exec -i assistchat-db-1 pg_dump -U assistuser assistdb > "/var/www/assistchat/db_backups/backup_$(date +%Y%m%d_%H%M%S).sql" || true
-          # === END BACKUP ===
+          echo "[DEPLOY] ensure db volume exists (assistchat_db)"
+          docker volume inspect assistchat_db >/dev/null 2>&1 || docker volume create assistchat_db >/dev/null
 
-          # update code
-          git fetch origin master
-          git reset --hard origin/master
+          echo "[DEPLOY] build images"
+          docker compose -f "$COMPOSE_FILE" build --pull
 
-          # build images (code inside image)
-          docker compose -f docker-compose.prod.yml build --pull
+          echo "[DEPLOY] start db"
+          docker compose -f "$COMPOSE_FILE" up -d db
+          DB_CID="$(docker compose -f "$COMPOSE_FILE" ps -q db)"
 
-          # start db and wait health
-          docker compose -f docker-compose.prod.yml up -d db
-          DB_CID=$(docker compose -f docker-compose.prod.yml ps -q db)
-          echo "Waiting for DB health..."
-          until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
-
-          # run migrations if service exists
-          if docker compose -f docker-compose.prod.yml config --services | grep -qx migrate; then
-            docker compose -f docker-compose.prod.yml run --rm migrate
+          echo "[DEPLOY] wait for db healthy (or ready)"
+          HEALTH_STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$DB_CID" || true)"
+          if [ "$HEALTH_STATUS" != "" ]; then
+            until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
+          else
+            # fallback if no healthcheck in compose
+            for i in $(seq 1 60); do
+              if docker exec "$DB_CID" pg_isready >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
           fi
 
-          # start/refresh all services
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          echo "[DEPLOY] backup db (best-effort)"
+          mkdir -p "$BACKUP_DIR"
+          # пытаемся загрузить DB_USER/DB_NAME из .env (если это обычный KEY=VALUE)
+          if [ -f ".env" ]; then
+            set -a
+            . ./.env || true
+            set +a
+          fi
+          if [ -n "${DB_USER:-}" ] && [ -n "${DB_NAME:-}" ]; then
+            docker exec -i "$DB_CID" pg_dump -U "$DB_USER" "$DB_NAME" > "$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql" || true
+          else
+            echo "WARN: DB_USER/DB_NAME not set; skipping pg_dump"
+          fi
 
-          # cleanup dangling images
+          echo "[DEPLOY] run migrations if service exists"
+          if docker compose -f "$COMPOSE_FILE" config --services | grep -qx migrate; then
+            docker compose -f "$COMPOSE_FILE" run --rm migrate
+          fi
+
+          echo "[DEPLOY] up all services"
+          docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+
+          echo "[DEPLOY] cleanup dangling images"
           docker image prune -f
+
+          echo "[DEPLOY] done"
           SSH
