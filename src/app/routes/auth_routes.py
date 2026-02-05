@@ -56,9 +56,8 @@ async def auth_google(request: Request):
     """Старт авторизации через Google."""
     request.session.clear()
     request.session["next"] = request.headers.get("referer", "/")
-    return await oauth.google.authorize_redirect(
-        request, redirect_uri=_redirect_uri("/auth/google/callback")
-    )
+    redirect_uri = str(request.url_for("auth_google_callback"))
+    return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/auth/google/callback", include_in_schema=False)
