@@ -21,7 +21,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     depends_on:
       db:
         condition: service_healthy
@@ -37,7 +39,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     ports:
       - "8000:8000"
     depends_on:
@@ -55,7 +59,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     depends_on:
       db:
         condition: service_healthy
