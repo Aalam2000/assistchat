@@ -1,16 +1,18 @@
 """
 src/app/routes/auth_routes.py - Маршруты авторизации: регистрация, логин, logout, Google OAuth, информация о текущем пользователе.
 """
-from fastapi import APIRouter, Request, Depends, HTTPException, status
+import os
+
+from authlib.integrations.starlette_client import OAuth
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
+from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session as SASession
-from authlib.integrations.starlette_client import OAuth
-from passlib.context import CryptContext
-from src.models.user import User, RoleEnum
-from src.app.core.db import get_db
+
 from src.app.core.auth import get_current_user
-import os
+from src.app.core.db import get_db
+from src.models.user import User, RoleEnum
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -42,22 +44,17 @@ def hash_password(plain_password: str) -> str:
 
 
 def _redirect_uri(path: str = "/auth/google/callback") -> str:
-    """Формирует корректный redirect URI для OAuth."""
-    base = os.getenv("DOMAIN_NAME")
+    base = os.getenv("APP_BASE_URL")
     if not base:
-        raise RuntimeError("DOMAIN_NAME must be set in .env")
+        raise RuntimeError("APP_BASE_URL must be set in .env")
     return f"{base.rstrip('/')}{path}"
 
 
-# --- ROUTES ----------------------------------------------------------
-
 @router.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
-    """Старт авторизации через Google."""
     request.session.clear()
     request.session["next"] = request.headers.get("referer", "/")
-    redirect_uri = str(request.url_for("auth_google_callback"))
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, _redirect_uri())
 
 
 @router.get("/auth/google/callback", include_in_schema=False)
