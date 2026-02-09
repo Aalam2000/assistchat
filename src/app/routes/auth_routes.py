@@ -143,11 +143,18 @@ async def api_auth_login(payload: dict, request: Request, db: SASession = Depend
 async def api_auth_logout(request: Request):
     """Выход из системы (очистка сессии и сброс cookie)."""
     request.session.clear()
-    response = JSONResponse({"ok": True, "redirect": "/"})
-    # Удаляем cookie, чтобы браузер забыл старую сессию
-    response.delete_cookie("session")
-    return response
+    resp = JSONResponse({"ok": True, "redirect": "/"})
 
+    # старое/лишнее (может быть от других проектов на localhost)
+    resp.delete_cookie("session", path="/")
+
+    # НАША реальная cookie сессии
+    resp.delete_cookie("assistchat_session", path="/")
+
+    # на случай, если где-то ставилась доменная cookie (prod)
+    resp.delete_cookie("assistchat_session", path="/", domain=".bona-plus.ru")
+
+    return resp
 
 
 @router.get("/api/auth/me")

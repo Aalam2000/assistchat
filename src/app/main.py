@@ -1,7 +1,7 @@
 """
 src/app/main.py — главный модуль AssistChat (обновлён под модульную архитектуру)
 """
-
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,13 +22,14 @@ app = FastAPI(title="AssistChat Platform")
 
 # Middleware и сессии
 app.middleware("http")(_authflow_trace)
+ENV = os.getenv("ENV", "dev").lower()
 app.add_middleware(
     SessionMiddleware,
-    secret_key=SESSION_SECRET,
+    secret_key=SESSION_SECRET,                # из .env.secrets
     session_cookie="assistchat_session",
-    domain=".bona-plus.ru",
+    domain=None if ENV == "dev" else ".bona-plus.ru",
     same_site="lax",
-    https_only=True,
+    https_only=(ENV != "dev"),
 )
 
 # Подключаем статику

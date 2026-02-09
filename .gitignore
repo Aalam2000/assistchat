@@ -102,4 +102,10 @@ venv/
 .DS_Store
 Thumbs.db
 .env
+.env.dev
+.env.prod
+.env.secrets
 src/storage
+/.env.dev
+/.env.prod
+/.env.secrets

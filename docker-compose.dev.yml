@@ -1,4 +1,4 @@
-# docker-compose.yml
+# docker-compose.dev.yml
 name: assistchat
 
 services:
@@ -7,7 +7,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     ports:
       - "8000:8000"
     volumes:
@@ -48,7 +50,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     volumes:
       - "./:/app"
     depends_on:
@@ -61,14 +65,14 @@ services:
 
   db:
     image: postgres:16.9
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+    env_file:
+      - .env.dev
+      - .env.secrets
     volumes:
       - assistchat_db:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      # Теперь переменная подставится из .env.dev, так как ты указал его в --env-file
+      test: ["CMD-SHELL", "pg_isready -U $${DB_USER} -d $${DB_NAME}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -81,7 +85,9 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
-    env_file: .env
+    env_file:
+      - .env.dev
+      - .env.secrets
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
