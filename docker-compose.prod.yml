@@ -22,7 +22,7 @@ services:
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
     env_file:
-      - .env.dev
+      - .env.prod
       - .env.secrets
     depends_on:
       db:
@@ -40,7 +40,7 @@ services:
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
     env_file:
-      - .env.dev
+      - .env.prod
       - .env.secrets
     ports:
       - "8000:8000"
@@ -60,7 +60,7 @@ services:
       dockerfile: docker/app/Dockerfile
     image: assistchat-api-local
     env_file:
-      - .env.dev
+      - .env.prod
       - .env.secrets
     depends_on:
       db:
