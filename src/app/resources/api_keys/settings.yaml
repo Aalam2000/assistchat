@@ -1,0 +1,90 @@
+# src/app/resources/api_keys/settings.yaml
+name: "API Keys"
+title: "AI API keys"
+description: "Хранилище ключей API для нейросетей и сервисов (ключи хранятся в Resource.meta_json)"
+
+schema:
+  version: 1
+  groups:
+    - title: "Ключи нейросетей"
+      fields:
+        - key: creds.openai_api_key
+          label: OpenAI API key
+          type: password
+          required: false
+          help: "Обычный ключ OpenAI (sk-...)."
+
+        - key: creds.openai_admin_key
+          label: OpenAI Admin key
+          type: password
+          required: false
+          help: "Админ-ключ OpenAI (если используешь отдельно)."
+
+        - key: creds.gemini_api_key
+          label: Gemini API key
+          type: password
+          required: false
+          help: "Ключ Google Gemini."
+
+        - key: creds.anthropic_api_key
+          label: Anthropic API key
+          type: password
+          required: false
+          help: "Ключ Anthropic (Claude)."
+
+        - key: creds.groq_api_key
+          label: Groq API key
+          type: password
+          required: false
+          help: "Ключ Groq."
+
+        - key: creds.deepseek_api_key
+          label: DeepSeek API key
+          type: password
+          required: false
+          help: "Ключ DeepSeek."
+
+        - key: creds.mistral_api_key
+          label: Mistral API key
+          type: password
+          required: false
+          help: "Ключ Mistral."
+
+        - key: creds.xai_api_key
+          label: xAI API key
+          type: password
+          required: false
+          help: "Ключ xAI (Grok)."
+
+    - title: "Сервисы"
+      fields:
+        - key: creds.deepgram_api_key
+          label: Deepgram API key
+          type: password
+          required: false
+          help: "Ключ Deepgram (для транскрибации в Zoom)."
+
+    - title: "Прочее"
+      fields:
+        - key: extra.notes
+          label: Заметки
+          type: textarea
+          required: false
+          help: "Любые комментарии по этому набору ключей."
+
+template:
+  creds:
+    openai_api_key: ""
+    openai_admin_key: ""
+    gemini_api_key: ""
+    anthropic_api_key: ""
+    groq_api_key: ""
+    deepseek_api_key: ""
+    mistral_api_key: ""
+    xai_api_key: ""
+    deepgram_api_key: ""
+  extra:
+    notes: ""
+
+help:
+  notes: "Можно описать, для каких ресурсов/проектов используется этот набор ключей."

@@ -1,0 +1,78 @@
+<!-- src/web/templates/resources/api_keys.html -->
+{% extends "base.html" %}
+{% block title %}API keys | bona-plus{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="tile">
+        <div class="tile-title">API keys</div>
+        <p class="tile-desc">Хранилище ключей для нейросетей и сервисов</p>
+
+        <div class="actions">
+            <button id="btnSave" class="btn primary">Сохранить</button>
+            <a href="/resources" class="btn">Назад</a>
+        </div>
+
+        <div class="mt-12">
+            <label for="akLabel">Название ресурса</label>
+            <input id="akLabel" type="text" placeholder="Мои ключи" style="width:100%;margin-bottom:12px">
+
+            <label style="display:flex;align-items:center;gap:10px;margin:8px 0 18px 0;">
+                <input id="akShowSecrets" type="checkbox">
+                <span>Показывать ключи</span>
+            </label>
+        </div>
+
+        <div class="mt-8">
+            <div class="tile-title" style="font-size:16px">OpenAI</div>
+
+            <label for="akOpenaiApiKey">OpenAI API key</label>
+            <input id="akOpenaiApiKey" class="ak-secret" type="password" placeholder="sk-..." style="width:100%;margin-bottom:10px">
+
+            <label for="akOpenaiAdminKey">OpenAI Admin key</label>
+            <input id="akOpenaiAdminKey" class="ak-secret" type="password" placeholder="sk-admin-..." style="width:100%;margin-bottom:10px">
+        </div>
+
+        <div class="mt-16">
+            <div class="tile-title" style="font-size:16px">Другие модели</div>
+
+            <label for="akGeminiApiKey">Gemini API key</label>
+            <input id="akGeminiApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+
+            <label for="akAnthropicApiKey">Anthropic API key</label>
+            <input id="akAnthropicApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+
+            <label for="akGroqApiKey">Groq API key</label>
+            <input id="akGroqApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+
+            <label for="akDeepseekApiKey">DeepSeek API key</label>
+            <input id="akDeepseekApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+
+            <label for="akMistralApiKey">Mistral API key</label>
+            <input id="akMistralApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+
+            <label for="akXaiApiKey">xAI API key</label>
+            <input id="akXaiApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+        </div>
+
+        <div class="mt-16">
+            <div class="tile-title" style="font-size:16px">Сервисы</div>
+
+            <label for="akDeepgramApiKey">Deepgram API key</label>
+            <input id="akDeepgramApiKey" class="ak-secret" type="password" placeholder="..." style="width:100%;margin-bottom:10px">
+        </div>
+
+        <div class="mt-16">
+            <div class="tile-title" style="font-size:16px">Заметки</div>
+
+            <label for="akNotes">Заметки</label>
+            <textarea id="akNotes" placeholder="Например: этот набор ключей для Zoom/Telegram..." style="width:100%;min-height:120px"></textarea>
+        </div>
+    </section>
+</div>
+
+<script>
+    const API_KEYS_RID = "{{ rid }}";
+</script>
+<script src="/static/js/api_keys.js"></script>
+{% endblock %}
