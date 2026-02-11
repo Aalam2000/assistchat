@@ -17,7 +17,16 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Метаданные моделей
-target_metadata = None
+from src.app.core.db import Base
+
+# Импортируем ТОЛЬКО нужные модели, чтобы Alembic видел таблицы
+import src.models.user  # noqa: F401
+import src.models.resource  # noqa: F401
+import src.models.message  # noqa: F401
+import src.models.dialog  # noqa: F401
+
+target_metadata = Base.metadata
+
 
 # DATABASE_URL из ENV (docker-compose его передаёт)
 DATABASE_URL = os.getenv("DATABASE_URL")

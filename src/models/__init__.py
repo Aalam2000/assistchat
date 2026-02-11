@@ -5,6 +5,8 @@ from .lead import Lead
 from .updates_seen import UpdateSeen
 from .alembic_version import AlembicVersion
 from .resource import Resource
+from .dialog import Dialog
+
 
 __all__ = [
     "User", "RoleEnum",
@@ -13,4 +15,5 @@ __all__ = [
     "UpdateSeen",
     "AlembicVersion",
     "Resource",
+    "Dialog",
 ]
