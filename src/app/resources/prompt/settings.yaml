@@ -1,0 +1,50 @@
+name: "PROMPT"
+title: "Prompt"
+description: "Системный промпт + правила стиля + Google Drive источник + примеры Q/A (всё хранится в Resource.meta_json)"
+
+schema:
+  version: 1
+  groups:
+    - title: "Основное"
+      fields:
+        - key: prompt.description
+          label: Description
+          type: textarea
+          required: false
+          help: "Короткое описание этого PROMPT ресурса."
+
+        - key: prompt.system_prompt
+          label: System prompt
+          type: textarea
+          required: true
+          help: "Основной системный промпт."
+
+        - key: prompt.style_rules
+          label: Style rules
+          type: textarea
+          required: false
+          help: "Короткие правила стиля/форматирования."
+
+    - title: "Google Drive"
+      fields:
+        - key: prompt.google_source
+          label: Google Drive link (file/folder)
+          type: string
+          required: false
+          help: "Ссылка на файл или папку Google Drive (share link)."
+
+    - title: "Examples"
+      fields:
+        - key: prompt.examples
+          label: Examples (JSON list)
+          type: list
+          required: false
+          help: 'JSON массив: [{"q":"...","a":"..."}]'
+
+template:
+  prompt:
+    description: ""
+    system_prompt: ""
+    style_rules: ""
+    google_source: ""
+    examples: []

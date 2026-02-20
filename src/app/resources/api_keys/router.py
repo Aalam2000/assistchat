@@ -135,6 +135,142 @@ def _verify_key(key_name: str, value: str) -> tuple[bool, str | None]:
 
     return False, "UNSUPPORTED_KEY"
 
+def _req_json(url: str, headers: dict, timeout: float = 10.0) -> tuple[bool, dict | None, str | None]:
+    try:
+        r = requests.get(url, headers=headers, timeout=timeout)
+        if 200 <= r.status_code < 300:
+            try:
+                return True, (r.json() or {}), None
+            except Exception:
+                return False, None, "BAD_JSON"
+        return False, None, f"HTTP_{r.status_code}"
+    except Exception as e:
+        return False, None, e.__class__.__name__
+
+
+def _extract_models(payload: dict) -> list[str]:
+    out: list[str] = []
+
+    if isinstance(payload.get("data"), list):
+        for it in payload["data"]:
+            if isinstance(it, dict):
+                v = it.get("id") or it.get("name")
+                if isinstance(v, str) and v.strip():
+                    out.append(v.strip())
+            elif isinstance(it, str) and it.strip():
+                out.append(it.strip())
+
+    if isinstance(payload.get("models"), list):
+        for it in payload["models"]:
+            if isinstance(it, dict):
+                v = it.get("name") or it.get("id")
+                if isinstance(v, str) and v.strip():
+                    v = v.strip()
+                    if "/" in v:
+                        v = v.split("/")[-1]
+                    out.append(v)
+            elif isinstance(it, str) and it.strip():
+                v = it.strip()
+                if "/" in v:
+                    v = v.split("/")[-1]
+                out.append(v)
+
+    # uniq + stable
+    seen = set()
+    res = []
+    for x in out:
+        if x not in seen:
+            seen.add(x)
+            res.append(x)
+    return res
+
+
+def _list_models_for_key(key_name: str, value: str) -> tuple[list[str], str | None]:
+    v = (value or "").strip()
+    if not v:
+        return [], "EMPTY"
+
+    # OpenAI-compatible
+    if key_name in {
+        "creds.openai_api_key",
+        "creds.openai_admin_key",
+        "creds.groq_api_key",
+        "creds.deepseek_api_key",
+        "creds.mistral_api_key",
+        "creds.xai_api_key",
+    }:
+        url_map = {
+            "creds.openai_api_key": "https://api.openai.com/v1/models",
+            "creds.openai_admin_key": "https://api.openai.com/v1/models",
+            "creds.groq_api_key": "https://api.groq.com/openai/v1/models",
+            "creds.deepseek_api_key": "https://api.deepseek.com/v1/models",
+            "creds.mistral_api_key": "https://api.mistral.ai/v1/models",
+            "creds.xai_api_key": "https://api.x.ai/v1/models",
+        }
+        ok, js, err = _req_json(url_map[key_name], {"Authorization": f"Bearer {v}"})
+        if not ok or not js:
+            return [], err or "ERR"
+        return _extract_models(js), None
+
+    # Gemini
+    if key_name == "creds.gemini_api_key":
+        ok, js, err = _req_json("https://generativelanguage.googleapis.com/v1beta/models", {"x-goog-api-key": v})
+        if not ok or not js:
+            return [], err or "ERR"
+        return _extract_models(js), None
+
+    # Anthropic
+    if key_name == "creds.anthropic_api_key":
+        ok, js, err = _req_json(
+            "https://api.anthropic.com/v1/models",
+            {"x-api-key": v, "anthropic-version": "2023-06-01"},
+        )
+        if not ok or not js:
+            return [], err or "ERR"
+        return _extract_models(js), None
+
+    # Deepgram (это не LLM-модели в нашем контексте)
+    if key_name == "creds.deepgram_api_key":
+        return [], None
+
+    return [], "UNSUPPORTED_KEY"
+
+
+@router.get("/{rid}/models")
+async def list_models_for_selected_key(
+    rid: str,
+    key_field: str,
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    try:
+        rid_uuid = UUID(str(rid))
+    except Exception:
+        raise HTTPException(status_code=400, detail="BAD_ID")
+
+    row = db.query(Resource).filter(Resource.id == rid_uuid).first()
+    if not row or row.user_id != user.id or row.provider != "api_keys":
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    kf = (key_field or "").strip()
+    if not kf.startswith("creds."):
+        raise HTTPException(status_code=400, detail="BAD_KEY_FIELD")
+
+    short = kf.split(".", 1)[1].strip()
+    if not short:
+        raise HTTPException(status_code=400, detail="BAD_KEY_FIELD")
+
+    meta = row.meta_json or {}
+    creds = meta.get("creds") or {}
+    key_value = (creds.get(short) or "").strip()
+
+    models, err = _list_models_for_key(kf, key_value)
+
+    return {
+        "ok": err is None,
+        "models": models,
+        "error": err,
+    }
 
 @router.post("/{rid}/verify")
 async def verify_api_keys_resource(

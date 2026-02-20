@@ -1,70 +1,99 @@
 # src/app/resources/telegram/settings.yaml
-title: Telegram
-version: 2
-help:
-  short: Настройка Telegram-сессии и до 5 индивидуальных ролей
-  long: |
-    В одной сессии можно настроить до пяти разных ролей (учитель, ассистент, консультант и т.д.).
-    Каждая роль имеет собственные промпты и режимы работы, а общие параметры сессии остаются едиными.
-
-template:
-  session:
-    active: false
-    whitelist: []
-    blacklist: []
-    history_limit: 20
-  roles:
-    - name: ""
-      description: ""
-      system_prompt: ""
-      modes:
-        lesson: ""
-        dialogue: ""
-        quiz: ""
-        translate: ""
-      temperature: 0.7
-      top_p: 1.0
-      max_tokens: 1024
-      voice_enabled: true
+name: "Telegram"
+title: "Telegram"
+description: "Telegram transport resource (Telethon session + routing rules). Диалог/AI в ядре."
 
 schema:
-  version: 2
+  version: 1
   groups:
-    - title: "⚙️ Общие настройки сессии"
+    - title: "Telegram сессия (Telethon)"
       fields:
-        - key: session.active
-          label: "Активна ли сессия"
-          type: boolean
-          required: true
-        - key: session.whitelist
-          label: "Белый список пользователей"
-          type: list
-          required: false
-        - key: session.blacklist
-          label: "Черный список пользователей"
-          type: list
-          required: false
-        - key: session.history_limit
-          label: "Длина истории сообщений"
+        - key: creds.app_id
+          label: "Telegram API ID (app_id)"
           type: number
           required: true
 
-    - title: "🎭 Роли (до 5 штук)"
+        - key: creds.app_hash
+          label: "Telegram API HASH (app_hash)"
+          type: password
+          required: true
+
+        - key: creds.string_session
+          label: "StringSession"
+          type: textarea
+          required: true
+          help: "Telethon StringSession (не token бота)."
+
+    - title: "Промпт (ресурс PROMPT)"
       fields:
-        - key: roles
-          label: "Роли"
+        - key: prompt_id
+          label: "ID ресурса PROMPT"
+          type: string
+          required: true
+          help: "UUID ресурса PROMPT, который будет использоваться ядром."
+
+    - title: "AI настройки (ядро возьмёт ключ/модель из этих полей)"
+      fields:
+        - key: ai_keys_resource_id
+          label: "ID ресурса API_KEYS"
+          type: string
+          required: true
+          help: "UUID ресурса API_KEYS (хранилище ключей)."
+
+        - key: ai_key_field
+          label: "Какой ключ использовать (имя поля в API_KEYS)"
+          type: string
+          required: true
+          help: "Например: creds.openai_api_key"
+
+        - key: model
+          label: "Модель (для текстовых ответов)"
+          type: string
+          required: true
+          help: "Например: gpt-4o-mini / gpt-5 / ..."
+
+        - key: prefer_voice_reply
+          label: "Отвечать голосом, если пришёл voice"
+          type: boolean
+          required: false
+
+    - title: "Где отвечать"
+      fields:
+        - key: rules.reply_private
+          label: "Отвечать в личке"
+          type: boolean
+          required: false
+
+        - key: rules.reply_groups
+          label: "Отвечать в группах"
+          type: boolean
+          required: false
+
+        - key: rules.reply_channels
+          label: "Отвечать в каналах"
+          type: boolean
+          required: false
+
+    - title: "Фильтры (опционально)"
+      fields:
+        - key: lists.whitelist
+          label: "Whitelist (список sender_id)"
           type: list
           required: false
-          item_schema:
-            name: string
-            description: string
-            system_prompt: textarea
-            modes:
-              lesson: string
-              dialogue: string
-              quiz: string
-              translate: string
-            temperature: number
-            top_p: number
-            max_tokens: number
-            voice_enabled: boolean
+
+        - key: lists.blacklist
+          label: "Blacklist (список sender_id)"
+          type: list
+          required: false
+
+    - title: "Лимиты (опционально)"
+      fields:
+        - key: limits.tokens_limit
+          label: "Лимит токенов в сутки"
+          type: number
+          required: false
+
+        - key: limits.autostop
+          label: "Авто-стоп при достижении лимита"
+          type: boolean
+          required: false

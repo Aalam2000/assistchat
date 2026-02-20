@@ -1,12 +1,17 @@
+# src/app/resources/telegram/__init__.py
 """
 src/app/resources/telegram/__init__.py
 ──────────────────────────────────────
-Инициализация Telegram-ресурса платформы AssistChat.
+Telegram-ресурс (транспорт).
 
-Назначение:
-    • Подключает API-роуты Telegram (активация, управление, проверка статуса);
-    • Обеспечивает импорт воркера TelegramWorker при старте менеджера;
-    • Позволяет централизованно обращаться к Telegram-ресурсу как модулю.
+В этой папке:
+- router.py    : API для UI (create/save/activate/stop/status/send)
+- telegram.py  : Telethon worker + реестр сессий
+- settings.yaml: схема формы (meta_json)
+
+Важно:
+- Диалог/история/вызов AI — в ЯДРЕ.
+- Этот ресурс только получает/отправляет сообщения Telegram и управляет сессией.
 """
 
 from .router import router

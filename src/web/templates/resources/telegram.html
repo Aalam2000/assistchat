@@ -1,129 +1,117 @@
-<!--src/web/templates/resources/telegram.html-->
+<!-- src/web/templates/resources/telegram.html -->
 {% extends "base.html" %}
 {% block title %}Telegram ассистент | bona-plus{% endblock %}
 
 {% block content %}
 <div class="page">
-    <section class="tile">
-        <div class="tile-title">Telegram ассистент</div>
-        <p class="tile-desc">Настройки и управление Telegram-сессией</p>
+  <section class="tile">
+    <div class="tile-title">Telegram ассистент</div>
+    <p class="tile-desc">Настройки и управление Telegram-сессией</p>
 
-        <div class="actions">
-            <button id="btnActivate" class="btn primary">Активировать</button>
-            <button id="btnToggleBot" class="btn accent">💡 Включить БОТ</button>
-            <button id="btnToggleStatus" class="btn">💡 Включить ресурс</button>
-            <a href="/resources" class="btn">Назад</a>
+    <div class="actions">
+      <button id="btnSave" class="btn primary">Сохранить</button>
+      <button id="btnToggleStatus" class="btn">💡 Включить ресурс</button>
+    </div>
+
+    <div class="mono mt-4" id="tgResStatus">РЕСУРС: —</div>
+
+    <div class="mt-12">
+      <label for="tgLabel">Название ресурса</label>
+      <input id="tgLabel" type="text" placeholder="Мой Telegram ассистент" style="width:100%;margin-bottom:12px">
+    </div>
+
+    <div class="mt-8">
+      <button id="btnToggleDetails" class="btn" style="margin-bottom:10px">
+        ⚙️ Показать настройки подключения
+      </button>
+    </div>
+
+    <div id="tgConnectionBlock" class="hidden mt-8">
+      <div class="mt-12">
+        <button id="btnActivate" class="btn accent" type="button">Активировать сессию</button>
+      </div>
+
+      <label for="tgAppId">App ID</label>
+      <input id="tgAppId" type="number" placeholder="123456" style="width:100%;margin-bottom:10px">
+
+      <label for="tgAppHash">App Hash</label>
+      <input id="tgAppHash" type="text" placeholder="xxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px">
+
+      <label for="tgPhone">Номер телефона (E.164)</label>
+      <input id="tgPhone" type="text" placeholder="+9945XXXXXXX" style="width:100%;margin-bottom:10px">
+
+      <label for="tgStringSession">StringSession (если уже есть)</label>
+      <textarea id="tgStringSession" rows="3" placeholder="(опционально) вставь StringSession" style="width:100%;margin-bottom:10px"></textarea>
+
+      <div class="mono mt-4" style="opacity:.8">
+        Если StringSession пустой — обычно его выдаёт сервер при активации (через телефон/код).
+      </div>
+    </div>
+
+    <div class="mt-16">
+      <div class="tile-title" style="font-size:16px">PROMPT и AI</div>
+
+      <label for="tgPromptId">PROMPT ресурс</label>
+      <select id="tgPromptId" style="width:100%;margin-bottom:10px"></select>
+
+      <label for="tgApiKeysId">API_KEYS ресурс</label>
+      <select id="tgApiKeysId" style="width:100%;margin-bottom:10px"></select>
+
+      <label for="tgKeyField">Какой ключ использовать</label>
+      <select id="tgKeyField" style="width:100%;margin-bottom:10px"></select>
+
+      <label for="tgModel">Модель</label>
+      <select id="tgModel" style="width:100%;margin-bottom:10px"></select>
+
+      <label style="display:flex;align-items:center;gap:10px;margin:8px 0 0 0;">
+        <input id="tgPreferVoice" type="checkbox">
+        <span>Если пришёл voice — можно отвечать voice</span>
+      </label>
+    </div>
+
+    <div class="mt-16">
+      <div class="tile-title" style="font-size:16px">Фильтры</div>
+
+      <label for="tgWhitelist">Белый список (ID/логины, через запятую или с новой строки)</label>
+      <textarea id="tgWhitelist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
+
+      <label for="tgBlacklist">Чёрный список (ID/логины, через запятую или с новой строки)</label>
+      <textarea id="tgBlacklist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
+    </div>
+
+    <div class="mt-16">
+      <div class="tile-title" style="font-size:16px">Где отвечать</div>
+
+      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
+        <input id="tgReplyPrivate" type="checkbox">
+        <span>Личка</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
+        <input id="tgReplyGroups" type="checkbox">
+        <span>Группы</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
+        <input id="tgReplyChannels" type="checkbox">
+        <span>Каналы</span>
+      </label>
+    </div>
+
+    <!-- Модалка подтверждения Telegram (если сервер попросит код) -->
+    <div id="tgCodeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tgCodeModalTitle">
+      <div class="modal__content" style="max-width:360px">
+        <h3 id="tgCodeModalTitle">Введите код из Telegram</h3>
+        <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
+        <div class="modal__actions">
+          <button id="btnConfirmCode" class="btn primary">Подтвердить</button>
+          <button id="btnCancelCode" class="btn">Отмена</button>
         </div>
-
-        <div class="mono mt-8" id="tgBotStatus">БОТ: —</div>
-        <div class="mono mt-4" id="tgResStatus">РЕСУРС: —</div>
-
-
-        <!-- 🔹 Кнопка показать/скрыть настройки -->
-        <div class="mt-8">
-            <button id="btnToggleDetails" class="btn" style="margin-bottom:10px">
-                ⚙️ Показать настройки подключения
-            </button>
-        </div>
-
-        <!-- 🔹 Скрываемый блок настроек -->
-        <div id="tgConnectionBlock" class="hidden mt-8">
-            <label for="tgAppId">App ID</label>
-            <input id="tgAppId" type="number" placeholder="123456" style="width:100%;margin-bottom:10px">
-
-            <label for="tgAppHash">App Hash</label>
-            <input id="tgAppHash" type="text" placeholder="xxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px">
-
-            <label for="tgPhone">Номер телефона (E.164)</label>
-            <input id="tgPhone" type="text" placeholder="+9945XXXXXXX" style="width:100%;margin-bottom:10px">
-
-            <label for="tgLabel">Название ресурса</label>
-            <input id="tgLabel" type="text" placeholder="Мой Telegram ассистент" style="width:100%;margin-bottom:20px">
-        </div>
-
-        <!-- Фильтры и контекст -->
-        <div class="mt-16">
-            <label for="tgWhitelist">Белый список (логины/ID, через запятую или с новой строки)</label>
-            <textarea id="tgWhitelist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
-
-            <label for="tgBlacklist">Чёрный список (логины/ID, через запятую или с новой строки)</label>
-            <textarea id="tgBlacklist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
-
-            <label for="tgHistory">Количество сообщений в контексте</label>
-            <input id="tgHistory" type="number" min="0" placeholder="20" style="width:100%;margin-bottom:20px">
-        </div>
-
-        <!-- Модалка подтверждения Telegram -->
-        <div id="tgCodeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tgCodeModalTitle">
-            <div class="modal__content" style="max-width:360px">
-                <h3 id="tgCodeModalTitle">Введите код из Telegram</h3>
-                <input id="tgCodeInput" type="text" placeholder="Код подтверждения" style="width:100%;margin:10px 0">
-                <div class="modal__actions">
-                    <button id="btnConfirmCode" class="btn primary">Подтвердить</button>
-                    <button id="btnCancelCode" class="btn">Отмена</button>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- 🔹 РОЛИ (до 5 штук) -->
-        <div class="mt-16">
-            <h3 style="margin-bottom:10px">🎭 Роли (до 5 штук)</h3>
-            <p class="tile-desc">Для каждой роли можно задать собственный промпт, описание и параметры поведения.</p>
-
-            <div id="rolesContainer"></div>
-
-            <div class="actions mt-8">
-                <button id="btnAddRole" class="btn">Добавить роль</button>
-            </div>
-        </div>
-
-        <!-- 🔹 Шаблон карточки роли -->
-        <template id="roleTemplate">
-            <div class="role-card border p-4 mt-4 rounded-lg shadow-sm">
-                <h4 contenteditable="true" class="role-title" style="font-weight:bold">Новая роль</h4>
-
-                <label>Описание</label>
-                <input class="role-description" type="text" placeholder="Краткое описание роли"
-                       style="width:100%;margin-bottom:10px">
-
-                <label>Системный промпт</label>
-                <textarea class="role-system" rows="3" placeholder="Промпт"
-                          style="width:100%;margin-bottom:10px"></textarea>
-
-                <label>Режимы</label>
-                <input class="role-lesson" type="text" placeholder="Урок (lesson)" style="width:100%;margin-bottom:6px">
-                <input class="role-dialogue" type="text" placeholder="Диалог (dialogue)"
-                       style="width:100%;margin-bottom:6px">
-                <input class="role-quiz" type="text" placeholder="Тесты (quiz)" style="width:100%;margin-bottom:6px">
-                <input class="role-translate" type="text" placeholder="Переводы (translate)"
-                       style="width:100%;margin-bottom:10px">
-
-                <div style="display:flex;gap:10px;flex-wrap:wrap">
-                    <label>Temperature <input class="role-temp" type="number" step="0.1" min="0" max="2"
-                                              style="width:80px"></label>
-                    <label>Top P <input class="role-top" type="number" step="0.1" min="0" max="1"
-                                        style="width:80px"></label>
-                    <label>Max tokens <input class="role-tokens" type="number" step="1" min="100" max="4096"
-                                             style="width:100px"></label>
-                    <label><input class="role-voice" type="checkbox"> Голосовые ответы</label>
-                </div>
-
-                <div class="actions mt-4">
-                    <button class="btn danger btnDeleteRole">Удалить</button>
-                </div>
-            </div>
-        </template>
-
-
-        <div class="actions">
-            <button id="btnSave" class="btn primary">Сохранить</button>
-        </div>
-    </section>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
-    const TG_RID = "{{ rid }}";
+  const TG_RID = "{{ rid }}";
 </script>
 <script src="/static/js/telegram.js"></script>
 {% endblock %}

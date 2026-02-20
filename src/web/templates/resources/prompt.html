@@ -1,0 +1,50 @@
+<!-- src/web/templates/resources/prompt.html -->
+{% extends "base.html" %}
+{% block title %}Prompt | bona-plus{% endblock %}
+
+{% block content %}
+<div class="page">
+  <section class="tile">
+    <div class="tile-title">Prompt</div>
+    <p class="tile-desc">Системный промпт + правила стиля + Google Drive + примеры</p>
+
+    <div class="actions">
+      <button id="btnSave" class="btn primary">Сохранить</button>
+    </div>
+
+    <div class="mt-12">
+      <label for="prLabel">Название ресурса</label>
+      <input id="prLabel" type="text" placeholder="Мой PROMPT" style="width:100%;margin-bottom:12px">
+
+      <label for="prDescription">Описание</label>
+      <textarea id="prDescription" style="width:100%;min-height:90px"></textarea>
+    </div>
+
+    <div class="mt-16">
+      <label for="prSystemPrompt">System prompt</label>
+      <textarea id="prSystemPrompt" style="width:100%;min-height:220px" placeholder="Ты — ..."></textarea>
+    </div>
+
+    <div class="mt-16">
+      <label for="prStyleRules">Style rules</label>
+      <textarea id="prStyleRules" style="width:100%;min-height:120px" placeholder="Коротко, списками, ..."></textarea>
+    </div>
+
+    <div class="mt-16">
+      <label for="prGoogleSource">Google Drive link (file/folder)</label>
+      <input id="prGoogleSource" type="text" placeholder="https://drive.google.com/...">
+    </div>
+
+    <div class="mt-16">
+      <label for="prExamples">Examples (JSON list)</label>
+      <textarea id="prExamples" style="width:100%;min-height:180px"
+        placeholder='[{"q":"Вопрос","a":"Ответ"}]'></textarea>
+    </div>
+  </section>
+</div>
+
+<script>
+  const PROMPT_RID = "{{ rid }}";
+</script>
+<script src="/static/js/prompt.js"></script>
+{% endblock %}

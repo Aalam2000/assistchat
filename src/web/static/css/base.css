@@ -224,6 +224,20 @@ a.btn, .btn {
 .hidden {
     display: none !important
 }
+/* ---- checkbox/radio: не растягивать, текст занимает всю строку ---- */
+label > input[type="checkbox"],
+label > input[type="radio"] {
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 auto !important;
+}
+
+label > input[type="checkbox"] + span,
+label > input[type="radio"] + span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 .center {
     display: grid;
