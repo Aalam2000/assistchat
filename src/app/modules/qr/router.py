@@ -22,12 +22,14 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
 
 # ✅ Эндпоинт для превью PNG
 @router.post("/api/qr/preview")
-async def api_qr_preview(text: str = Form(...), logo: UploadFile = File(...)):
+async def api_qr_preview(text: str = Form(...), logo: UploadFile | None = File(None)):
     """Возвращает PNG-файл QR-кода для предпросмотра"""
     with tempfile.TemporaryDirectory() as tmp:
-        logo_path = f"{tmp}/{logo.filename}"
-        with open(logo_path, "wb") as f:
-            f.write(await logo.read())
+        logo_path = None
+        if logo and logo.filename:
+            logo_path = f"{tmp}/{logo.filename}"
+            with open(logo_path, "wb") as f:
+                f.write(await logo.read())
 
         png_path, _ = generate_qr_with_logo(
             url=text,
@@ -35,7 +37,7 @@ async def api_qr_preview(text: str = Form(...), logo: UploadFile = File(...)):
             out_dir=tmp,
             file_stem="qr_preview",
             qr_size_mm=30.0,
-            dpi=150,  # уменьшенный для предпросмотра
+            dpi=150,
             logo_ratio=0.25,
             white_pad_mm=1.0,
         )
@@ -48,13 +50,15 @@ async def api_qr_preview(text: str = Form(...), logo: UploadFile = File(...)):
 
 # ✅ Эндпоинт для ZIP (скачивание)
 @router.post("/api/qr/build")
-async def api_qr_build(text: str = Form(...), logo: UploadFile = File(...)):
+async def api_qr_build(text: str = Form(...), logo: UploadFile | None = File(None)):
     """Создание ZIP-архива с PNG и PDF QR-кода."""
     with tempfile.TemporaryDirectory() as tmp:
-        logo_path = f"{tmp}/{logo.filename}"
-        with open(logo_path, "wb") as f:
-            content = await logo.read()
-            f.write(content)
+        logo_path = None
+        if logo and logo.filename:
+            logo_path = f"{tmp}/{logo.filename}"
+            with open(logo_path, "wb") as f:
+                content = await logo.read()
+                f.write(content)
 
         png_path, pdf_path = generate_qr_with_logo(
             url=text,

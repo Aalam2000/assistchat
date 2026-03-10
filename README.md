@@ -1,119 +1,119 @@
-# 📂 Структура проекта `assistchat`
+# AssistChat
 
- id = '2fd2b08e-057b-4bab-a492-15ff775dc057'; строки
+AssistChat — платформа на FastAPI для запуска AI-интеграций (“ресурсов”) через веб-интерфейс + фонового воркера.
+Одна кодовая база обслуживает:
+- Web UI (Jinja2 templates + static)
+- API (FastAPI)
+- Bot/worker (фоновые процессы ресурсов)
+- Миграции БД (Alembic)
 
----
-
-## 🧠 **Платформа AssistChat — архитектура и назначение**
-
-Платформа предназначена для работы с искусственным интеллектом и интеграции внешних сервисов (ресурсов) через единую точку входа и управление пользователем.
-
----
-
-### **1️⃣ Общая логика**
-
-* **index.html** — главная страница (по умолчанию). 5
-* **FastAPI** — основной backend.
-* Всё приложение собирается единым контейнером (Docker), деплоится автоматически через Git.
-
----
-
-### **2️⃣ Основные разделы и функциональные блоки**
-
-#### 🔹 Авторизация и профиль
-
-* **Логин / логаут / регистрация / Google OAuth.**
-* Профиль пользователя:
-
-  * просмотр и редактирование данных;
-  * возможность указать свой `OpenAI API key` или использовать системный;
-  * настройка режима работы (“managed” / “byok”);
-  * включение и отключение “бота”.
-
-#### 🔹 Бот
-
-* Управляет активностью ресурсов пользователя.
-* Может быть включён или остановлен пользователем.
-* Реализует запуск, остановку и контроль состояния активных интеграций (ресурсов).
-
-#### 🔹 Ресурсы пользователя
-
-* Все интеграции (Telegram, Zoom и др.) живут в таблице `resources`.
-* Каждый ресурс имеет:
-
-  * собственную HTML-страницу (`resources/{provider}.html`);
-  * JS-файл (`static/js/resources_*.js`);
-  * JSON-шаблон метаданных (`meta_json`);
-  * API-роуты (`/api/resource/...`);
-* Новые ресурсы (видеочат, голосовой чат и т.п.) подключаются по единому шаблону.
-* Управление состоянием: **pause / activate / error / ready.**
-
-#### 🔹 Общие сервисы (вне авторизации)
-
-* Независимые от пользователя блоки, например:
-
-  * **QR-код с логотипом** (`/qr`, `/api/qr/build`).
-  * В перспективе — генерация изображений, коротких роликов и т.д.
+## Стек (факт по репозиторию)
+- FastAPI + Starlette, Jinja2
+- SQLAlchemy 2.x + Alembic
+- Postgres 16.x (в docker-compose)
+- Telethon (Telegram)
+- OpenAI SDK (есть в requirements)
+- auto-i18n-lib (переводы UI)
+:contentReference[oaicite:1]{index=1}
 
 ---
 
-### **3️⃣ Структура приложения**
+## Runtime / контейнеры
 
-```
-assistchat/
-│
-├── .github/                # CI/CD и GitHub Actions — автотесты, деплой, проверки
-├── branding/               # Документы фирменного стиля и профили тона ответов (AI-персона)
-├── docker/                 # Dockerfile и конфигурации контейнеров приложения
-├── n8n_data/               # Данные и временные файлы n8n (workflow engine, если используется)
-├── src/                    # Исходный код платформы AssistChat (FastAPI, ресурсы, провайдеры)
-├── tmp/                    # Временные файлы, отладка, кэш (игнорируется Git)
-├── translations/           # Файлы переводов интерфейса (используются auto-i18n-lib)
-│
-├── .env                    # Переменные окружения (локальные ключи и токены)
-├── .env.example            # Пример шаблона `.env` для настройки окружения
-├── .gitignore              # Список файлов и папок, исключаемых из Git
-│
-├── AGENTS.md               # Описание подключаемых ассистентов (ботов, агентов)
-├── alembic.ini             # Конфигурация Alembic для миграций базы данных
-├── docker-compose.yml      # Основной файл сборки и запуска Docker-сервиса
-├── README.md               # Описание проекта и инструкция по установке
-└── requirements.txt        # Список зависимостей Python
+### DEV (`docker-compose.dev.yml`)
+Сервисы:
+- `db` (postgres)
+- `migrate` (alembic upgrade head)
+- `web` (uvicorn src.app.main:app + autoreload)
+- `botworker` (worker_entry под watchfiles)
 
-```
+`web` и `botworker` запускаются из одного image (`assistchat-api-local`), код маунтится в `/app`.
+:contentReference[oaicite:2]{index=2}
 
-```
-src/
-│
-├── alembic/        # Миграции базы данных — хранит версии, env.py и скрипты обновлений схемы
-├── app/            # Основное приложение AssistChat: ядро FastAPI, ресурсы, провайдеры, API и логика
-├── models/         # ORM-модели и схемы данных (таблицы пользователей, ресурсов, сообщений и т.д.)
-└── storage/        # Рабочее хранилище файлов пользователей и ресурсов (создаётся динамически)
+### PROD (`docker-compose.prod.yml`)
+Сервисы:
+- `db`
+- `migrate` (alembic upgrade head, с DB_HOST=db)
+- `web`
+- `botworker` (python -m src.app.modules.bot.worker_entry)
 
-```
-
-## 🧭 Целевая архитектура Telegram-ресурса
-
-| Компонент | Основная роль | Что делает | Что **не делает** (во избежание дублирования) |
-|:-----------|:--------------|:------------|:----------------------------------------------|
-| **`router.py`** | API-уровень | Управляет активацией Telegram-сессии (отправка и подтверждение кода), обновляет `meta_json` и `status`. | Не ведёт логику общения, не считает токены, не управляет воркерами. |
-| **`telegram.py`** | Фоновый воркер | Поддерживает активное соединение с Telegram, слушает входящие сообщения, вызывает `TelegramDialogEngine`, сохраняет сообщения, обновляет статистику (`usage_today`, `cost_today`). | Не занимается активацией и настройкой; не считает токены вручную — берёт из `OpenAIClient`. |
-| **`telegram_dialog.py`** | Диалоговый движок | Формирует контекст диалога и системный промпт, делает запрос к `OpenAIClient`, возвращает ответ (`text`, `tokens`, `audio_bytes`, `mode`). | Не сохраняет сообщения и не меняет статус ресурса. |
-| **`openai_client.py`** | Клиент OpenAI | Отвечает за общение с API OpenAI, возвращает ответ и точный расход токенов. Поддерживает текст, голос, TTS, STT. | Не обновляет БД и не хранит состояние пользователя. |
-| **`manager.py`** (`app/modules/bot/`) | Менеджер ресурсов | При включении `bot_enabled=True` запускает все ресурсы со статусом `active`. При выключении — останавливает их. | Не управляет логикой Telegram и не изменяет `meta_json`. |
-| **`models/resource.py`** | ORM-модель ресурса | Хранит `provider`, `status`, `phase`, `meta_json`, `usage_today`, `cost_today`. | Не содержит логики активации. |
-| **`models/message.py`** | ORM-модель сообщений | Сохраняет историю диалогов, включая `tokens_used` и `cost_azn`. | Не формирует ответы. |
-| **`models/user.py`** | Пользователь | Хранит `bot_enabled`, `openai_api_key` и параметры доступа. | Не управляет ресурсами напрямую. |
-| **`providers.py`** | Схема провайдера | Описывает поля интерфейса Telegram (`creds`, `prompts`, `limits` и т.д.), используется на фронте. | Не содержит логики работы. |
-| **`logic.md`** | Документация | Фиксирует структуру данных, связи между файлами и архитектурные принципы. | Не участвует в коде. |
+:contentReference[oaicite:3]{index=3}
 
 ---
 
-### 💡 Ключевые принципы
+## Ключевая архитектура кода
 
-1. **Один источник истины:** токены и стоимость — из `OpenAIClient`, статусы и лимиты — в `Resource`.  
-2. **Менеджер** только запускает/останавливает ресурсы, не знает их внутренней логики.  
-3. **Воркеры** не изменяют `meta_json`, только читают и обновляют usage-данные.  
-4. **Router** работает только с API и пользовательскими действиями.  
-5. **DialogEngine** полностью отвечает за текст/аудио-общение и контекст.  
-6. **Frontend Telegram** управляет одной строкой ресурса в таблице `resources`, без глобальных модалок.
+### Entry points
+- Web/API: `src/app/main.py`
+- Legacy (есть в проекте): `src/app/main_legacy.py`
+- Worker: `src/app/modules/bot/worker_entry.py`
+- Provider schema: `src/app/providers.py`
+:contentReference[oaicite:4]{index=4}
+
+### Core (`src/app/core/`)
+База инфраструктуры приложения:
+- `config.py`, `db.py`, `middleware.py`, `security.py`, `templates.py`
+- диалоговая подсистема: `dialog_service.py`, `dialog_graph.py`, `dialog_store.py`, `dialog_lock.py`
+- runtime промпта/транспорта: `prompt_runtime.py`, `ai_transport.py`
+
+
+### Bot module (`src/app/modules/bot/`)
+- `manager.py` — запуск/остановка активных ресурсов
+- `router.py` — API для управления ботом
+- `worker_entry.py` — точка входа фонового воркера
+
+
+### Ресурсы (`src/app/resources/`)
+Каждый ресурс — отдельный модуль со своим `router.py` и `settings.yaml`:
+- `telegram/` (есть `telegram.py` — логика ресурса)
+- `zoom/` (есть `transcribe.py`)
+- `api_keys/`
+- `prompt/`
+
+
+### Web UI (`src/web/`)
+- `templates/` — страницы (auth/profile/resources + страницы конкретных ресурсов)
+- `static/js/` — фронтовая логика (api_keys.js, prompt.js, telegram.js, zoom.js и т.д.)
+- `static/lang/` — JSON переводы (ru/en)
+:contentReference[oaicite:8]{index=8}
+
+---
+
+## База данных (факт по последнему дампу схемы)
+
+Текущие таблицы в DB:
+- `users`
+- `resources`
+- `dialogs`
+- `messages`
+- `leads`
+- `updates_seen`
+- `alembic_version`
+:contentReference[oaicite:9]{index=9}
+
+Важно: по отчёту **ORM содержит модели**, которых **нет в БД** на текущей ревизии Alembic:
+- `prompts`, `service_accounts`, `service_rules`, `tg_accounts` — *в ORM есть, в DB отсутствуют*.
+Это означает, что миграции под эти таблицы либо ещё не созданы, либо не применены в этой базе.
+:contentReference[oaicite:10]{index=10}
+
+---
+
+## Структура репозитория (коротко)
+
+- `src/app/` — FastAPI приложение, core, modules, resources, routes
+- `src/models/` — ORM-модели
+- `src/web/` — HTML шаблоны + static (css/js/img/lang)
+- `src/alembic/` — миграции
+- `branding/` — профили стиля/тона
+- `tmp/` — временные файлы/отчёты (должна быть в корне и игнорироваться Git)
+:contentReference[oaicite:11]{index=11}
+
+---
+
+## Запуск (команды по факту compose-файлов)
+
+### DEV
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml logs -f web
+docker compose -f docker-compose.dev.yml logs -f botworker
