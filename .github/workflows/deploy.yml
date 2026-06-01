@@ -20,79 +20,40 @@ jobs:
       - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          echo "$ secrets.SSH_PRIVATE_KEY " > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 155.212.230.161 >> ~/.ssh/known_hosts
 
       - name: Deploy to server (PROD)
-        run: |
-          ssh -i ~/.ssh/id_ed25519 cargo@155.212.230.161 <<'SSH'
-          set -euo pipefail
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: 155.212.230.161
+          username: cargo
+          key: $ secrets.SSH_PRIVATE_KEY
+          port: 22
+          script: |
+            set -euo pipefail
+            APP_DIR="/var/www/assistchat"
+            COMPOSE_FILE="docker-compose.prod.yml"
+            ENV_PROD=".env.prod"
+            ENV_SECRETS=".env.secrets"
 
-          APP_DIR="/var/www/assistchat"
-          COMPOSE_FILE="docker-compose.prod.yml"
-          BACKUP_DIR="/var/www/assistchat/db_backups"
+            cd "$APP_DIR"
 
-          cd "$APP_DIR"
+            echo "[DEPLOY] update code"
+            git fetch --prune origin master
+            git reset --hard origin/master
 
-          echo "[DEPLOY] update code"
-          git fetch --prune origin master
-          git reset --hard origin/master
+            echo "[DEPLOY] ensure db volume exists"
+            docker volume inspect assistchat_db >/dev/null 2>&1 || docker volume create assistchat_db
 
-          echo "[DEPLOY] verify compose file exists"
-          if [ ! -f "$COMPOSE_FILE" ]; then
-            echo "ERROR: $COMPOSE_FILE not found in $APP_DIR"
-            exit 1
-          fi
+            echo "[DEPLOY] build images"
+            docker compose --env-file "$ENV_PROD" --env-file "$ENV_SECRETS" -f "$COMPOSE_FILE" build --pull
 
-          echo "[DEPLOY] ensure db volume exists (assistchat_db)"
-          docker volume inspect assistchat_db >/dev/null 2>&1 || docker volume create assistchat_db >/dev/null
+            echo "[DEPLOY] up all services"
+            docker compose --env-file "$ENV_PROD" --env-file "$ENV_SECRETS" -f "$COMPOSE_FILE" up -d --remove-orphans
 
-          echo "[DEPLOY] build images"
-          docker compose -f "$COMPOSE_FILE" build --pull
+            echo "[DEPLOY] cleanup"
+            docker image prune -f
 
-          echo "[DEPLOY] start db"
-          docker compose -f "$COMPOSE_FILE" up -d db
-          DB_CID="$(docker compose -f "$COMPOSE_FILE" ps -q db)"
-
-          echo "[DEPLOY] wait for db healthy (or ready)"
-          HEALTH_STATUS="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$DB_CID" || true)"
-          if [ "$HEALTH_STATUS" != "" ]; then
-            until [ "$(docker inspect -f '{{.State.Health.Status}}' "$DB_CID")" = "healthy" ]; do sleep 1; done
-          else
-            # fallback if no healthcheck in compose
-            for i in $(seq 1 60); do
-              if docker exec "$DB_CID" pg_isready >/dev/null 2>&1; then
-                break
-              fi
-              sleep 1
-            done
-          fi
-
-          echo "[DEPLOY] backup db (best-effort)"
-          mkdir -p "$BACKUP_DIR"
-          # пытаемся загрузить DB_USER/DB_NAME из .env (если это обычный KEY=VALUE)
-          if [ -f ".env" ]; then
-            set -a
-            . ./.env || true
-            set +a
-          fi
-          if [ -n "${DB_USER:-}" ] && [ -n "${DB_NAME:-}" ]; then
-            docker exec -i "$DB_CID" pg_dump -U "$DB_USER" "$DB_NAME" > "$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql" || true
-          else
-            echo "WARN: DB_USER/DB_NAME not set; skipping pg_dump"
-          fi
-
-          echo "[DEPLOY] run migrations if service exists"
-          if docker compose -f "$COMPOSE_FILE" config --services | grep -qx migrate; then
-            docker compose -f "$COMPOSE_FILE" up migrate
-          fi
-
-          echo "[DEPLOY] up all services"
-          docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
-
-          echo "[DEPLOY] cleanup dangling images"
-          docker image prune -f
-
-          echo "[DEPLOY] done"
-          SSH
+            echo "[DEPLOY] done"
