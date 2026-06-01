@@ -1,5 +1,7 @@
 # AssistChat
 
+## must update
+
 AssistChat — платформа на FastAPI для запуска AI-интеграций (“ресурсов”) через веб-интерфейс + фонового воркера.
 Одна кодовая база обслуживает:
 - Web UI (Jinja2 templates + static)
