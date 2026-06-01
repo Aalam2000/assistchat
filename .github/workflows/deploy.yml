@@ -22,14 +22,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 45.12.73.228 >> ~/.ssh/known_hosts
+          ssh-keyscan -H 155.212.230.161 >> ~/.ssh/known_hosts
 
       - name: Deploy to server (PROD)
         run: |
-          ssh -i ~/.ssh/id_ed25519 bona@45.12.73.228 <<'SSH'
+          ssh -i ~/.ssh/id_ed25519 cargo@155.212.230.161 <<'SSH'
           set -euo pipefail
 
-          APP_DIR="/var/www/assistchat/www"
+          APP_DIR="/var/www/assistchat"
           COMPOSE_FILE="docker-compose.prod.yml"
           BACKUP_DIR="/var/www/assistchat/db_backups"
 
