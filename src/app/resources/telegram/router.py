@@ -124,6 +124,18 @@ async def save_telegram_resource(
     meta_json = payload.get("meta_json")
     if meta_json is None or not isinstance(meta_json, dict):
         meta_json = row.meta_json or {}
+    else:
+        # UI не показывает string_session сразу после активации — не затираем случайно
+        old_meta = row.meta_json or {}
+        old_creds = (old_meta.get("creds") or {}) if isinstance(old_meta, dict) else {}
+        new_creds = meta_json.get("creds") if isinstance(meta_json.get("creds"), dict) else {}
+        old_sess = (old_creds.get("string_session") or "").strip()
+        new_sess = (new_creds.get("string_session") or "").strip()
+        if old_sess and not new_sess:
+            new_creds = dict(new_creds)
+            new_creds["string_session"] = old_sess
+            meta_json = dict(meta_json)
+            meta_json["creds"] = new_creds
 
     row.label = label
     row.meta_json = meta_json

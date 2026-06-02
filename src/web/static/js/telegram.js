@@ -101,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let _allItems = [];
+    /** Поля активации из БД (не показываем в UI, но нельзя затирать при «Сохранить»). */
+    let _activationCreds = {};
 
     function setKeyFieldDisabled(msg) {
         keyField.innerHTML = "";
@@ -282,13 +284,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function buildMeta() {
+        const string_session = (stringSession.value || "").trim();
+        const creds = {
+            app_id: (appId.value || "").trim(),
+            app_hash: (appHash.value || "").trim(),
+            phone: (phone.value || "").trim(),
+            string_session,
+        };
+        // Пока ждём код, сервер хранит pending_session — не затираем при сохранении формы
+        if (!string_session && _activationCreds.phone_code_hash) {
+            creds.phone_code_hash = _activationCreds.phone_code_hash;
+            creds.pending_session = _activationCreds.pending_session;
+        }
+        if (_activationCreds.flood_until_ts) {
+            creds.flood_until_ts = _activationCreds.flood_until_ts;
+        }
         return {
-            creds: {
-                app_id: (appId.value || "").trim(),
-                app_hash: (appHash.value || "").trim(),
-                phone: (phone.value || "").trim(),
-                string_session: (stringSession.value || "").trim(),
-            },
+            creds,
             prompt_id: (promptId.value || "").trim(),
             ai_keys_resource_id: (apiKeysId.value || "").trim(),
             ai_key_field: (keyField.value || "").trim(),
@@ -313,7 +325,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const item = items.find((x) => x.id === id);
         if (!item) throw new Error("resource not found");
 
-        const meta = readMetaCompat(item.meta || item.meta_json || {});
+        const rawMeta = item.meta || item.meta_json || {};
+        const meta = readMetaCompat(rawMeta);
+        const rawCreds = rawMeta.creds || {};
+        _activationCreds = {
+            phone_code_hash: rawCreds.phone_code_hash || null,
+            pending_session: rawCreds.pending_session || null,
+            flood_until_ts: rawCreds.flood_until_ts || null,
+        };
+        if (meta.creds.string_session) {
+            _activationCreds = {};
+        }
 
         label.value = item.label || "";
 
@@ -361,6 +383,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function activate() {
+        try {
+            await saveData();
+        } catch (e) {
+            console.error(e);
+            alert("Сохраните App ID, App Hash и телефон перед активацией");
+            return;
+        }
+
         const r = await fetch(`/api/telegram/${id}/activate`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -376,11 +406,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (data.need_code) {
+            await loadData();
             openCodeModal();
             return;
         }
 
         alert(data.message || (data.authorized ? "Активировано" : "Ошибка"));
+        if (data.ok) {
+            await loadData();
+        }
         await loadResStatus();
     }
 
@@ -468,6 +502,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await r.json();
         closeCodeModal();
         alert(data.message || (data.ok ? "Активировано" : "Ошибка"));
+        if (data.ok) {
+            await loadData();
+        }
         await loadResStatus();
     });
     btnCancelCode?.addEventListener("click", closeCodeModal);

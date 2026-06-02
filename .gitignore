@@ -76,7 +76,7 @@ docs/_build/
 
 .pybuilder/
 target/
-
+tdata/
 .ipynb_checkpoints
 
 profile_default/
@@ -109,3 +109,11 @@ src/storage
 /.env.dev
 /.env.prod
 /.env.secrets
+
+/probe_session.session
+/pyro_session.session
+/pyro_temp.session
+/check_string.py
+/generate_pyro_string.py
+/get_string.py
+/tg_code_probe.py
