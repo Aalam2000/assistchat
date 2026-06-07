@@ -18,6 +18,10 @@ from src.models.resource import Resource
 PENDING_TG: dict[str, dict] = {}
 PENDING_TG_TTL = 300  # 5 минут
 
+# Rate limiting: последняя попытка запроса кода по resource_id
+ACTIVATE_ATTEMPTS: dict[str, float] = {}
+ACTIVATE_COOLDOWN_SECS = 20  # минимум между попытками отправить код
+
 router = APIRouter(prefix="/api/telegram", tags=["telegram"])
 
 
@@ -131,9 +135,18 @@ async def save_telegram_resource(
         new_creds = meta_json.get("creds") if isinstance(meta_json.get("creds"), dict) else {}
         old_sess = (old_creds.get("string_session") or "").strip()
         new_sess = (new_creds.get("string_session") or "").strip()
-        if old_sess and not new_sess:
+        # Никогда не затираем поля активации если UI их не передал
+        needs_merge = (old_sess and not new_sess) or any(
+            old_creds.get(k) and not new_creds.get(k)
+            for k in ("phone_code_hash", "pending_session", "flood_until_ts")
+        )
+        if needs_merge:
             new_creds = dict(new_creds)
-            new_creds["string_session"] = old_sess
+            if old_sess and not new_sess:
+                new_creds["string_session"] = old_sess
+            for k in ("phone_code_hash", "pending_session", "flood_until_ts"):
+                if old_creds.get(k) and not new_creds.get(k):
+                    new_creds[k] = old_creds[k]
             meta_json = dict(meta_json)
             meta_json["creds"] = new_creds
 
@@ -197,10 +210,7 @@ async def activate_telegram(
             db.commit()
             return {"ok": True, "authorized": True, "message": "Сессия активна, ресурс запущен"}
         else:
-            # Сессия мертва — сбрасываем string_session, предлагаем пересоздать
-            creds["string_session"] = ""
-            meta["creds"] = creds
-            row.meta_json = meta
+            # Сессия мертва — НЕ стираем string_session, только помечаем ошибку
             row.status = "pause"
             row.phase = "error"
             row.last_error_code = "telegram_not_authorized"
@@ -210,7 +220,8 @@ async def activate_telegram(
             return {
                 "ok": False,
                 "authorized": False,
-                "message": f"Сессия недействительна: {err or 'не авторизована'}. Нажми Активировать снова — запросим новый код.",
+                "need_reauth": True,
+                "message": f"Сессия недействительна: {err or 'не авторизована'}. Введи App ID/Hash/Phone и нажми «Активировать сессию» для получения нового кода.",
             }
 
     # ── Нет string_session: проверяем что есть всё для запроса кода ──
@@ -287,6 +298,14 @@ async def activate_telegram(
 
     # ── ШАГ 1: отправляем код на телефон ──
     now = int(time.time())
+
+    # Rate limiting: не чаще одного запроса кода в ACTIVATE_COOLDOWN_SECS секунд
+    last_attempt = ACTIVATE_ATTEMPTS.get(rid, 0)
+    if now - last_attempt < ACTIVATE_COOLDOWN_SECS:
+        wait_left = ACTIVATE_COOLDOWN_SECS - int(now - last_attempt)
+        return {"ok": False, "message": f"Слишком часто. Подождите {wait_left} сек. перед следующей попыткой."}
+    ACTIVATE_ATTEMPTS[rid] = now
+
     flood_until = int(creds.get("flood_until_ts") or 0)
     if flood_until and flood_until > now:
         wait_left = flood_until - now
@@ -359,13 +378,41 @@ async def stop_telegram(
     if not row or row.user_id != user.id or row.provider != "telegram":
         raise HTTPException(status_code=404, detail="NOT_FOUND")
 
-    # Только флаг для botworker. Никаких остановок сессии тут нет.
     row.status = "pause"
     row.phase = "paused"
-
     db.add(row)
     db.commit()
     return {"ok": True, "status": row.status}
+
+
+@router.post("/{rid}/enable")
+async def enable_telegram(
+    rid: str,
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Включает ресурс (status=active) если есть string_session."""
+    rid_uuid = _uuid(rid)
+    row = db.query(Resource).filter(Resource.id == rid_uuid).first()
+    if not row or row.user_id != user.id or row.provider != "telegram":
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    meta = row.meta_json or {}
+    creds = (meta.get("creds") or {})
+    string_session = (creds.get("string_session") or "").strip()
+    if not string_session:
+        return {
+            "ok": False,
+            "message": "Нет сохранённой сессии. Сначала активируй через «Активировать сессию».",
+        }
+
+    row.status = "active"
+    row.phase = "starting"
+    row.last_error_code = None
+    row.error_message = None
+    db.add(row)
+    db.commit()
+    return {"ok": True, "status": row.status, "message": "Ресурс включён"}
 
 
 @router.get("/{rid}/status")
@@ -380,6 +427,10 @@ async def telegram_status(
     if not row or row.user_id != user.id or row.provider != "telegram":
         raise HTTPException(status_code=404, detail="NOT_FOUND")
 
+    meta = row.meta_json or {}
+    raw_creds = meta.get("creds") or {}
+    has_session = bool((raw_creds.get("string_session") or "").strip())
+
     authorized = False
     if probe:
         creds = _get_creds(row)
@@ -388,7 +439,7 @@ async def telegram_status(
             row.last_error_code = "telegram_creds_missing"
             row.error_message = "missing app_id/app_hash/string_session"
             row.phase = "error"
-            row.status = "pause"
+            # probe=1 не переводит status в pause — только помечает фазу
             authorized = False
         else:
             app_id, app_hash, string_session = creds
@@ -398,7 +449,7 @@ async def telegram_status(
                 row.last_error_code = "telegram_not_authorized" if err is None else "telegram_probe_error"
                 row.error_message = err or "string_session not authorized"
                 row.phase = "error"
-                row.status = "pause"
+                # НЕ меняем status — пусть пользователь сам решит что делать
             else:
                 row.last_error_code = None
                 row.error_message = None
@@ -406,16 +457,19 @@ async def telegram_status(
         db.commit()
         db.refresh(row)
     else:
-        # без probe — только по последнему чекпоинту
-        authorized = (row.last_error_code is None) and (row.last_checked_at is not None)
+        # без probe — по воркеру (phase=running значит сессия живая)
+        authorized = (row.phase == "running") or (
+            has_session and row.status == "active" and row.last_error_code is None
+        )
 
     active = (row.status == "active")
-    running = (row.phase == "running")  # ставит botworker/telegram worker
+    running = (row.phase == "running")
     return {
         "ok": True,
         "resource_status": row.status,
         "active": active,
         "running": running,
+        "has_session": has_session,
         "authorized": bool(authorized),
         "phase": row.phase,
         "last_checked_at": row.last_checked_at.isoformat() if row.last_checked_at else None,
