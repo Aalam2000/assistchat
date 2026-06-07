@@ -42,8 +42,13 @@ class TelegramWorker:
         self._task: asyncio.Task | None = None
         self._running = False
 
-        # snapshot правил на момент старта сессии (можно менять через рестарт воркера)
+        # snapshot правил и списков на момент старта (меняются через рестарт воркера)
         self._rules: dict = {}
+        # Разобранные белый/чёрный списки — кешируются при старте
+        self._wl_ids: set[int] = set()
+        self._wl_names: set[str] = set()
+        self._bl_ids: set[int] = set()
+        self._bl_names: set[str] = set()
 
     @property
     def is_running(self) -> bool:
@@ -90,21 +95,80 @@ class TelegramWorker:
         finally:
             db.close()
 
-    def _allowed_by_rules(self, event) -> bool:
+    @staticmethod
+    def _parse_list(entries) -> tuple[set[int], set[str]]:
+        """Разбирает список ID/юзернеймов → (set числовых ID, set юзернеймов в lowercase без @)."""
+        ids: set[int] = set()
+        names: set[str] = set()
+        for entry in (entries or []):
+            s = str(entry).strip().lstrip("@").lower()
+            if not s:
+                continue
+            try:
+                ids.add(int(s))
+            except ValueError:
+                names.add(s)
+        return ids, names
+
+    def _in_list(self, sender_id: int | None, sender_username: str | None,
+                 ids: set[int], names: set[str]) -> bool:
+        """Проверяет входит ли отправитель в переданный список."""
+        if sender_id and sender_id in ids:
+            return True
+        if sender_username and sender_username.lower().lstrip("@") in names:
+            return True
+        return False
+
+    def _allowed_by_rules(self, event, sender_username: str | None = None) -> bool:
+        """
+        Правила фильтрации сообщений:
+        1. Тип чата — личка/группа/канал (галочки в настройках)
+        2. Белый список — если задан, работаем ТОЛЬКО с ними, остальное игнорируем
+        3. Чёрный список — если белый пуст, блокируем тех кто в чёрном
+        """
         rules = self._rules or {}
-        # defaults: private=True, groups=False, channels=False (как в create)
+
+        # ── Шаг 1: проверка типа чата ──────────────────────────────────────────
         reply_private = bool(rules.get("reply_private", True))
         reply_groups = bool(rules.get("reply_groups", False))
         reply_channels = bool(rules.get("reply_channels", False))
 
         if getattr(event, "is_private", False):
-            return reply_private
-        if getattr(event, "is_group", False):
-            return reply_groups
-        if getattr(event, "is_channel", False):
-            return reply_channels
-        # неизвестный тип чата — безопасно не отвечаем
-        return False
+            if not reply_private:
+                self._log(f"SKIP: private chat запрещён правилами")
+                return False
+        elif getattr(event, "is_group", False):
+            if not reply_groups:
+                self._log(f"SKIP: group запрещён правилами")
+                return False
+        elif getattr(event, "is_channel", False):
+            if not reply_channels:
+                self._log(f"SKIP: channel запрещён правилами")
+                return False
+        else:
+            return False  # неизвестный тип — не отвечаем
+
+        # ── Шаг 2: белый / чёрный список ───────────────────────────────────────
+        sender_id = getattr(event, "sender_id", None)
+        has_whitelist = bool(self._wl_ids or self._wl_names)
+
+        if has_whitelist:
+            # Белый список задан — работаем ТОЛЬКО с теми кто в нём
+            allowed = self._in_list(sender_id, sender_username, self._wl_ids, self._wl_names)
+            if not allowed:
+                self._log(f"SKIP: sender_id={sender_id} не в белом списке")
+            return allowed
+
+        has_blacklist = bool(self._bl_ids or self._bl_names)
+        if has_blacklist:
+            # Белый список пуст — блокируем тех кто в чёрном
+            blocked = self._in_list(sender_id, sender_username, self._bl_ids, self._bl_names)
+            if blocked:
+                self._log(f"SKIP: sender_id={sender_id} в чёрном списке")
+            return not blocked
+
+        # Ни белого ни чёрного — тип чата уже прошёл, разрешаем
+        return True
 
     async def start(self) -> None:
         self._log("start() entered")
@@ -135,8 +199,16 @@ class TelegramWorker:
                 app_hash = creds.get("app_hash")
                 string_session = creds.get("string_session")
 
-                # snapshot rules на момент запуска
+                # snapshot rules и lists на момент запуска
                 self._rules = (meta.get("rules") or {}) if isinstance(meta.get("rules"), dict) else {}
+                lists = (meta.get("lists") or {}) if isinstance(meta.get("lists"), dict) else {}
+                self._wl_ids, self._wl_names = self._parse_list(lists.get("whitelist") or [])
+                self._bl_ids, self._bl_names = self._parse_list(lists.get("blacklist") or [])
+                self._log(
+                    f"rules={self._rules} "
+                    f"whitelist={self._wl_ids|{n for n in self._wl_names}} "
+                    f"blacklist={self._bl_ids|{n for n in self._bl_names}}"
+                )
 
                 if not app_id or not app_hash or not string_session:
                     await self._set_state(
@@ -197,7 +269,17 @@ class TelegramWorker:
                         return
                     if chat_id is None or msg_id is None:
                         return
-                    if not self._allowed_by_rules(event):
+
+                    # Пробуем получить username отправителя (для проверки списков)
+                    sender_username: str | None = None
+                    try:
+                        sndr = getattr(event, "sender", None)
+                        if sndr:
+                            sender_username = getattr(sndr, "username", None)
+                    except Exception:
+                        pass
+
+                    if not self._allowed_by_rules(event, sender_username):
                         return
 
                     try:
