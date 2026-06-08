@@ -18,6 +18,9 @@ async function loadResources() {
         for (const it of items) {
             const creds = it.meta?.creds || {};
             const tr = document.createElement("tr");
+            tr.dataset.id = it.id;
+            tr.dataset.provider = it.provider.toLowerCase();
+            tr.style.cursor = "pointer";
             tr.innerHTML = `
                 <td>${it.provider.toLowerCase()}</td>
                 <td>${it.label || "—"}</td>
@@ -72,11 +75,10 @@ function bindResourceActions() {
         }
 
         // === ОТКРЫТИЕ СТРАНИЦЫ РЕСУРСА ПО КЛИКУ ПО СТРОКЕ ===
-        const tr = e.target.closest("tr");
+        const tr = e.target.closest("tr[data-id]");
         if (!e.target.closest(".res-delete") && tr) {
-            const provider = tr.children[1].textContent.trim().toLowerCase();
-            const rid = tr.children[0].textContent.trim();
-
+            const provider = tr.dataset.provider;
+            const rid = tr.dataset.id;
             if (provider && rid) {
                 window.location.href = `/resources/${provider}/${rid}`;
             }
