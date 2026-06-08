@@ -240,7 +240,9 @@ async def user_resources_list(db: Session = Depends(get_db), user=Depends(get_cu
             "provider": r.provider,
             "label": r.label,
             "status": r.status,
-            "meta": r.meta_json or {"creds": {}, "phase": "new", "error": None}
+            "phase": r.phase,
+            "last_error_code": r.last_error_code,
+            "meta": r.meta_json or {"creds": {}}
         } for r in rows]
         return {"ok": True, "items": items}
     except Exception as e:

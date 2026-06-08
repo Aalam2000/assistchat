@@ -26,8 +26,8 @@ async function loadResources() {
                 <td>${it.label || "—"}</td>
                 <td>${creds.phone || "—"}</td>
                 <td>${it.status || "—"}</td>
-                <td>${it.meta?.phase || "—"}</td>
-                <td>${it.meta?.error || "—"}</td>
+                <td>${it.phase || "—"}</td>
+                <td>${it.last_error_code || "—"}</td>
                 <td>
                     <button class="btn res-delete" data-id="${it.id}" data-provider="${it.provider}">Удалить</button>
                 </td>
