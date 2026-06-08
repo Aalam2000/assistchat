@@ -19,11 +19,8 @@ async function loadResources() {
             const creds = it.meta?.creds || {};
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td>${it.id}</td>
                 <td>${it.provider.toLowerCase()}</td>
                 <td>${it.label || "—"}</td>
-                <td>${creds.app_id || "—"}</td>
-                <td>${creds.app_hash || "—"}</td>
                 <td>${creds.phone || "—"}</td>
                 <td>${it.status || "—"}</td>
                 <td>${it.meta?.phase || "—"}</td>
@@ -37,7 +34,7 @@ async function loadResources() {
 
     } catch (e) {
         console.error("[resources] loadResources error:", e);
-        tbody.innerHTML = `<tr><td colspan="10">Ошибка загрузки</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
     }
 }
 
