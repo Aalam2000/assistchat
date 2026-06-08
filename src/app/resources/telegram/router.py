@@ -56,19 +56,30 @@ def _get_creds(row: Resource) -> tuple[int, str, str] | None:
     return app_id, app_hash, string_session
 
 
-async def _probe_authorized(app_id: int, app_hash: str, string_session: str) -> tuple[bool, str | None]:
-    """Возвращает (authorized, err_message)."""
+async def _probe_authorized(app_id: int, app_hash: str, string_session: str) -> tuple[bool | None, str | None]:
+    """
+    Возвращает (authorized, err_message).
+    authorized=True  — сессия живая
+    authorized=False — сессия мертва (не авторизована)
+    authorized=None  — не удалось проверить (FloodWait, таймаут, сеть) — не значит что мертва
+    """
     try:
         from telethon import TelegramClient
         from telethon.sessions import StringSession
+        from telethon.errors import FloodWaitError
     except Exception as e:
-        return False, f"telethon_import_failed: {e}"
+        return None, f"telethon_import_failed: {e}"
 
     client = TelegramClient(StringSession(string_session), app_id, app_hash)
     try:
         await asyncio.wait_for(client.connect(), timeout=10)
         ok = await asyncio.wait_for(client.is_user_authorized(), timeout=10)
         return bool(ok), None
+    except FloodWaitError as e:
+        # Telegram требует паузу — это НЕ значит что сессия мертва
+        return None, f"flood_wait:{getattr(e, 'seconds', '?')}"
+    except asyncio.TimeoutError:
+        return None, "timeout"
     except Exception as e:
         return False, str(e)
     finally:
@@ -201,7 +212,7 @@ async def activate_telegram(
         authorized, err = await _probe_authorized(app_id, app_hash, string_session)
         row.last_checked_at = _utcnow()
 
-        if authorized:
+        if authorized is True:
             row.status = "active"
             row.phase = "starting"
             row.last_error_code = None
@@ -209,20 +220,36 @@ async def activate_telegram(
             db.add(row)
             db.commit()
             return {"ok": True, "authorized": True, "message": "Сессия активна, ресурс запущен"}
-        else:
-            # Сессия мертва — НЕ стираем string_session, только помечаем ошибку
-            row.status = "pause"
-            row.phase = "error"
-            row.last_error_code = "telegram_not_authorized"
-            row.error_message = err or "string_session not authorized"
+
+        if authorized is None:
+            # FloodWait или таймаут — проверить не удалось, но это НЕ значит что сессия мертва.
+            # Включаем ресурс — воркер сам проверит авторизацию при подключении.
+            row.status = "active"
+            row.phase = "starting"
+            row.last_error_code = None
+            row.error_message = None
             db.add(row)
             db.commit()
+            hint = f" ({err})" if err else ""
             return {
-                "ok": False,
-                "authorized": False,
-                "need_reauth": True,
-                "message": f"Сессия недействительна: {err or 'не авторизована'}. Введи App ID/Hash/Phone и нажми «Активировать сессию» для получения нового кода.",
+                "ok": True,
+                "authorized": True,
+                "message": f"Проверка недоступна{hint} — ресурс включён, воркер проверит сессию при подключении.",
             }
+
+        # authorized is False — сессия точно мертва
+        row.status = "pause"
+        row.phase = "error"
+        row.last_error_code = "telegram_not_authorized"
+        row.error_message = err or "string_session not authorized"
+        db.add(row)
+        db.commit()
+        return {
+            "ok": False,
+            "authorized": False,
+            "need_reauth": True,
+            "message": "Сессия недействительна. Для получения нового кода нажми «Активировать сессию».",
+        }
 
     # ── Нет string_session: проверяем что есть всё для запроса кода ──
     if not app_id or not app_hash or not phone:

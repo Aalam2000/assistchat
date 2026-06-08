@@ -383,10 +383,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Кнопка тоггла
             _updateToggleBtn(hasSession, active);
 
-            // Кнопка Активировать — только если нет сессии или есть ошибка авторизации
+            // Кнопка Активировать — только если нет сессии вообще, или сессия точно мертва
+            // FloodWait/таймаут — не повод показывать кнопку (сессия скорее всего жива)
             if (btnActivate) {
-                const needReauth = data.last_error_code === "telegram_not_authorized";
-                const showActivate = !hasSession || needReauth;
+                const deadSession = data.last_error_code === "telegram_not_authorized";
+                const showActivate = !hasSession || deadSession;
                 btnActivate.classList.toggle("hidden", !showActivate);
                 btnActivate.disabled = false;
             }
