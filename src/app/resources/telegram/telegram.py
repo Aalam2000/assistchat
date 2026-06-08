@@ -334,13 +334,28 @@ class TelegramWorker:
                 return
             except Exception as e:
                 self._running = False
-                await self._set_state(
-                    phase="error",
-                    code="telegram_runtime_error",
-                    message=str(e),
-                )
-                self._log(f"telegram_runtime_error: {e!r}")
-                await asyncio.sleep(2)
+                # FloodWait — Telegram требует паузу, соблюдаем точно
+                try:
+                    from telethon.errors import FloodWaitError as _FWE
+                    if isinstance(e, _FWE):
+                        wait_sec = max(int(getattr(e, "seconds", 60)), 60)
+                        await self._set_state(
+                            phase="error",
+                            code="telegram_flood_wait",
+                            message=f"FloodWait {wait_sec}s — следующая попытка через {wait_sec}s",
+                        )
+                        self._log(f"FloodWait: sleeping {wait_sec}s (не спамим Telegram)")
+                        await asyncio.sleep(wait_sec)
+                    else:
+                        await self._set_state(
+                            phase="error",
+                            code="telegram_runtime_error",
+                            message=str(e),
+                        )
+                        self._log(f"telegram_runtime_error: {e!r}")
+                        await asyncio.sleep(5)
+                except Exception:
+                    await asyncio.sleep(5)
             finally:
                 self._running = False
                 if self.client:
