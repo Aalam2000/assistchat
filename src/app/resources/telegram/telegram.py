@@ -39,8 +39,8 @@ class TelegramWorker:
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
         self._running = False
-        # дедупликация альбомов: grouped_id -> timestamp (TTL 60s)
-        self._seen_groups: dict[int, float] = {}
+        # дедупликация альбомов: grouped_id -> (timestamp, has_text)
+        self._seen_groups: dict[int, tuple[float, bool]] = {}
 
     @property
     def is_running(self) -> bool:
@@ -199,17 +199,27 @@ class TelegramWorker:
                     if is_bot:
                         return
 
-                    # Дедупликация альбомов: пропускаем 2-е и далее фото одной группы
+                    # Дедупликация альбомов: из группы пропускаем все фото,
+                    # кроме первого с текстом (caption); если ни у кого нет текста —
+                    # пропускаем дубли после первого.
                     grouped_id = getattr(getattr(event, "message", None), "grouped_id", None)
                     if grouped_id is not None:
                         now = time.monotonic()
                         # чистим устаревшие записи (>60 сек)
                         self._seen_groups = {
-                            g: ts for g, ts in self._seen_groups.items() if now - ts < 60
+                            g: v for g, v in self._seen_groups.items()
+                            if now - v[0] < 60
                         }
+                        this_has_text = bool((event.raw_text or "").strip())
                         if grouped_id in self._seen_groups:
-                            return  # уже обработали первое фото из этого альбома
-                        self._seen_groups[grouped_id] = now
+                            _, had_text = self._seen_groups[grouped_id]
+                            if had_text or not this_has_text:
+                                # уже видели с текстом, ИЛИ у этого тоже нет текста
+                                return
+                            # предыдущее было без текста, это — с текстом: пропускаем
+                            self._seen_groups[grouped_id] = (self._seen_groups[grouped_id][0], True)
+                        else:
+                            self._seen_groups[grouped_id] = (now, this_has_text)
 
                     # 3. Получаем название группы/канала
                     chat_name: str | None = None
