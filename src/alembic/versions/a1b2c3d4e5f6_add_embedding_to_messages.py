@@ -18,12 +18,13 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.add_column(
         "messages",
         sa.Column("embedding", Vector(EMBEDDING_DIM), nullable=True),
     )
     op.execute(
-        "CREATE INDEX ix_messages_embedding_hnsw "
+        "CREATE INDEX IF NOT EXISTS ix_messages_embedding_hnsw "
         "ON messages USING hnsw (embedding vector_cosine_ops)"
     )
 
