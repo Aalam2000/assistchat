@@ -166,12 +166,18 @@ class TelegramWorker:
                         return
 
                     sender_username: str | None = None
+                    is_bot = False
                     try:
                         sndr = await event.get_sender()
                         if sndr:
                             sender_username = getattr(sndr, "username", None)
+                            is_bot = bool(getattr(sndr, "bot", False))
                     except Exception:
                         pass
+
+                    # Игнорируем сообщения от ботов — предотвращаем петли
+                    if is_bot:
+                        return
 
                     if getattr(event, "is_private", False):
                         peer_type = "private"
