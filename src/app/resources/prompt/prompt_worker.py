@@ -448,19 +448,9 @@ class PromptWorker:
                 notify_mode = (step.get("notify_mode") or "direct").lower()
 
                 if notify_mode == "direct":
-                    header = f"📌 *{label}*\n{source_info}"
-                    if event.source_type == "telegram_session" and event.chat_id and event.msg_id and owner_tg_id:
-                        await _forward_to_owner(
-                            session_rid=event.source_rid,
-                            owner_tg_id=owner_tg_id,
-                            from_chat_id=event.chat_id,
-                            msg_id=event.msg_id,
-                            header=header,
-                            bot_rid=bot_rid,
-                        )
-                    else:
-                        notification = f"{header}\n\n{incoming_text}"
-                        await _notify_owner(bot_rid, owner_tg_id, notification)
+                    body = incoming_text if incoming_text and incoming_text != f"[{event.msg_type}]" else f"[{event.msg_type}]"
+                    notification = f"📌 *{label}*\n{source_info}\n\n{body}"
+                    await _notify_owner(bot_rid, owner_tg_id, notification)
                     _log(label, rid, f"step[{i}] {step_name} notify direct → owner={owner_tg_id}")
 
                 elif notify_mode == "ai_formatted":
