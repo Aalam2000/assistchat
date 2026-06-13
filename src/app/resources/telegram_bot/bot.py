@@ -99,6 +99,30 @@ class TelegramBotWorker:
             self._log(f"send_message error: {e!r}")
             return False
 
+    async def send_media_group(
+        self,
+        chat_id: int | str,
+        photos: list[bytes],
+        caption: str = "",
+    ) -> bool:
+        """Отправить несколько фото как альбом через Bot API."""
+        if not self.bot or not photos:
+            return False
+        try:
+            from aiogram.types import BufferedInputFile, InputMediaPhoto
+            items = []
+            for i, data in enumerate(photos):
+                items.append(InputMediaPhoto(
+                    media=BufferedInputFile(data, filename=f"photo_{i}.jpg"),
+                    caption=caption if i == 0 else None,
+                    parse_mode="Markdown",
+                ))
+            await self.bot.send_media_group(chat_id=chat_id, media=items)
+            return True
+        except Exception as e:
+            self._log(f"send_media_group error: {e!r}")
+            return False
+
     async def start(self) -> None:
         self._log("start() entered")
 
@@ -151,6 +175,10 @@ class TelegramBotWorker:
                 @self.dp.message()
                 async def on_message(message: types.Message) -> None:
                     if self._stop.is_set():
+                        return
+
+                    # Пересланные сообщения — не обрабатываем (пользователь сам переслал что-то в бота)
+                    if getattr(message, "forward_origin", None) or getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None):
                         return
 
                     chat = message.chat

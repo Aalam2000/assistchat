@@ -461,8 +461,42 @@ class PromptWorker:
                             body = incoming_text
                     else:
                         body = _media_labels.get(event.msg_type, f"[{event.msg_type}]")
-                    notification = f"📌 *{label}*\n{source_info}\n\n{body}"
-                    await _notify_owner(bot_rid, owner_tg_id, notification)
+
+                    header = f"📌 *{label}*\n{source_info}"
+
+                    # Для альбомов и фото — скачиваем через Telethon и шлём как медиагруппу
+                    sent_as_media = False
+                    if (
+                        event.msg_type in ("album", "photo")
+                        and event.source_type == "telegram_session"
+                        and event.chat_id and event.msg_id
+                        and bot_rid and owner_tg_id
+                    ):
+                        try:
+                            from src.app.resources.telegram.telegram import session_registry
+                            from src.app.resources.telegram_bot.bot import bot_registry as _bot_reg
+
+                            tg_worker = session_registry.get(event.source_rid)
+                            bot_worker = _bot_reg.get(bot_rid)
+                            if tg_worker and bot_worker:
+                                grouped_id = (event.raw or {}).get("grouped_id")
+                                photos = await tg_worker.download_album(
+                                    from_chat_id=event.chat_id,
+                                    msg_id=event.msg_id,
+                                    grouped_id=grouped_id,
+                                )
+                                if photos:
+                                    caption = f"{header}\n\n{incoming_text}" if incoming_text else header
+                                    sent_as_media = await bot_worker.send_media_group(
+                                        owner_tg_id, photos, caption
+                                    )
+                                    _log(label, rid, f"step[{i}] {step_name} notify album → {len(photos)} photos → owner={owner_tg_id}")
+                        except Exception as _e:
+                            _log(label, rid, f"step[{i}] album download error: {_e!r}")
+
+                    if not sent_as_media:
+                        notification = f"{header}\n\n{body}"
+                        await _notify_owner(bot_rid, owner_tg_id, notification)
                     _log(label, rid, f"step[{i}] {step_name} notify direct → owner={owner_tg_id}")
 
                 elif notify_mode == "ai_formatted":

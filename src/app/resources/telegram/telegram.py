@@ -39,6 +39,7 @@ class TelegramWorker:
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
         self._running = False
+        self._me_id: int | None = None  # ID собственного аккаунта сессии
         # дедупликация альбомов: grouped_id -> (timestamp, has_text)
         self._seen_groups: dict[int, tuple[float, bool]] = {}
 
@@ -147,6 +148,14 @@ class TelegramWorker:
                     await self.stop()
                     return
 
+                # Запоминаем ID собственного аккаунта — для фильтрации своих сообщений
+                try:
+                    me = await self.client.get_me()
+                    self._me_id = me.id
+                    self._log(f"me_id={self._me_id}")
+                except Exception:
+                    self._me_id = None
+
                 self._running = True
                 await self._set_state(phase="running", code=None, message=None)
                 self._log("running: authorized; listening NewMessage")
@@ -166,6 +175,10 @@ class TelegramWorker:
                     msg_id = getattr(getattr(event, "message", None), "id", None)
 
                     if chat_id is None or msg_id is None:
+                        return
+
+                    # Пропускаем сообщения от своего же аккаунта (пересылки в бота и т.п.)
+                    if self._me_id and sender_id == self._me_id:
                         return
 
                     # 1. Определяем тип чата
@@ -266,7 +279,10 @@ class TelegramWorker:
                         msg_type=msg_type,
                         source_label=self.resource.label,
                         chat_name=chat_name,
-                        raw={"event_type": "new_message"},
+                        raw={
+                            "event_type": "new_message",
+                            "grouped_id": grouped_id,
+                        },
                     )
 
                     await bus.publish(rid_str, evt)
@@ -309,6 +325,43 @@ class TelegramWorker:
 
             await asyncio.sleep(1)
 
+
+    async def download_album(
+        self,
+        from_chat_id: int,
+        msg_id: int,
+        grouped_id: int | None = None,
+    ) -> list[bytes]:
+        """Скачать все фото альбома (по grouped_id) или одно фото."""
+        if not self.client:
+            return []
+        try:
+            if grouped_id:
+                nearby = await self.client.get_messages(
+                    entity=from_chat_id,
+                    min_id=max(1, msg_id - 15),
+                    max_id=msg_id + 15,
+                    limit=20,
+                )
+                album_msgs = sorted(
+                    [m for m in nearby if m and getattr(m, "grouped_id", None) == grouped_id],
+                    key=lambda m: m.id,
+                )
+            else:
+                msgs = await self.client.get_messages(entity=from_chat_id, ids=[msg_id])
+                album_msgs = [m for m in (msgs or []) if m]
+
+            results: list[bytes] = []
+            for msg in album_msgs:
+                if getattr(msg, "photo", None) or getattr(msg, "document", None):
+                    data = await self.client.download_media(msg, bytes)
+                    if data:
+                        results.append(data)
+            self._log(f"download_album grouped_id={grouped_id} → {len(results)} files")
+            return results
+        except Exception as e:
+            self._log(f"download_album error: {e!r}")
+            return []
 
     async def forward_message(self, to_peer: int, from_chat_id: int, msg_id: int) -> bool:
         """Переслать оригинальное сообщение (с медиа) через Telethon."""
