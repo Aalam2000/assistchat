@@ -77,18 +77,20 @@ def _passes_filters(event: MessageEvent, filters: dict, label: str = "") -> bool
     chat = str(event.chat_id or "")
     uname = (event.sender_username or "").lstrip("@").lower()
 
+    print(f"[FILTER] {label} peer={peer} chat={chat} uname={uname!r} wl={whitelist} bl={blacklist}", flush=True)
+
     if whitelist:
         wl_clean = [w.lstrip("@").lower() for w in whitelist]
         in_white = peer in whitelist or chat in whitelist or uname in wl_clean
-        print(f"[FILTER] {label} whitelist={wl_clean} peer={peer} uname={uname!r} → in_white={in_white}", flush=True)
         if not in_white:
+            print(f"[FILTER] {label} skip: not in whitelist", flush=True)
             return False
 
     if blacklist:
         bl_clean = [b.lstrip("@").lower() for b in blacklist]
         in_black = peer in blacklist or chat in blacklist or uname in bl_clean
         if in_black:
-            print(f"[FILTER] {label} blacklist hit: peer={peer} uname={uname!r}", flush=True)
+            print(f"[FILTER] {label} skip: blacklist hit chat={chat}", flush=True)
             return False
 
     return True
