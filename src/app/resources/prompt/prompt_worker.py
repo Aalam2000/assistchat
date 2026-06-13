@@ -448,7 +448,19 @@ class PromptWorker:
                 notify_mode = (step.get("notify_mode") or "direct").lower()
 
                 if notify_mode == "direct":
-                    body = incoming_text if incoming_text and incoming_text != f"[{event.msg_type}]" else f"[{event.msg_type}]"
+                    _media_labels = {
+                        "album": "📷 Альбом",
+                        "photo": "🖼 Фото",
+                        "voice": "🎤 Голосовое",
+                        "file": "📎 Файл",
+                    }
+                    if incoming_text:
+                        if event.msg_type in _media_labels:
+                            body = f"{_media_labels[event.msg_type]}: {incoming_text}"
+                        else:
+                            body = incoming_text
+                    else:
+                        body = _media_labels.get(event.msg_type, f"[{event.msg_type}]")
                     notification = f"📌 *{label}*\n{source_info}\n\n{body}"
                     await _notify_owner(bot_rid, owner_tg_id, notification)
                     _log(label, rid, f"step[{i}] {step_name} notify direct → owner={owner_tg_id}")

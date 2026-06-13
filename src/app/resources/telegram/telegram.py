@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from datetime import datetime, timezone
 
 from telethon import TelegramClient, events
@@ -38,6 +39,8 @@ class TelegramWorker:
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
         self._running = False
+        # дедупликация альбомов: grouped_id -> timestamp (TTL 60s)
+        self._seen_groups: dict[int, float] = {}
 
     @property
     def is_running(self) -> bool:
@@ -196,6 +199,18 @@ class TelegramWorker:
                     if is_bot:
                         return
 
+                    # Дедупликация альбомов: пропускаем 2-е и далее фото одной группы
+                    grouped_id = getattr(getattr(event, "message", None), "grouped_id", None)
+                    if grouped_id is not None:
+                        now = time.monotonic()
+                        # чистим устаревшие записи (>60 сек)
+                        self._seen_groups = {
+                            g: ts for g, ts in self._seen_groups.items() if now - ts < 60
+                        }
+                        if grouped_id in self._seen_groups:
+                            return  # уже обработали первое фото из этого альбома
+                        self._seen_groups[grouped_id] = now
+
                     # 3. Получаем название группы/канала
                     chat_name: str | None = None
                     try:
@@ -208,15 +223,17 @@ class TelegramWorker:
                     except Exception:
                         pass
 
+                    msg = getattr(event, "message", None)
                     msg_type = "text"
-                    if not text:
-                        msg = getattr(event, "message", None)
+                    if grouped_id is not None:
+                        msg_type = "album"  # альбом (несколько фото/видео)
+                    elif not text:
                         if getattr(msg, "voice", None) or getattr(msg, "audio", None):
                             msg_type = "voice"
+                        elif getattr(msg, "photo", None):
+                            msg_type = "photo"
                         elif getattr(msg, "document", None) or getattr(msg, "media", None):
                             msg_type = "file"
-                        elif getattr(msg, "photo", None):
-                            msg_type = "image"
 
                     direction = "OUT" if event.out else "IN"
                     self._log(
