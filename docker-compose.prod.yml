@@ -2,7 +2,7 @@ name: assistchat
 
 services:
   db:
-    image: postgres:16.9
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -52,6 +52,8 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: "5432"
+    volumes:
+      - assistchat_uploads:/app/uploads
     restart: unless-stopped
 
   botworker:
@@ -72,9 +74,13 @@ services:
       DB_PORT: "5432"
       PYTHONPATH: /app
       PYTHONUNBUFFERED: "1"
+    volumes:
+      - assistchat_uploads:/app/uploads
     command: python -m src.app.modules.bot.worker_entry
     restart: unless-stopped
 
 volumes:
   assistchat_db:
+    external: true
+  assistchat_uploads:
     external: true

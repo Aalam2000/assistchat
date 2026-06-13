@@ -1,99 +1,31 @@
 # src/app/resources/telegram/settings.yaml
 name: "Telegram"
 title: "Telegram"
-description: "Telegram transport resource (Telethon session + routing rules). Диалог/AI в ядре."
+description: "Telegram user-сессия (Telethon). Только подключение — логика в PROMPT."
 
 schema:
-  version: 1
+  version: 2
   groups:
-    - title: "Telegram сессия (Telethon)"
+    - title: "Telegram подключение"
       fields:
         - key: creds.app_id
-          label: "Telegram API ID (app_id)"
+          label: "Telegram API ID"
           type: number
           required: true
 
         - key: creds.app_hash
-          label: "Telegram API HASH (app_hash)"
+          label: "Telegram API Hash"
           type: password
           required: true
+
+        - key: creds.phone
+          label: "Номер телефона (E.164)"
+          type: string
+          required: false
+          help: "Используется только при первичной активации."
 
         - key: creds.string_session
           label: "StringSession"
           type: textarea
-          required: true
-          help: "Telethon StringSession (не token бота)."
-
-    - title: "Промпт (ресурс PROMPT)"
-      fields:
-        - key: prompt_id
-          label: "ID ресурса PROMPT"
-          type: string
-          required: true
-          help: "UUID ресурса PROMPT, который будет использоваться ядром."
-
-    - title: "AI настройки (ядро возьмёт ключ/модель из этих полей)"
-      fields:
-        - key: ai_keys_resource_id
-          label: "ID ресурса API_KEYS"
-          type: string
-          required: true
-          help: "UUID ресурса API_KEYS (хранилище ключей)."
-
-        - key: ai_key_field
-          label: "Какой ключ использовать (имя поля в API_KEYS)"
-          type: string
-          required: true
-          help: "Например: creds.openai_api_key"
-
-        - key: model
-          label: "Модель (для текстовых ответов)"
-          type: string
-          required: true
-          help: "Например: gpt-4o-mini / gpt-5 / ..."
-
-        - key: prefer_voice_reply
-          label: "Отвечать голосом, если пришёл voice"
-          type: boolean
           required: false
-
-    - title: "Где отвечать"
-      fields:
-        - key: rules.reply_private
-          label: "Отвечать в личке"
-          type: boolean
-          required: false
-
-        - key: rules.reply_groups
-          label: "Отвечать в группах"
-          type: boolean
-          required: false
-
-        - key: rules.reply_channels
-          label: "Отвечать в каналах"
-          type: boolean
-          required: false
-
-    - title: "Фильтры (опционально)"
-      fields:
-        - key: lists.whitelist
-          label: "Whitelist (список sender_id)"
-          type: list
-          required: false
-
-        - key: lists.blacklist
-          label: "Blacklist (список sender_id)"
-          type: list
-          required: false
-
-    - title: "Лимиты (опционально)"
-      fields:
-        - key: limits.tokens_limit
-          label: "Лимит токенов в сутки"
-          type: number
-          required: false
-
-        - key: limits.autostop
-          label: "Авто-стоп при достижении лимита"
-          type: boolean
-          required: false
+          help: "Заполняется автоматически после активации."

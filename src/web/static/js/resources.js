@@ -146,3 +146,8 @@ window.addEventListener("DOMContentLoaded", () => {
     loadResources();
     bindResourceActions();
 });
+
+// Обновляем таблицу при возврате через кнопку "Назад" (bfcache)
+window.addEventListener("pageshow", (e) => {
+    if (e.persisted) loadResources();
+});

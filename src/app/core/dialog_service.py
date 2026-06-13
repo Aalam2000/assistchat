@@ -30,6 +30,8 @@ from src.models.resource import Resource
 
 from src.app.core.dialog_graph import AIResponse, apply_response, build_request
 from src.app.core.ai_transport import AIChatConfig, chat, provider_from_key_field
+from src.app.core.embedding_service import get_embedding
+from src.app.core.dialog_store import insert_message, DuplicateExternalMessage
 
 
 # ────────────────────────────────────────────────────────────────
@@ -224,8 +226,9 @@ async def process_incoming(
     # thread_key: стабильно идентифицирует диалог внутри ресурса
     thread_key = f"{provider}:{external_chat_id}"
 
-    # 1) загрузим ресурс (вне транзакции)
-    def _load_resource_sync() -> Resource:
+    # 1) загрузим ресурс + api_key (вне транзакции)
+    def _load_resource_sync() -> tuple[Resource, str, str, str, str, float]:
+        """Возвращает (resource, prompt_id_str, api_key_val, ai_key_field, model, temperature)."""
         db = SessionLocal()
         try:
             r = db.get(Resource, rid)
@@ -233,59 +236,64 @@ async def process_incoming(
                 raise RuntimeError("RESOURCE_NOT_FOUND")
             if (r.status or "") != "active":
                 raise RuntimeError("RESOURCE_NOT_ACTIVE")
-            return r
+
+            m = r.meta_json or {}
+            p_id = _uuid(m.get("prompt_id") or _dot_get(m, "prompt_id"))
+            keys_id = _uuid(
+                _dot_get(m, "ai.api_keys_resource_id") or m.get("ai_keys_resource_id")
+            )
+            key_field = (
+                _dot_get(m, "ai.api_key_field") or m.get("ai_key_field") or ""
+            ).strip()
+
+            if not p_id:
+                raise RuntimeError("PROMPT_NOT_SET_IN_RESOURCE")
+            if not keys_id or not key_field:
+                raise RuntimeError("AI_KEYS_NOT_SET_IN_RESOURCE")
+
+            mdl = (
+                model_text
+                or _dot_get(m, "ai.model_text")
+                or _dot_get(m, "ai.model")
+                or m.get("model")
+                or m.get("model_text")
+                or ""
+            ).strip()
+            if not mdl:
+                raise RuntimeError("MODEL_NOT_SET_IN_RESOURCE")
+
+            raw_t = _dot_get(m, "ai.temperature") or m.get("temperature")
+            try:
+                temp = float(raw_t if raw_t is not None else 0.7) if temperature is None else float(temperature)
+            except Exception:
+                temp = 0.7
+
+            keys_res = db.get(Resource, keys_id)
+            if not keys_res or keys_res.provider != "api_keys":
+                raise RuntimeError("API_KEYS_RESOURCE_NOT_FOUND")
+            keys_meta = keys_res.meta_json or {}
+            key_val = (_dot_get(keys_meta, key_field) or "").strip()
+            if not key_val:
+                raise RuntimeError("API_KEY_FIELD_EMPTY")
+
+            return r, str(p_id), key_val, key_field, mdl, temp
         finally:
             db.close()
 
-    resource = await asyncio.to_thread(_load_resource_sync)
-    meta = resource.meta_json or {}
+    resource, prompt_id_str, api_key_val, ai_key_field, model, temperature = \
+        await asyncio.to_thread(_load_resource_sync)
+    prompt_id = _uuid(prompt_id_str)
 
-    # 2) резолвим обязательные связи из resource.meta_json
-    # TG router хранит плоско: prompt_id / ai_keys_resource_id / ai_key_field / model
-    # Поддержим и новый формат ai.* (на будущее)
-    prompt_id = _uuid(meta.get("prompt_id") or _dot_get(meta, "prompt_id"))
+    user_text = (text_value or "").strip()
 
-    ai_keys_id = _uuid(
-        _dot_get(meta, "ai.api_keys_resource_id")
-        or meta.get("ai_keys_resource_id")
-    )
-    ai_key_field = (
-            _dot_get(meta, "ai.api_key_field")
-            or meta.get("ai_key_field")
-            or ""
-    ).strip()
+    # 3) генерируем эмбеддинг входящего сообщения (async, до транзакции)
+    in_embedding = await get_embedding(user_text, api_key_val) if user_text else None
 
-    if not prompt_id:
-        raise RuntimeError("PROMPT_NOT_SET_IN_RESOURCE")
-    if not ai_keys_id or not ai_key_field:
-        raise RuntimeError("AI_KEYS_NOT_SET_IN_RESOURCE")
-
-    model = (
-            model_text
-            or _dot_get(meta, "ai.model_text")
-            or _dot_get(meta, "ai.model")
-            or meta.get("model")
-            or meta.get("model_text")
-            or ""
-    ).strip()
-    if not model:
-        raise RuntimeError("MODEL_NOT_SET_IN_RESOURCE")
-
-    if temperature is None:
-        raw_t = _dot_get(meta, "ai.temperature")
-        if raw_t is None:
-            raw_t = meta.get("temperature")
-        try:
-            temperature = float(raw_t if raw_t is not None else 0.7)
-        except Exception:
-            temperature = 0.7
-
-    # 3) транзакция: dialog + lock + дедуп + история + запись out
-    def _tx_sync() -> Optional[Dict[str, Any]]:
+    # 4) транзакция: dialog + lock + дедуп + история + запись IN
+    def _tx_sync(emb_in: list | None) -> Optional[Dict[str, Any]]:
         db: Session = SessionLocal()
-        t0 = time.perf_counter()
         try:
-            # 3.1 get_or_create dialog
+            # 4.1 get_or_create dialog
             row = db.execute(_SQL_GET_OR_CREATE_DIALOG, {
                 "resource_id": str(rid),
                 "thread_key": thread_key,
@@ -297,63 +305,49 @@ async def process_incoming(
             graph_state = row[1] or {}
             lock_key = _uuid_to_pg_lock_key(dialog_id)
 
-            # 3.2 запрет параллели в одном диалоге (на всю транзакцию)
+            # 4.2 запрет параллели в одном диалоге (на всю транзакцию)
             db.execute(_SQL_LOCK_DIALOG, {"key": lock_key})
 
-            # 3.3 дедуп/запись IN
-            in_id = uuid.uuid4()
-            inserted_in = db.execute(_SQL_INSERT_MESSAGE, {
-                "id": str(in_id),
-                "resource_id": str(rid),
-                "dialog_id": str(dialog_id),
-                "peer_id": int(peer_id),
-                "peer_type": peer_type,
-                "chat_id": int(chat_id) if chat_id is not None else None,
-                "msg_id": int(msg_id) if msg_id is not None else None,
-                "direction": "in",
-                "msg_type": "text",
-                "text": (text_value or "").strip() or None,
-                "tokens_in": None,
-                "tokens_out": None,
-                "latency_ms": None,
-                "provider": provider,
-                "external_chat_id": external_chat_id,
-                "external_msg_id": external_msg_id,
-                "is_internal": False,
-                "meta_json": _json({"phase": "incoming"}),
-            }).scalar_one_or_none()
-            if not inserted_in:
-                db.commit()
+            # 4.3 дедуп/запись IN через единую точку dialog_store
+            try:
+                insert_message(
+                    db,
+                    resource_id=rid,
+                    dialog_id=dialog_id,
+                    peer_type=peer_type,
+                    peer_id=peer_id,
+                    chat_id=chat_id,
+                    direction="in",
+                    text_value=user_text or "",
+                    msg_type="text",
+                    msg_id=msg_id,
+                    provider=provider,
+                    external_chat_id=external_chat_id,
+                    external_msg_id=external_msg_id,
+                    is_internal=False,
+                    meta_json={"phase": "incoming"},
+                    embedding=emb_in,
+                )
+            except DuplicateExternalMessage:
+                db.rollback()
                 return None  # дубль
 
-            user_text = (text_value or "").strip()
             if not user_text:
                 db.commit()
                 return None
 
-            # 3.4 load prompt + api_keys
+            # 4.4 load prompt
             prompt_res = db.get(Resource, prompt_id)
-            keys_res = db.get(Resource, ai_keys_id)
             if not prompt_res or prompt_res.provider != "prompt":
                 raise RuntimeError("PROMPT_RESOURCE_NOT_FOUND")
-            if not keys_res or keys_res.provider != "api_keys":
-                raise RuntimeError("API_KEYS_RESOURCE_NOT_FOUND")
-
             prompt_rt = _parse_prompt_resource(prompt_res)
 
-            keys_meta = keys_res.meta_json or {}
-            api_key_val = (_dot_get(keys_meta, ai_key_field) or "").strip()
-            if not api_key_val:
-                raise RuntimeError("API_KEY_FIELD_EMPTY")
-
-            # 3.5 history (limit из PROMPT)
+            # 4.5 history (limit из PROMPT)
             limit_msgs = int(prompt_rt.history_pairs) * 2
             rows = db.execute(_SQL_LOAD_HISTORY, {"dialog_id": str(dialog_id), "limit": limit_msgs}).all()
-            rows = list(rows)
-            rows.reverse()
-            history = _rows_to_history([(r[0], r[1]) for r in rows])
+            history = _rows_to_history([(r[0], r[1]) for r in list(reversed(list(rows)))])
 
-            # 3.6 graph -> request
+            # 4.6 graph -> request
             thread_id = f"{provider}:{rid}:{dialog_id}"
             req = build_request(
                 thread_id=thread_id,
@@ -367,15 +361,12 @@ async def process_incoming(
                 db.commit()
                 return None
 
-            # 3.7 transport chat (внутри tx нельзя await; выйдем наружу)
             db.commit()
-            # вернём всё, что нужно для async части
             return {
                 "dialog_id": dialog_id,
                 "graph_state": graph_state or {},
                 "req_messages": req.messages,
                 "req_meta": req.meta,
-                "api_key": api_key_val,
                 "key_field": ai_key_field,
                 "model": model,
                 "temperature": float(temperature or 0.7),
@@ -387,16 +378,16 @@ async def process_incoming(
         finally:
             db.close()
 
-    prepared = await asyncio.to_thread(_tx_sync)
+    prepared = await asyncio.to_thread(_tx_sync, in_embedding)
     if prepared is None:
         return None
 
-    # 4) async вызов AI (вне DB tx)
+    # 5) async вызов AI (вне DB tx)
     prov = provider_from_key_field(prepared["key_field"])
     result = await chat(
         cfg=AIChatConfig(
             provider=prov,
-            api_key=prepared["api_key"],
+            api_key=api_key_val,
             model=prepared["model"],
             temperature=prepared["temperature"],
         ),
@@ -410,15 +401,18 @@ async def process_incoming(
         answer_text = (result.text or "").strip()
         usage = result.usage or {}
 
-    # 5) apply graph (обновляем graph_state)
+    # 6) apply graph (обновляем graph_state)
     answer_text, new_state, graph_meta = apply_response(
         state=prepared["graph_state"],
         request_meta=prepared["req_meta"],
         ai_response=AIResponse(text=answer_text, usage=usage, raw=result.raw),
     )
 
-    # 6) записываем OUT + update dialogs + usage
-    def _tx_save_out_sync() -> Dict[str, Any]:
+    # 7) генерируем эмбеддинг исходящего сообщения (async, до транзакции)
+    out_embedding = await get_embedding(answer_text, api_key_val) if answer_text else None
+
+    # 8) записываем OUT + update dialogs + usage
+    def _tx_save_out_sync(emb_out: list | None) -> Dict[str, Any]:
         db: Session = SessionLocal()
         t0 = time.perf_counter()
         try:
@@ -426,9 +420,7 @@ async def process_incoming(
             lock_key = _uuid_to_pg_lock_key(dialog_id)
             db.execute(_SQL_LOCK_DIALOG, {"key": lock_key})
 
-            out_id = uuid.uuid4()
             latency_ms = int((time.perf_counter() - t0) * 1000)
-
             out_meta = {
                 "phase": "outgoing",
                 "prompt_google_source": prepared["prompt_google_source"],
@@ -438,26 +430,25 @@ async def process_incoming(
                 "graph": graph_meta.get("graph") if isinstance(graph_meta, dict) else {},
             }
 
-            db.execute(_SQL_INSERT_MESSAGE, {
-                "id": str(out_id),
-                "resource_id": str(rid),
-                "dialog_id": str(dialog_id),
-                "peer_id": int(peer_id),
-                "peer_type": peer_type,
-                "chat_id": int(chat_id) if chat_id is not None else None,
-                "msg_id": None,
-                "direction": "out",
-                "msg_type": "text",
-                "text": answer_text,
-                "tokens_in": None,
-                "tokens_out": int(usage.get("total_tokens") or 0),
-                "latency_ms": latency_ms,
-                "provider": provider,
-                "external_chat_id": external_chat_id,
-                "external_msg_id": None,  # проставит транспорт после отправки (если надо)
-                "is_internal": False,
-                "meta_json": _json(out_meta),
-            })
+            out_id = insert_message(
+                db,
+                resource_id=rid,
+                dialog_id=dialog_id,
+                peer_type=peer_type,
+                peer_id=peer_id,
+                chat_id=chat_id,
+                direction="out",
+                text_value=answer_text,
+                msg_type="text",
+                provider=provider,
+                external_chat_id=external_chat_id,
+                external_msg_id=None,
+                is_internal=False,
+                meta_json=out_meta,
+                tokens_out=int(usage.get("total_tokens") or 0),
+                latency_ms=latency_ms,
+                embedding=emb_out,
+            )
 
             ts = _now_utc()
             db.execute(_SQL_UPDATE_DIALOG, {
@@ -484,7 +475,7 @@ async def process_incoming(
         finally:
             db.close()
 
-    return await asyncio.to_thread(_tx_save_out_sync)
+    return await asyncio.to_thread(_tx_save_out_sync, out_embedding)
 
 
 async def attach_outgoing_ids(

@@ -103,14 +103,6 @@ async def create_telegram_resource(
         phase="paused",
         meta_json={
             "creds": {"app_id": None, "app_hash": "", "phone": "", "string_session": ""},
-            "prompt_id": "",
-            "ai_keys_resource_id": "",
-            "ai_key_field": "creds.openai_api_key",
-            "model": "gpt-4o-mini",
-            "prefer_voice_reply": True,
-            "rules": {"reply_private": True, "reply_groups": False, "reply_channels": False},
-            "lists": {"whitelist": [], "blacklist": []},
-            "limits": {"tokens_limit": None, "autostop": False},
         },
     )
     db.add(r)
@@ -136,33 +128,23 @@ async def save_telegram_resource(
         raise HTTPException(status_code=400, detail="BAD_PROVIDER")
 
     label = (payload.get("label") or "").strip() or row.label or "Telegram"
-    meta_json = payload.get("meta_json")
-    if meta_json is None or not isinstance(meta_json, dict):
-        meta_json = row.meta_json or {}
-    else:
-        # UI не показывает string_session сразу после активации — не затираем случайно
-        old_meta = row.meta_json or {}
-        old_creds = (old_meta.get("creds") or {}) if isinstance(old_meta, dict) else {}
-        new_creds = meta_json.get("creds") if isinstance(meta_json.get("creds"), dict) else {}
-        old_sess = (old_creds.get("string_session") or "").strip()
-        new_sess = (new_creds.get("string_session") or "").strip()
-        # Никогда не затираем поля активации если UI их не передал
-        needs_merge = (old_sess and not new_sess) or any(
-            old_creds.get(k) and not new_creds.get(k)
-            for k in ("phone_code_hash", "pending_session", "flood_until_ts")
-        )
-        if needs_merge:
+
+    incoming = payload.get("meta_json")
+    if not isinstance(incoming, dict):
+        incoming = {}
+
+    old_meta = row.meta_json or {}
+    old_creds = (old_meta.get("creds") or {}) if isinstance(old_meta, dict) else {}
+    new_creds = incoming.get("creds") if isinstance(incoming.get("creds"), dict) else {}
+
+    # Никогда не затираем служебные поля активации если UI их не передал
+    for key in ("string_session", "phone_code_hash", "pending_session", "flood_until_ts"):
+        if old_creds.get(key) and not new_creds.get(key):
             new_creds = dict(new_creds)
-            if old_sess and not new_sess:
-                new_creds["string_session"] = old_sess
-            for k in ("phone_code_hash", "pending_session", "flood_until_ts"):
-                if old_creds.get(k) and not new_creds.get(k):
-                    new_creds[k] = old_creds[k]
-            meta_json = dict(meta_json)
-            meta_json["creds"] = new_creds
+            new_creds[key] = old_creds[key]
 
     row.label = label
-    row.meta_json = meta_json
+    row.meta_json = {"creds": new_creds}
 
     db.add(row)
     db.commit()
@@ -237,19 +219,21 @@ async def activate_telegram(
                 "message": f"Проверка недоступна{hint} — ресурс включён, воркер проверит сессию при подключении.",
             }
 
-        # authorized is False — сессия точно мертва
+        # authorized is False — сессия точно мертва: очищаем и сразу идём на отправку кода
+        creds.pop("string_session", None)
+        creds.pop("phone_code_hash", None)
+        creds.pop("pending_session", None)
+        meta["creds"] = creds
+        row.meta_json = meta
         row.status = "pause"
         row.phase = "error"
         row.last_error_code = "telegram_not_authorized"
         row.error_message = err or "string_session not authorized"
         db.add(row)
         db.commit()
-        return {
-            "ok": False,
-            "authorized": False,
-            "need_reauth": True,
-            "message": "Сессия недействительна. Для получения нового кода нажми «Активировать сессию».",
-        }
+        db.refresh(row)
+        # Продолжаем вниз — отправим код прямо сейчас
+        string_session = None
 
     # ── Нет string_session: проверяем что есть всё для запроса кода ──
     if not app_id or not app_hash or not phone:

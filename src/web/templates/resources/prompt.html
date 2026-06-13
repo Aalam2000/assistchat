@@ -1,52 +1,166 @@
 <!-- src/web/templates/resources/prompt.html -->
 {% extends "base.html" %}
-{% block title %}Prompt | bona-plus{% endblock %}
+{% block title %}Промпт | AssistChat{% endblock %}
 
 {% block content %}
 <div class="page">
   <section class="tile">
-    <div class="tile-title">Prompt</div>
-    <p class="tile-desc">Системный промпт + правила стиля + Google Drive + примеры</p>
+    <div class="tile-title">Промпт</div>
+    <p class="tile-desc">Настройка ассистента: источники, фильтры, AI и логика обработки</p>
 
     <div class="actions">
       <button id="btnSave" class="btn primary">Сохранить</button>
+      <button id="btnToggleStatus" class="btn">💡 Включить</button>
     </div>
 
-    <div id="prMsg" style="display:none;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:14px"></div>
+    <div id="promptMsg" style="display:none;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:14px"></div>
+    <div class="mono mt-4" id="promptResStatus">РЕСУРС: —</div>
 
+    <!-- Название -->
     <div class="mt-12">
-      <label for="prLabel">Название ресурса</label>
-      <input id="prLabel" type="text" placeholder="Мой PROMPT" style="width:100%;margin-bottom:12px">
-
-      <label for="prDescription">Описание</label>
-      <textarea id="prDescription" style="width:100%;min-height:90px"></textarea>
+      <label for="promptLabel">Название промпта</label>
+      <input id="promptLabel" type="text" placeholder="Поиск клиентов на чай" style="width:100%;margin-bottom:12px">
     </div>
 
-    <div class="mt-16">
-      <label for="prSystemPrompt">System prompt</label>
-      <textarea id="prSystemPrompt" style="width:100%;min-height:220px" placeholder="Ты — ..."></textarea>
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ИСТОЧНИКИ -->
+    <h3 style="margin:0 0 10px;font-size:15px">📡 Источники</h3>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label for="selSession">Telegram сессия</label>
+        <select id="selSession" style="width:100%">
+          <option value="">— не выбрано —</option>
+        </select>
+      </div>
+      <div>
+        <label for="selBot">Telegram Bot</label>
+        <select id="selBot" style="width:100%">
+          <option value="">— не выбрано —</option>
+        </select>
+      </div>
     </div>
 
-    <div class="mt-16">
-      <label for="prStyleRules">Style rules</label>
-      <textarea id="prStyleRules" style="width:100%;min-height:120px" placeholder="Коротко, списками, ..."></textarea>
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ХОЗЯИН -->
+    <h3 style="margin:0 0 10px;font-size:15px">👤 Хозяин</h3>
+    <div style="margin-bottom:12px">
+      <label for="ownerTgId">Telegram User ID хозяина</label>
+      <input id="ownerTgId" type="number" placeholder="123456789" style="width:100%;margin-bottom:4px">
+      <p class="mono" style="opacity:.6;font-size:12px">
+        Узнать свой ID: напиши боту <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>
+      </p>
     </div>
 
-    <div class="mt-16">
-      <label for="prGoogleSource">Google Drive link (file/folder)</label>
-      <input id="prGoogleSource" type="text" placeholder="https://drive.google.com/...">
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ФИЛЬТРЫ СЕССИИ -->
+    <h3 style="margin:0 0 6px;font-size:15px">🔍 Фильтры сессии</h3>
+    <p style="font-size:13px;opacity:.7;margin-bottom:10px">Применяются только если выбрана Telegram-сессия</p>
+
+    <div style="display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="chkPrivate"> Личные чаты
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="chkGroups"> Группы
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="chkChannels"> Каналы
+      </label>
     </div>
 
-    <div class="mt-16">
-      <label for="prExamples">Examples (JSON list)</label>
-      <textarea id="prExamples" style="width:100%;min-height:180px"
-        placeholder='[{"q":"Вопрос","a":"Ответ"}]'></textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label for="txtWhitelist">Белый список (chat_id или @username, по одному на строку)</label>
+        <textarea id="txtWhitelist" rows="3" placeholder="@username&#10;123456789" style="width:100%"></textarea>
+      </div>
+      <div>
+        <label for="txtBlacklist">Чёрный список</label>
+        <textarea id="txtBlacklist" rows="3" placeholder="@spammer&#10;987654321" style="width:100%"></textarea>
+      </div>
     </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- AI -->
+    <h3 style="margin:0 0 10px;font-size:15px">🤖 AI</h3>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;align-items:end">
+      <div>
+        <label for="selApiKeysResource">Ресурс API Keys</label>
+        <select id="selApiKeysResource" style="width:100%">
+          <option value="">— выберите ресурс —</option>
+        </select>
+      </div>
+      <div>
+        <label for="selApiKeyField">Ключ</label>
+        <select id="selApiKeyField" style="width:100%" disabled>
+          <option value="">— сначала выберите ресурс —</option>
+        </select>
+      </div>
+      <div>
+        <label for="selModel">Модель</label>
+        <select id="selModel" style="width:100%" disabled>
+          <option value="">— сначала выберите ключ —</option>
+        </select>
+      </div>
+    </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ПРОМПТ -->
+    <h3 style="margin:0 0 10px;font-size:15px">✍️ Промпт</h3>
+
+    <div style="margin-bottom:14px">
+      <label for="promptSystem">System — кто ты, роль, поведение</label>
+      <textarea id="promptSystem" rows="4" placeholder="Ты — ассистент для поиска клиентов на чай. Анализируй входящие сообщения и определяй..."
+        style="width:100%"></textarea>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label for="promptContext">Контекст — информация о бизнесе/продукте/клиентах</label>
+      <textarea id="promptContext" rows="3" placeholder="Мы продаём элитный чай: улун, пуэр, зелёный. Наша аудитория — ценители..."
+        style="width:100%"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <label class="btn" style="cursor:pointer;font-size:13px;padding:4px 12px">
+          📎 Загрузить файл
+          <input type="file" id="contextFileInput" accept=".txt,.pdf,.docx,.md" style="display:none">
+        </label>
+        <span id="contextFileName" style="font-size:13px;opacity:.7"></span>
+        <button id="btnDeleteContextFile" class="btn" style="display:none;font-size:12px;padding:4px 8px;color:#c00">✕ Удалить</button>
+      </div>
+    </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ШАГИ -->
+    <h3 style="margin:0 0 6px;font-size:15px">⚙️ Задача — шаги обработки</h3>
+    <p style="font-size:13px;opacity:.7;margin-bottom:10px">
+      Каждый шаг — инструкция AI что делать. Последовательно выполняются для каждого входящего сообщения.
+    </p>
+
+    <div id="stepsContainer"></div>
+
+    <button id="btnAddStep" class="btn" style="margin-top:8px">+ Добавить шаг</button>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <!-- ПРИМЕРЫ -->
+    <h3 style="margin:0 0 6px;font-size:15px">💡 Примеры (few-shot)</h3>
+    <p style="font-size:13px;opacity:.7;margin-bottom:10px">
+      Покажи AI как должен выглядеть правильный ответ на конкретные сообщения.
+    </p>
+
+    <div id="examplesContainer"></div>
+
+    <button id="btnAddExample" class="btn" style="margin-top:8px">+ Добавить пример</button>
+
   </section>
 </div>
 
-<script>
-  const PROMPT_RID = "{{ rid }}";
-</script>
+<script>const PROMPT_RID = "{{ rid }}";</script>
 <script src="/static/js/prompt.js"></script>
 {% endblock %}

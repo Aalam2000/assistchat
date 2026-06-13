@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Text, BigInteger, Integer, DateTime, String, ForeignKey, Boolean, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -12,6 +13,8 @@ from sqlalchemy.sql import func
 from sqlalchemy import text as sa_text
 
 from src.app.core.db import Base
+
+EMBEDDING_DIM = 1536
 
 
 class Message(Base):
@@ -61,6 +64,8 @@ class Message(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+    embedding: Mapped[Optional[list]] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
 
     service_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     provider: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

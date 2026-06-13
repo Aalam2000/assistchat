@@ -45,8 +45,9 @@ jobs:
             exit 1
           fi
 
-          echo "[DEPLOY] ensure db volume exists (assistchat_db)"
+          echo "[DEPLOY] ensure volumes exist"
           docker volume inspect assistchat_db >/dev/null 2>&1 || docker volume create assistchat_db >/dev/null
+          docker volume inspect assistchat_uploads >/dev/null 2>&1 || docker volume create assistchat_uploads >/dev/null
 
           echo "[DEPLOY] build images"
           docker compose -f "$COMPOSE_FILE" build --pull

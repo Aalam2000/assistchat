@@ -1,104 +1,129 @@
 <!-- src/web/templates/resources/telegram.html -->
 {% extends "base.html" %}
-{% block title %}Telegram ассистент | bona-plus{% endblock %}
+{% block title %}Telegram сессия | AssistChat{% endblock %}
 
 {% block content %}
+<style>
+  .info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #6b7cf6;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: default;
+    position: relative;
+    vertical-align: middle;
+    margin-left: 8px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .info-btn .tooltip {
+    display: none;
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 320px;
+    background: #1e1e2e;
+    color: #e0e0f0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.55;
+    padding: 14px 16px;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.35);
+    z-index: 999;
+    white-space: normal;
+    pointer-events: none;
+  }
+  .info-btn .tooltip::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 7px solid transparent;
+    border-left: 0;
+    border-right-color: #1e1e2e;
+  }
+  .info-btn:hover .tooltip {
+    display: block;
+  }
+  .tooltip a { color: #a8b4ff; }
+  .tooltip code {
+    background: rgba(255,255,255,.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .tooltip hr { border-color: rgba(255,255,255,.15); margin: 8px 0; }
+</style>
+
 <div class="page">
   <section class="tile">
-    <div class="tile-title">Telegram ассистент</div>
-    <p class="tile-desc">Настройки и управление Telegram-сессией</p>
+    <div class="tile-title" style="display:flex;align-items:center">
+      Telegram сессия
+      <span class="info-btn">i
+        <div class="tooltip">
+          <strong>Как подключить аккаунт?</strong>
+          <hr>
+          1. Получи <strong>App ID</strong> и <strong>App Hash</strong> на сайте<br>
+          <a href="https://my.telegram.org/apps" target="_blank">my.telegram.org/apps</a><br>
+          (войди → «API development tools» → создай приложение)<br>
+          <hr>
+          2. Введи <strong>номер телефона</strong> в формате <code>+79991234567</code><br>
+          <hr>
+          3. Нажми <strong>«Активировать сессию»</strong> — придёт код в Telegram, введи его.<br>
+          <hr>
+          4. <strong>StringSession</strong> — заполнять не нужно. Он сохраняется автоматически
+          после первой успешной авторизации.
+        </div>
+      </span>
+    </div>
+    <p class="tile-desc">Управление Telegram user-сессией (Telethon)</p>
 
     <div class="actions">
       <button id="btnSave" class="btn primary">Сохранить</button>
-      <button id="btnToggleStatus" class="btn">💡 Включить ресурс</button>
+      <button id="btnToggleStatus" class="btn">💡 Включить</button>
     </div>
 
     <div id="tgMsg" style="display:none;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:14px"></div>
-
     <div class="mono mt-4" id="tgResStatus">РЕСУРС: —</div>
 
     <div class="mt-12">
-      <label for="tgLabel">Название ресурса</label>
-      <input id="tgLabel" type="text" placeholder="Мой Telegram ассистент" style="width:100%;margin-bottom:12px">
+      <label for="tgLabel">Название</label>
+      <input id="tgLabel" type="text" placeholder="Моя Telegram сессия" style="width:100%;margin-bottom:12px">
     </div>
 
-    <div class="mt-8">
-      <button id="btnToggleDetails" class="btn" style="margin-bottom:10px">
-        ⚙️ Показать настройки подключения
-      </button>
-    </div>
+    <div id="tgConnectionBlock" class="mt-8">
 
-    <div id="tgConnectionBlock" class="hidden mt-8">
       <div class="mt-12">
         <button id="btnActivate" class="btn accent" type="button">Активировать сессию</button>
       </div>
 
-      <label for="tgAppId">App ID</label>
+      <label for="tgAppId" class="mt-8">App ID</label>
       <input id="tgAppId" type="number" placeholder="123456" style="width:100%;margin-bottom:10px">
 
       <label for="tgAppHash">App Hash</label>
-      <input id="tgAppHash" type="text" placeholder="xxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px">
+      <input id="tgAppHash" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="width:100%;margin-bottom:10px">
 
       <label for="tgPhone">Номер телефона (E.164)</label>
-      <input id="tgPhone" type="text" placeholder="+9945XXXXXXX" style="width:100%;margin-bottom:10px">
+      <input id="tgPhone" type="text" placeholder="+79991234567" style="width:100%;margin-bottom:10px">
 
       <label for="tgStringSession">StringSession (если уже есть)</label>
       <textarea id="tgStringSession" rows="3" placeholder="(опционально) вставь StringSession" style="width:100%;margin-bottom:10px"></textarea>
 
-      <div class="mono mt-4" style="opacity:.8">
-        Если StringSession пустой — обычно его выдаёт сервер при активации (через телефон/код).
-      </div>
+      <p class="mono" style="opacity:.7;font-size:12px">
+        Если StringSession пустой — он создаётся автоматически при активации через телефон и код.
+      </p>
     </div>
 
-    <div class="mt-16">
-      <div class="tile-title" style="font-size:16px">PROMPT и AI</div>
-
-      <label for="tgPromptId">PROMPT ресурс</label>
-      <select id="tgPromptId" style="width:100%;margin-bottom:10px"></select>
-
-      <label for="tgApiKeysId">API_KEYS ресурс</label>
-      <select id="tgApiKeysId" style="width:100%;margin-bottom:10px"></select>
-
-      <label for="tgKeyField">Какой ключ использовать</label>
-      <select id="tgKeyField" style="width:100%;margin-bottom:10px"></select>
-
-      <label for="tgModel">Модель</label>
-      <select id="tgModel" style="width:100%;margin-bottom:10px"></select>
-
-      <label style="display:flex;align-items:center;gap:10px;margin:8px 0 0 0;">
-        <input id="tgPreferVoice" type="checkbox">
-        <span>Если пришёл voice — можно отвечать voice</span>
-      </label>
-    </div>
-
-    <div class="mt-16">
-      <div class="tile-title" style="font-size:16px">Фильтры</div>
-
-      <label for="tgWhitelist">Белый список (ID/логины, через запятую или с новой строки)</label>
-      <textarea id="tgWhitelist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
-
-      <label for="tgBlacklist">Чёрный список (ID/логины, через запятую или с новой строки)</label>
-      <textarea id="tgBlacklist" rows="3" style="width:100%;margin-bottom:10px"></textarea>
-    </div>
-
-    <div class="mt-16">
-      <div class="tile-title" style="font-size:16px">Где отвечать</div>
-
-      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
-        <input id="tgReplyPrivate" type="checkbox">
-        <span>Личка</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
-        <input id="tgReplyGroups" type="checkbox">
-        <span>Группы</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:10px;margin:6px 0;">
-        <input id="tgReplyChannels" type="checkbox">
-        <span>Каналы</span>
-      </label>
-    </div>
-
-    <!-- Модалка подтверждения Telegram (если сервер попросит код) -->
+    <!-- Модалка ввода кода -->
     <div id="tgCodeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tgCodeModalTitle">
       <div class="modal__content" style="max-width:360px">
         <h3 id="tgCodeModalTitle">Введите код из Telegram</h3>
@@ -109,6 +134,7 @@
         </div>
       </div>
     </div>
+
   </section>
 </div>
 

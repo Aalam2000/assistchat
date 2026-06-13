@@ -158,11 +158,13 @@ def insert_message(
     tokens_in: Optional[int] = None,
     tokens_out: Optional[int] = None,
     latency_ms: Optional[int] = None,
+    embedding: Optional[List[float]] = None,
 ) -> UUID:
     """
-    Вставляет строку в messages.
+    Единая точка вставки сообщений в БД.
     Возвращает message_id (UUID).
 
+    embedding — вектор из embedding_service.get_embedding(); None если не вычислен.
     Если ловим unique-ошибку по external ключам — кидаем DuplicateExternalMessage.
     """
     import uuid
@@ -171,8 +173,11 @@ def insert_message(
     meta_json = meta_json or {}
     meta_s = json.dumps(meta_json, ensure_ascii=False)
 
+    emb_col = ", embedding" if embedding is not None else ""
+    emb_val = ", :embedding" if embedding is not None else ""
+
     q = text(
-        """
+        f"""
         INSERT INTO messages (
             id,
             resource_id,
@@ -192,6 +197,7 @@ def insert_message(
             provider,
             external_chat_id,
             external_msg_id
+            {emb_col}
         ) VALUES (
             :id,
             :resource_id,
@@ -211,33 +217,35 @@ def insert_message(
             :provider,
             :external_chat_id,
             :external_msg_id
+            {emb_val}
         )
         """
     )
+    params: Dict[str, Any] = {
+        "id": str(mid),
+        "resource_id": str(resource_id),
+        "dialog_id": str(dialog_id),
+        "peer_id": int(peer_id),
+        "peer_type": peer_type,
+        "chat_id": (int(chat_id) if chat_id is not None else None),
+        "msg_id": (int(msg_id) if msg_id is not None else None),
+        "direction": direction,
+        "msg_type": msg_type,
+        "text": (text_value or "").strip(),
+        "tokens_in": (int(tokens_in) if tokens_in is not None else None),
+        "tokens_out": (int(tokens_out) if tokens_out is not None else None),
+        "latency_ms": (int(latency_ms) if latency_ms is not None else None),
+        "is_internal": bool(is_internal),
+        "meta_json": meta_s,
+        "provider": provider,
+        "external_chat_id": external_chat_id,
+        "external_msg_id": external_msg_id,
+    }
+    if embedding is not None:
+        params["embedding"] = embedding
+
     try:
-        db.execute(
-            q,
-            {
-                "id": str(mid),
-                "resource_id": str(resource_id),
-                "dialog_id": str(dialog_id),
-                "peer_id": int(peer_id),
-                "peer_type": peer_type,
-                "chat_id": (int(chat_id) if chat_id is not None else None),
-                "msg_id": (int(msg_id) if msg_id is not None else None),
-                "direction": direction,
-                "msg_type": msg_type,
-                "text": (text_value or "").strip(),
-                "tokens_in": (int(tokens_in) if tokens_in is not None else None),
-                "tokens_out": (int(tokens_out) if tokens_out is not None else None),
-                "latency_ms": (int(latency_ms) if latency_ms is not None else None),
-                "is_internal": bool(is_internal),
-                "meta_json": meta_s,
-                "provider": provider,
-                "external_chat_id": external_chat_id,
-                "external_msg_id": external_msg_id,
-            },
-        )
+        db.execute(q, params)
         return mid
     except IntegrityError as e:
         # Дубль по uq_messages_provider_resource_chat_msg

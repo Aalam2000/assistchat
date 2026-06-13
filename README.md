@@ -1,121 +1,183 @@
 # AssistChat
 
-## must update 8
+Платформа для создания AI-агентов поверх мессенджеров — без кода, через веб-интерфейс.
 
-AssistChat — платформа на FastAPI для запуска AI-интеграций (“ресурсов”) через веб-интерфейс + фонового воркера.
-Одна кодовая база обслуживает:
-- Web UI (Jinja2 templates + static)
-- API (FastAPI)
-- Bot/worker (фоновые процессы ресурсов)
-- Миграции БД (Alembic)
-
-## Стек (факт по репозиторию)
-- FastAPI + Starlette, Jinja2
-- SQLAlchemy 2.x + Alembic
-- Postgres 16.x (в docker-compose)
-- Telethon (Telegram)
-- OpenAI SDK (есть в requirements)
-- auto-i18n-lib (переводы UI)
-:contentReference[oaicite:1]{index=1}
+Подключаешь Telegram-аккаунт или бот, настраиваешь правила обработки сообщений и AI-логику в «Промпте» — система делает остальное автоматически.
 
 ---
 
-## Runtime / контейнеры
+## Как это работает
 
-### DEV (`docker-compose.dev.yml`)
-Сервисы:
-- `db` (postgres)
-- `migrate` (alembic upgrade head)
-- `web` (uvicorn src.app.main:app + autoreload)
-- `botworker` (worker_entry под watchfiles)
+```
+Telegram-сессия ──┐
+                  ├──► MessageBus ──► ПРОМПТ-воркер ──► Telegram Бот (уведомления)
+Telegram-бот ─────┘
+```
 
-`web` и `botworker` запускаются из одного image (`assistchat-api-local`), код маунтится в `/app`.
-:contentReference[oaicite:2]{index=2}
+1. **Telegram-сессия** подключается к аккаунту пользователя и слушает все входящие сообщения.
+2. **Telegram-бот** подключается через Bot Token и слушает сообщения в боте.
+3. Все сообщения публикуются во внутреннюю **шину сообщений (MessageBus)**.
+4. Каждый активный **ПРОМПТ** подписан на нужные источники и обрабатывает сообщения по своим правилам.
+5. Результат отправляется хозяину через **Telegram-бот**.
 
-### PROD (`docker-compose.prod.yml`)
-Сервисы:
-- `db`
-- `migrate` (alembic upgrade head, с DB_HOST=db)
-- `web`
-- `botworker` (python -m src.app.modules.bot.worker_entry)
-
-:contentReference[oaicite:3]{index=3}
+Одну Telegram-сессию могут использовать несколько ПРОМПТов одновременно. Каждый ПРОМПТ видит только те сообщения, которые прошли его фильтры.
 
 ---
 
-## Ключевая архитектура кода
+## Ресурсы
 
-### Entry points
-- Web/API: `src/app/main.py`
-- Legacy (есть в проекте): `src/app/main_legacy.py`
-- Worker: `src/app/modules/bot/worker_entry.py`
-- Provider schema: `src/app/providers.py`
-:contentReference[oaicite:4]{index=4}
+### API Keys
+Хранит API-ключи для AI-провайдеров. Один ресурс — несколько ключей под разных провайдеров.
 
-### Core (`src/app/core/`)
-База инфраструктуры приложения:
-- `config.py`, `db.py`, `middleware.py`, `security.py`, `templates.py`
-- диалоговая подсистема: `dialog_service.py`, `dialog_graph.py`, `dialog_store.py`, `dialog_lock.py`
-- runtime промпта/транспорта: `prompt_runtime.py`, `ai_transport.py`
+Поддерживаемые провайдеры:
+- OpenAI (gpt-4o, gpt-4o-mini и др.)
+- Google Gemini
+- Anthropic Claude
+- Groq
+- DeepSeek
+- Mistral
+- xAI Grok
 
+### Telegram-сессия
+Подключение к Telegram-аккаунту пользователя через Telethon (user session).
 
-### Bot module (`src/app/modules/bot/`)
-- `manager.py` — запуск/остановка активных ресурсов
-- `router.py` — API для управления ботом
-- `worker_entry.py` — точка входа фонового воркера
+- Авторизация по номеру телефона + код + 2FA
+- Сессия сохраняется в БД и автоматически восстанавливается при рестарте
+- Слушает все входящие сообщения и публикует их в MessageBus
 
+### Telegram-бот
+Подключение Telegram-бота через Bot Token (aiogram).
 
-### Ресурсы (`src/app/resources/`)
-Каждый ресурс — отдельный модуль со своим `router.py` и `settings.yaml`:
-- `telegram/` (есть `telegram.py` — логика ресурса)
-- `zoom/` (есть `transcribe.py`)
-- `api_keys/`
-- `prompt/`
+- Принимает входящие сообщения и публикует их в MessageBus
+- Используется ПРОМПТом для отправки уведомлений хозяину
 
+### ПРОМПТ
+Центральный узел обработки. Подписывается на источники и обрабатывает каждое входящее сообщение по настроенной логике.
 
-### Web UI (`src/web/`)
-- `templates/` — страницы (auth/profile/resources + страницы конкретных ресурсов)
-- `static/js/` — фронтовая логика (api_keys.js, prompt.js, telegram.js, zoom.js и т.д.)
-- `static/lang/` — JSON переводы (ru/en)
-:contentReference[oaicite:8]{index=8}
+**Настройки ПРОМПТа:**
 
----
-
-## База данных (факт по последнему дампу схемы)
-
-Текущие таблицы в DB:
-- `users`
-- `resources`
-- `dialogs`
-- `messages`
-- `leads`
-- `updates_seen`
-- `alembic_version`
-:contentReference[oaicite:9]{index=9}
-
-Важно: по отчёту **ORM содержит модели**, которых **нет в БД** на текущей ревизии Alembic:
-- `prompts`, `service_accounts`, `service_rules`, `tg_accounts` — *в ORM есть, в DB отсутствуют*.
-Это означает, что миграции под эти таблицы либо ещё не созданы, либо не применены в этой базе.
-:contentReference[oaicite:10]{index=10}
+| Секция | Описание |
+|--------|----------|
+| **Источники** | Какие Telegram-сессии и боты слушать |
+| **ID хозяина** | Telegram User ID — куда отправлять уведомления |
+| **Фильтры** | Типы чатов (личка/группы/каналы), белый и чёрный список |
+| **AI** | Ресурс API-ключей → конкретный ключ → модель |
+| **System** | Роль и поведение AI («кто ты») |
+| **Контекст** | Фоновые знания о бизнесе/продукте (текст или файл) |
+| **Шаги** | Последовательная логика обработки каждого сообщения |
+| **Примеры** | Few-shot примеры для AI (вход → ожидаемый ответ) |
 
 ---
 
-## Структура репозитория (коротко)
+## Шаги обработки (Task)
 
-- `src/app/` — FastAPI приложение, core, modules, resources, routes
-- `src/models/` — ORM-модели
-- `src/web/` — HTML шаблоны + static (css/js/img/lang)
-- `src/alembic/` — миграции
-- `branding/` — профили стиля/тона
-- `tmp/` — временные файлы/отчёты (должна быть в корне и игнорироваться Git)
-:contentReference[oaicite:11]{index=11}
+Каждое сообщение проходит через шаги последовательно. Шаги бывают трёх типов:
+
+### 🔍 Условие (без AI)
+Проверяет правило без вызова AI. Быстро и бесплатно.
+
+- **По ключевым словам** — если хоть одно слово из списка есть в сообщении
+- **По отправителю** — по @username или числовому ID
+
+Действие при совпадении: **Продолжить** или **Стоп** (игнорировать сообщение).
+Действие при несовпадении: **Стоп** или **Продолжить**.
+
+*Пример: пропускать только сообщения со словами «чай», «купить», «цена».*
+
+### 🤖 AI анализ
+Отправляет сообщение в AI с заданной инструкцией. AI анализирует и возвращает ответ.
+
+Действие после ответа:
+- **Продолжить** — перейти к следующему шагу
+- **Уведомить хозяина** — отправить AI-ответ в бот + продолжить
+- **Стоп** — прекратить обработку
+
+*Пример: «Есть ли в этом сообщении запрос на покупку чая? Ответь Да/Нет».*
+
+### 📬 Уведомить хозяина
+Отправляет сообщение в Telegram-бот хозяина.
+
+- **Прямая пересылка** — исходный текст без изменений
+- **AI форматирует** — AI готовит сообщение по заданной инструкции перед отправкой
+
+*Пример: «Кратко перескажи суть сообщения в 1-2 предложения».*
 
 ---
 
-## Запуск (команды по факту compose-файлов)
+## Примеры конфигураций
 
-### DEV
+### Пересылать по ключевым словам (без AI)
+```
+Шаг 1: 🔍 Условие → ключевые слова ["чай", "купить"] → Совпало: Продолжить / Не совпало: Стоп
+Шаг 2: 📬 Уведомить хозяина → Прямая пересылка
+```
+*AI не нужен. Быстро, бесплатно.*
+
+### AI фильтрует и уведомляет
+```
+Шаг 1: 🤖 AI → «Есть ли запрос на покупку чая?» → Уведомить хозяина / Стоп
+```
+
+### Многоступенчатая обработка
+```
+Шаг 1: 🔍 Условие → ключевые слова ["срочно", "помогите"] → Совпало: Продолжить / Не совпало: Стоп
+Шаг 2: 🤖 AI → «Определи тип обращения: жалоба, вопрос, заказ» → Продолжить
+Шаг 3: 📬 Уведомить хозяина → AI форматирует → «Сформируй краткое резюме обращения»
+```
+
+---
+
+## Структура проекта
+
+```
+src/
+├── app/
+│   ├── core/
+│   │   ├── message_bus.py      # внутренняя шина сообщений (pub/sub)
+│   │   ├── ai_transport.py     # единая точка вызова AI
+│   │   ├── db.py               # SQLAlchemy session
+│   │   └── ...
+│   ├── modules/bot/
+│   │   └── worker_entry.py     # точка входа фонового воркера
+│   └── resources/
+│       ├── api_keys/           # ресурс API-ключей
+│       ├── telegram/           # Telegram user session (Telethon)
+│       ├── telegram_bot/       # Telegram Bot (aiogram)
+│       └── prompt/             # ПРОМПТ-воркер и роутер
+├── models/                     # ORM-модели (SQLAlchemy)
+└── web/
+    ├── templates/              # Jinja2 HTML страницы
+    └── static/js/              # фронтенд логика
+```
+
+---
+
+## Запуск (DEV)
+
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build
+# Сборка и запуск
+docker compose -f docker-compose.dev.yml up --build -d
+
+# Логи web
 docker compose -f docker-compose.dev.yml logs -f web
+
+# Логи фонового воркера
 docker compose -f docker-compose.dev.yml logs -f botworker
+```
+
+Код маунтится в контейнер — `watchfiles` автоматически перезапускает воркер при изменении файлов.
+
+---
+
+## Стек
+
+| Компонент | Технология |
+|-----------|------------|
+| Web/API | FastAPI + Jinja2 |
+| БД | PostgreSQL 16 + pgvector |
+| ORM / миграции | SQLAlchemy 2.x + Alembic |
+| Telegram user | Telethon |
+| Telegram bot | aiogram 3.x |
+| AI | OpenAI SDK (совместимый с OpenAI API) |
+| Контейнеризация | Docker Compose |
+| Hot reload | watchfiles |

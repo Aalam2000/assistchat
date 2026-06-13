@@ -1,0 +1,43 @@
+<!-- src/web/templates/resources/telegram_bot.html -->
+{% extends "base.html" %}
+{% block title %}Telegram Bot | AssistChat{% endblock %}
+
+{% block content %}
+<div class="page">
+  <section class="tile">
+    <div class="tile-title">Telegram Bot</div>
+    <p class="tile-desc">Telegram Bot через Bot API (aiogram)</p>
+
+    <div class="actions">
+      <button id="btnSave" class="btn primary">Сохранить</button>
+      <button id="btnToggleStatus" class="btn">💡 Включить</button>
+    </div>
+
+    <div id="botMsg" style="display:none;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:14px"></div>
+    <div class="mono mt-4" id="botResStatus">РЕСУРС: —</div>
+
+    <div class="mt-12">
+      <label for="botLabel">Название</label>
+      <input id="botLabel" type="text" placeholder="Мой Telegram Bot" style="width:100%;margin-bottom:12px">
+    </div>
+
+    <div class="mt-8">
+      <label for="botToken">Bot Token (от BotFather)</label>
+      <input id="botToken" type="password" placeholder="123456789:AABBccDDeeFFggHH..." style="width:100%;margin-bottom:10px">
+      <p class="mono" style="opacity:.7;font-size:12px">
+        Получи токен у <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → /newbot или /mybots
+      </p>
+    </div>
+
+    <div class="mt-12">
+      <button id="btnActivate" class="btn accent" type="button">Проверить и подключить</button>
+    </div>
+
+  </section>
+</div>
+
+<script>
+  const BOT_RID = "{{ rid }}";
+</script>
+<script src="/static/js/telegram_bot.js"></script>
+{% endblock %}

@@ -64,7 +64,7 @@ services:
       - assistchat_net
 
   db:
-    image: postgres:16.9
+    image: pgvector/pgvector:pg16
     env_file:
       - .env.dev
       - .env.secrets

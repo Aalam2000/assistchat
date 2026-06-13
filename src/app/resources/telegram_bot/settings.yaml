@@ -1,0 +1,15 @@
+# src/app/resources/telegram_bot/settings.yaml
+name: "Telegram Bot"
+title: "Telegram Bot"
+description: "Telegram Bot (aiogram). Только токен — логика в PROMPT."
+
+schema:
+  version: 1
+  groups:
+    - title: "Подключение"
+      fields:
+        - key: creds.bot_token
+          label: "Bot Token (от BotFather)"
+          type: password
+          required: true
+          help: "Формат: 123456789:AABBccDDeeFF..."
