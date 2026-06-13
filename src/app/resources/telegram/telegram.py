@@ -165,29 +165,7 @@ class TelegramWorker:
                     if chat_id is None or msg_id is None:
                         return
 
-                    sender_username: str | None = None
-                    is_bot = False
-                    try:
-                        sndr = await event.get_sender()
-                        if sndr:
-                            sender_username = getattr(sndr, "username", None)
-                            is_bot = bool(getattr(sndr, "bot", False))
-                    except Exception:
-                        pass
-
-                    # Игнорируем сообщения от ботов — предотвращаем петли
-                    if is_bot:
-                        return
-
-                    chat_name: str | None = None
-                    try:
-                        if peer_type in ("group", "channel"):
-                            chat_entity = await event.get_chat()
-                            if chat_entity:
-                                chat_name = getattr(chat_entity, "title", None)
-                    except Exception:
-                        pass
-
+                    # 1. Определяем тип чата
                     if getattr(event, "is_private", False):
                         peer_type = "private"
                     elif getattr(event, "is_group", False):
@@ -196,6 +174,39 @@ class TelegramWorker:
                         peer_type = "channel"
                     else:
                         peer_type = "chat"
+
+                    # 2. Получаем отправителя
+                    sender_username: str | None = None
+                    is_bot = False
+                    try:
+                        sndr = await event.get_sender()
+                        if sndr:
+                            uname = getattr(sndr, "username", None)
+                            fname = getattr(sndr, "first_name", None)
+                            lname = getattr(sndr, "last_name", None)
+                            is_bot = bool(getattr(sndr, "bot", False))
+                            if uname:
+                                sender_username = uname
+                            elif fname or lname:
+                                sender_username = " ".join(filter(None, [fname, lname]))
+                    except Exception:
+                        pass
+
+                    # Игнорируем сообщения от ботов — предотвращаем петли
+                    if is_bot:
+                        return
+
+                    # 3. Получаем название группы/канала
+                    chat_name: str | None = None
+                    try:
+                        if peer_type in ("group", "channel"):
+                            chat_entity = (
+                                getattr(event, "chat", None) or await event.get_chat()
+                            )
+                            if chat_entity:
+                                chat_name = getattr(chat_entity, "title", None)
+                    except Exception:
+                        pass
 
                     msg_type = "text"
                     if not text:
