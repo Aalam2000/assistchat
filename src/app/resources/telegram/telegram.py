@@ -179,6 +179,15 @@ class TelegramWorker:
                     if is_bot:
                         return
 
+                    chat_name: str | None = None
+                    try:
+                        if peer_type in ("group", "channel"):
+                            chat_entity = await event.get_chat()
+                            if chat_entity:
+                                chat_name = getattr(chat_entity, "title", None)
+                    except Exception:
+                        pass
+
                     if getattr(event, "is_private", False):
                         peer_type = "private"
                     elif getattr(event, "is_group", False):
@@ -217,6 +226,8 @@ class TelegramWorker:
                         external_msg_id=str(msg_id),
                         text=text,
                         msg_type=msg_type,
+                        source_label=self.resource.label,
+                        chat_name=chat_name,
                         raw={"event_type": "new_message"},
                     )
 

@@ -301,11 +301,18 @@ class PromptWorker:
 
         # Входящее сообщение
         incoming_text = event.text or f"[{event.msg_type}]"
-        source_info = f"Источник: {event.source_type}, тип: {event.peer_type}"
+
+        # Формируем читаемую строку источника: "Сессия, Группа, @user"
+        source_parts: list[str] = []
+        if event.source_label:
+            source_parts.append(event.source_label)
+        if event.chat_name:
+            source_parts.append(event.chat_name)
         if event.sender_username:
-            source_info += f", от @{event.sender_username}"
+            source_parts.append(f"@{event.sender_username}")
         elif event.peer_id:
-            source_info += f", от id={event.peer_id}"
+            source_parts.append(f"id{event.peer_id}")
+        source_info = ", ".join(source_parts) if source_parts else event.source_type
 
         # Накопленный диалог (используется в AI-шагах)
         accumulated: list[dict] = [

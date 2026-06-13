@@ -38,6 +38,10 @@ class MessageEvent:
     text: str                 # текст (может быть пустым для медиа)
     msg_type: str = "text"    # "text" | "voice" | "file" | "image"
 
+    # Человекочитаемые названия (для форматирования уведомлений)
+    source_label: str | None = None   # название ресурса-источника (как в интерфейсе)
+    chat_name: str | None = None      # название группы/канала (None для личок)
+
     # Сырые данные (для будущих расширений)
     raw: dict[str, Any] = field(default_factory=dict)
 
