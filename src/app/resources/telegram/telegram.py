@@ -283,6 +283,22 @@ class TelegramWorker:
             await asyncio.sleep(1)
 
 
+    async def forward_message(self, to_peer: int, from_chat_id: int, msg_id: int) -> bool:
+        """Переслать оригинальное сообщение (с медиа) через Telethon."""
+        if not self.client:
+            return False
+        try:
+            await self.client.forward_messages(
+                entity=to_peer,
+                messages=[msg_id],
+                from_peer=from_chat_id,
+            )
+            return True
+        except Exception as e:
+            self._log(f"forward_message error: {e!r}")
+            return False
+
+
 class SessionRegistry:
     def __init__(self):
         self._workers: dict[str, TelegramWorker] = {}
@@ -305,6 +321,9 @@ class SessionRegistry:
             w = self._workers.pop(str(resource_id), None)
         if w:
             await w.stop()
+
+    def get(self, resource_id: str) -> TelegramWorker | None:
+        return self._workers.get(str(resource_id))
 
     def status(self) -> dict[str, str]:
         return {rid: "telegram" for rid, w in self._workers.items() if w.is_running}

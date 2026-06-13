@@ -70,27 +70,37 @@ def _passes_filters(event: MessageEvent, filters: dict, label: str = "") -> bool
         print(f"[FILTER] {label} skip: peer_type=channel disabled", flush=True)
         return False
 
+    def _norm(s: str) -> str:
+        """Нормализуем запись: t.me/user → user, @user → user, https://t.me/user → user"""
+        s = s.strip().lower()
+        for prefix in ("https://t.me/", "http://t.me/", "t.me/", "@"):
+            if s.startswith(prefix):
+                s = s[len(prefix):]
+                break
+        return s
+
     whitelist = [str(x) for x in (filters.get("whitelist") or []) if x]
     blacklist = [str(x) for x in (filters.get("blacklist") or []) if x]
 
     peer = str(event.peer_id)
     chat = str(event.chat_id or "")
-    uname = (event.sender_username or "").lstrip("@").lower()
+    uname = _norm(event.sender_username or "")
 
-    print(f"[FILTER] {label} peer={peer} chat={chat} uname={uname!r} wl={whitelist} bl={blacklist}", flush=True)
+    wl_clean = [_norm(w) for w in whitelist]
+    bl_clean = [_norm(b) for b in blacklist]
 
-    if whitelist:
-        wl_clean = [w.lstrip("@").lower() for w in whitelist]
-        in_white = peer in whitelist or chat in whitelist or uname in wl_clean
+    print(f"[FILTER] {label} peer={peer} chat={chat} uname={uname!r} wl={wl_clean} bl={bl_clean}", flush=True)
+
+    if wl_clean:
+        in_white = peer in wl_clean or chat in wl_clean or uname in wl_clean
         if not in_white:
             print(f"[FILTER] {label} skip: not in whitelist", flush=True)
             return False
 
-    if blacklist:
-        bl_clean = [b.lstrip("@").lower() for b in blacklist]
-        in_black = peer in blacklist or chat in blacklist or uname in bl_clean
+    if bl_clean:
+        in_black = peer in bl_clean or chat in bl_clean or uname in bl_clean
         if in_black:
-            print(f"[FILTER] {label} skip: blacklist hit chat={chat}", flush=True)
+            print(f"[FILTER] {label} skip: blacklist hit uname={uname!r} chat={chat}", flush=True)
             return False
 
     return True
@@ -150,7 +160,7 @@ async def _notify_owner(
     owner_tg_id: int | None,
     text: str,
 ) -> None:
-    """Отправить уведомление хозяину через Telegram Bot."""
+    """Отправить текстовое уведомление хозяину через Telegram Bot."""
     if not bot_rid or not owner_tg_id:
         print(f"[PROMPT] notify_owner: no bot_rid or owner_tg_id", flush=True)
         return
@@ -163,6 +173,38 @@ async def _notify_owner(
         await worker.send_message(owner_tg_id, text)
     except Exception as e:
         print(f"[PROMPT] notify_owner error: {e!r}", flush=True)
+
+
+async def _forward_to_owner(
+    session_rid: str,
+    owner_tg_id: int,
+    from_chat_id: int,
+    msg_id: int,
+    header: str,
+    bot_rid: str | None,
+) -> None:
+    """Переслать оригинальное сообщение через Telethon + отправить заголовок через бот."""
+    try:
+        from src.app.resources.telegram.telegram import session_registry
+        worker = session_registry.get(session_rid)
+        if worker:
+            # Сначала шлём заголовок через бота
+            if bot_rid:
+                from src.app.resources.telegram_bot.bot import bot_registry
+                bot = bot_registry.get(bot_rid)
+                if bot:
+                    await bot.send_message(owner_tg_id, header)
+            # Затем форвардим оригинал через Telethon
+            await worker.forward_message(
+                to_peer=owner_tg_id,
+                from_chat_id=from_chat_id,
+                msg_id=msg_id,
+            )
+        else:
+            # Telethon недоступен — fallback на текст через бота
+            await _notify_owner(bot_rid, owner_tg_id, header)
+    except Exception as e:
+        print(f"[PROMPT] _forward_to_owner error: {e!r}", flush=True)
 
 
 class PromptWorker:
@@ -406,12 +448,19 @@ class PromptWorker:
                 notify_mode = (step.get("notify_mode") or "direct").lower()
 
                 if notify_mode == "direct":
-                    notification = (
-                        f"📌 *{label}*\n"
-                        f"{source_info}\n\n"
-                        f"{incoming_text}"
-                    )
-                    await _notify_owner(bot_rid, owner_tg_id, notification)
+                    header = f"📌 *{label}*\n{source_info}"
+                    if event.source_type == "telegram_session" and event.chat_id and event.msg_id and owner_tg_id:
+                        await _forward_to_owner(
+                            session_rid=event.source_rid,
+                            owner_tg_id=owner_tg_id,
+                            from_chat_id=event.chat_id,
+                            msg_id=event.msg_id,
+                            header=header,
+                            bot_rid=bot_rid,
+                        )
+                    else:
+                        notification = f"{header}\n\n{incoming_text}"
+                        await _notify_owner(bot_rid, owner_tg_id, notification)
                     _log(label, rid, f"step[{i}] {step_name} notify direct → owner={owner_tg_id}")
 
                 elif notify_mode == "ai_formatted":
