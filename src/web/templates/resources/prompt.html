@@ -74,12 +74,38 @@
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
-        <label for="txtWhitelist">Белый список (chat_id или @username, по одному на строку)</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <label for="txtWhitelist" style="margin:0">Белый список (chat_id или @username, по одному на строку)</label>
+          <button class="btn" id="btnPickWhitelist" style="font-size:12px;padding:3px 10px">+ Выбрать</button>
+        </div>
         <textarea id="txtWhitelist" rows="3" placeholder="@username&#10;123456789" style="width:100%"></textarea>
       </div>
       <div>
-        <label for="txtBlacklist">Чёрный список</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <label for="txtBlacklist" style="margin:0">Чёрный список</label>
+          <button class="btn" id="btnPickBlacklist" style="font-size:12px;padding:3px 10px">+ Выбрать</button>
+        </div>
         <textarea id="txtBlacklist" rows="3" placeholder="@spammer&#10;987654321" style="width:100%"></textarea>
+      </div>
+    </div>
+
+    <!-- Диалог выбора чатов -->
+    <div id="dialogPickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:var(--bg,#fff);border-radius:10px;padding:20px;width:420px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.25)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <strong id="pickerTitle">Выберите чаты</strong>
+          <button id="btnPickerClose" class="btn" style="padding:3px 10px">✕</button>
+        </div>
+        <input id="pickerSearch" type="text" placeholder="Поиск по имени или @username…" style="width:100%">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="pickerFilterUser" checked> Контакты</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="pickerFilterGroup" checked> Группы</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" id="pickerFilterChannel" checked> Каналы</label>
+        </div>
+        <div id="pickerList" style="overflow-y:auto;flex:1;min-height:200px;border:1px solid rgba(0,0,0,.12);border-radius:6px;padding:4px">
+          <div id="pickerLoading" style="padding:16px;text-align:center;opacity:.6">Загрузка…</div>
+        </div>
+        <div style="font-size:12px;opacity:.6">Клик добавляет в список. Уже добавленные отмечены ✓</div>
       </div>
     </div>
 

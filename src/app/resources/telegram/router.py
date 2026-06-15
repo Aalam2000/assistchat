@@ -426,6 +426,73 @@ async def enable_telegram(
     return {"ok": True, "status": row.status, "message": "Ресурс включён"}
 
 
+@router.get("/{rid}/dialogs")
+async def get_telegram_dialogs(
+    rid: str,
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Возвращает список диалогов (контакты, группы, каналы) из сессии."""
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    from telethon.tl.types import User, Chat, Channel
+
+    rid_uuid = _uuid(rid)
+    row = db.query(Resource).filter(Resource.id == rid_uuid).first()
+    if not row or row.user_id != user.id or row.provider != "telegram":
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    creds = _get_creds(row)
+    if not creds:
+        raise HTTPException(status_code=400, detail="NO_SESSION")
+
+    app_id, app_hash, string_session = creds
+    client = TelegramClient(StringSession(string_session), app_id, app_hash)
+    try:
+        await asyncio.wait_for(client.connect(), timeout=10)
+        if not await asyncio.wait_for(client.is_user_authorized(), timeout=10):
+            raise HTTPException(status_code=401, detail="NOT_AUTHORIZED")
+
+        dialogs = await asyncio.wait_for(client.get_dialogs(limit=200), timeout=30)
+
+        result = []
+        for d in dialogs:
+            entity = d.entity
+            if isinstance(entity, User):
+                if entity.bot:
+                    continue
+                name = " ".join(filter(None, [entity.first_name, entity.last_name])) or f"user_{entity.id}"
+                username = entity.username or None
+                kind = "user"
+                peer_id = str(entity.id)
+            elif isinstance(entity, Chat):
+                name = entity.title or f"chat_{entity.id}"
+                username = None
+                kind = "group"
+                peer_id = str(-entity.id)
+            elif isinstance(entity, Channel):
+                name = entity.title or f"channel_{entity.id}"
+                username = entity.username or None
+                kind = "channel" if entity.broadcast else "group"
+                peer_id = str(-1000000000000 - entity.id)
+            else:
+                continue
+
+            result.append({
+                "name": name,
+                "username": f"@{username}" if username else None,
+                "peer_id": peer_id,
+                "kind": kind,
+            })
+
+        return {"ok": True, "dialogs": result}
+    finally:
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+
+
 @router.get("/{rid}/status")
 async def telegram_status(
     rid: str,

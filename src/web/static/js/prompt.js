@@ -637,6 +637,132 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btnToggle?.addEventListener("click", toggleStatus);
 
+    // ── пикер диалогов ───────────────────────────────────────────────────
+    (function () {
+        const overlay      = $("#dialogPickerOverlay");
+        const pickerTitle  = $("#pickerTitle");
+        const pickerSearch = $("#pickerSearch");
+        const pickerList   = $("#pickerList");
+        const pickerLoading = $("#pickerLoading");
+        const btnClose     = $("#btnPickerClose");
+        const chkUser      = $("#pickerFilterUser");
+        const chkGroup     = $("#pickerFilterGroup");
+        const chkChannel   = $("#pickerFilterChannel");
+
+        let _targetTxt = null;   // txtWhitelist | txtBlacklist
+        let _allDialogs = [];    // кэш
+
+        function currentEntries() {
+            return textToList(_targetTxt?.value || "");
+        }
+
+        function isAdded(d) {
+            const entries = currentEntries();
+            return entries.includes(d.username) || entries.includes(d.peer_id);
+        }
+
+        function kindIcon(k) {
+            return k === "user" ? "👤" : k === "channel" ? "📢" : "👥";
+        }
+
+        function renderList() {
+            const q  = (pickerSearch?.value || "").toLowerCase();
+            const showUser    = chkUser?.checked;
+            const showGroup   = chkGroup?.checked;
+            const showChannel = chkChannel?.checked;
+
+            const filtered = _allDialogs.filter(d => {
+                if (d.kind === "user"    && !showUser)    return false;
+                if (d.kind === "group"   && !showGroup)   return false;
+                if (d.kind === "channel" && !showChannel) return false;
+                if (q) {
+                    const name = (d.name || "").toLowerCase();
+                    const uname = (d.username || "").toLowerCase();
+                    if (!name.includes(q) && !uname.includes(q)) return false;
+                }
+                return true;
+            });
+
+            if (!filtered.length) {
+                pickerList.innerHTML = `<div style="padding:16px;text-align:center;opacity:.6">Ничего не найдено</div>`;
+                return;
+            }
+
+            pickerList.innerHTML = filtered.map(d => {
+                const added = isAdded(d);
+                const sub = d.username ? `<span style="opacity:.5;font-size:12px">${escHtml(d.username)}</span>` : "";
+                return `<div data-peer="${escHtml(d.peer_id)}" data-uname="${escHtml(d.username || "")}"
+                    style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;cursor:pointer;
+                           ${added ? "opacity:.5" : ""}transition:background .15s"
+                    onmouseover="this.style.background='rgba(0,0,0,.06)'"
+                    onmouseout="this.style.background=''"
+                >
+                  <span style="font-size:16px">${kindIcon(d.kind)}</span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(d.name)}</span>
+                    ${sub}
+                  </span>
+                  <span style="font-size:14px;min-width:16px">${added ? "✓" : ""}</span>
+                </div>`;
+            }).join("");
+
+            pickerList.querySelectorAll("[data-peer]").forEach(el => {
+                el.addEventListener("click", () => {
+                    const peer  = el.dataset.peer;
+                    const uname = el.dataset.uname;
+                    const value = uname || peer;
+                    const entries = currentEntries();
+                    if (!entries.includes(value) && !entries.includes(peer)) {
+                        const lines = _targetTxt.value.trim();
+                        _targetTxt.value = lines ? lines + "\n" + value : value;
+                    }
+                    renderList();
+                });
+            });
+        }
+
+        async function openPicker(targetTxt, title) {
+            _targetTxt = targetTxt;
+            if (pickerTitle) pickerTitle.textContent = title;
+            if (pickerSearch) pickerSearch.value = "";
+            overlay.style.display = "flex";
+
+            if (_allDialogs.length) { renderList(); return; }
+
+            if (pickerList) pickerList.innerHTML = `<div id="pickerLoading" style="padding:16px;text-align:center;opacity:.6">Загрузка…</div>`;
+
+            // Берём resource_id сессии из селектора
+            const sessionRid = selSession?.value;
+            if (!sessionRid) {
+                pickerList.innerHTML = `<div style="padding:16px;text-align:center;opacity:.6">Сначала выберите Telegram-сессию</div>`;
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/telegram/${sessionRid}/dialogs`);
+                const data = await resp.json();
+                if (!data.ok) throw new Error(data.detail || "Ошибка");
+                _allDialogs = data.dialogs || [];
+                renderList();
+            } catch (e) {
+                pickerList.innerHTML = `<div style="padding:16px;text-align:center;color:#c00">Ошибка: ${escHtml(String(e))}</div>`;
+            }
+        }
+
+        // Сбрасываем кэш при смене сессии
+        selSession?.addEventListener("change", () => { _allDialogs = []; });
+
+        $("#btnPickWhitelist")?.addEventListener("click", () => openPicker(txtWhitelist, "Белый список — выберите чаты"));
+        $("#btnPickBlacklist")?.addEventListener("click", () => openPicker(txtBlacklist, "Чёрный список — выберите чаты"));
+
+        btnClose?.addEventListener("click", () => { overlay.style.display = "none"; });
+        overlay?.addEventListener("click", e => { if (e.target === overlay) overlay.style.display = "none"; });
+        pickerSearch?.addEventListener("input", renderList);
+        chkUser?.addEventListener("change", renderList);
+        chkGroup?.addEventListener("change", renderList);
+        chkChannel?.addEventListener("change", renderList);
+    })();
+
     // ── вспомогательные ──────────────────────────────────────────────────
     function escHtml(s) {
         return (s || "")
