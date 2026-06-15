@@ -30,6 +30,7 @@ class MessageEvent:
     peer_type: str            # "private" | "group" | "channel" | "chat"
     chat_id: int | None       # ID чата (None для private = peer_id)
     sender_username: str | None
+    chat_username: str | None = None  # @username группы/канала (None для лички)
 
     # Сообщение
     msg_id: int | None

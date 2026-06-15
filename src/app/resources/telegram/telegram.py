@@ -226,8 +226,9 @@ class TelegramWorker:
                             return  # уже обработали первое фото этого альбома
                         self._seen_groups[grouped_id] = (now, False)
 
-                    # 3. Получаем название группы/канала
+                    # 3. Получаем название и @username группы/канала
                     chat_name: str | None = None
+                    chat_username: str | None = None
                     try:
                         if peer_type in ("group", "channel"):
                             chat_entity = (
@@ -235,6 +236,9 @@ class TelegramWorker:
                             )
                             if chat_entity:
                                 chat_name = getattr(chat_entity, "title", None)
+                                cu = getattr(chat_entity, "username", None)
+                                if cu:
+                                    chat_username = cu
                     except Exception:
                         pass
 
@@ -264,6 +268,7 @@ class TelegramWorker:
                         peer_type=peer_type,
                         chat_id=int(chat_id),
                         sender_username=sender_username,
+                        chat_username=chat_username,
                         msg_id=int(msg_id),
                         external_chat_id=str(chat_id),
                         external_msg_id=str(msg_id),

@@ -710,11 +710,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 el.addEventListener("click", () => {
                     const peer  = el.dataset.peer;
                     const uname = el.dataset.uname;
-                    const value = uname || peer;
                     const entries = currentEntries();
-                    if (!entries.includes(value) && !entries.includes(peer)) {
+                    const toAdd = [];
+                    if (uname && !entries.includes(uname)) toAdd.push(uname);
+                    if (peer && !entries.includes(peer)) toAdd.push(peer);
+                    if (toAdd.length) {
                         const lines = _targetTxt.value.trim();
-                        _targetTxt.value = lines ? lines + "\n" + value : value;
+                        _targetTxt.value = lines
+                            ? lines + "\n" + toAdd.join("\n")
+                            : toAdd.join("\n");
                     }
                     renderList();
                 });

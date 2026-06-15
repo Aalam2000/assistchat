@@ -221,6 +221,7 @@ class TelegramBotWorker:
                         peer_type=peer_type,
                         chat_id=chat_id,
                         sender_username=sender_username,
+                        chat_username=getattr(chat, "username", None),
                         msg_id=message.message_id,
                         external_chat_id=str(chat_id),
                         external_msg_id=str(message.message_id),

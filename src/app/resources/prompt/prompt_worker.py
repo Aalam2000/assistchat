@@ -59,6 +59,29 @@ def _read_context_file(rel_path: str | None) -> str:
         return ""
 
 
+def _norm_filter_entry(s: str) -> str:
+    """Нормализуем запись: t.me/user → user, @user → user, https://t.me/user → user"""
+    s = s.strip()
+    if s.lstrip("-").isdigit():
+        return s
+    s = s.lower()
+    for prefix in ("https://t.me/", "http://t.me/", "t.me/", "@"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    return s
+
+
+def _event_identifiers(event: MessageEvent) -> set[str]:
+    ids = {str(event.peer_id), str(event.chat_id or "")}
+    if event.sender_username:
+        ids.add(_norm_filter_entry(event.sender_username))
+    if event.chat_username:
+        ids.add(_norm_filter_entry(event.chat_username))
+    ids.discard("")
+    return ids
+
+
 def _passes_filters(event: MessageEvent, filters: dict, label: str = "") -> bool:
     if event.peer_type == "private" and not filters.get("reply_private", True):
         print(f"[FILTER] {label} skip: peer_type=private disabled", flush=True)
@@ -70,37 +93,38 @@ def _passes_filters(event: MessageEvent, filters: dict, label: str = "") -> bool
         print(f"[FILTER] {label} skip: peer_type=channel disabled", flush=True)
         return False
 
-    def _norm(s: str) -> str:
-        """Нормализуем запись: t.me/user → user, @user → user, https://t.me/user → user"""
-        s = s.strip().lower()
-        for prefix in ("https://t.me/", "http://t.me/", "t.me/", "@"):
-            if s.startswith(prefix):
-                s = s[len(prefix):]
-                break
-        return s
-
     whitelist = [str(x) for x in (filters.get("whitelist") or []) if x]
     blacklist = [str(x) for x in (filters.get("blacklist") or []) if x]
 
     peer = str(event.peer_id)
     chat = str(event.chat_id or "")
-    uname = _norm(event.sender_username or "")
+    uname = _norm_filter_entry(event.sender_username or "")
+    chat_uname = _norm_filter_entry(event.chat_username or "")
+    event_ids = _event_identifiers(event)
 
-    wl_clean = [_norm(w) for w in whitelist]
-    bl_clean = [_norm(b) for b in blacklist]
+    wl_clean = [_norm_filter_entry(w) for w in whitelist]
+    bl_clean = [_norm_filter_entry(b) for b in blacklist]
 
-    print(f"[FILTER] {label} peer={peer} chat={chat} uname={uname!r} wl={wl_clean} bl={bl_clean}", flush=True)
+    print(
+        f"[FILTER] {label} peer={peer} chat={chat} uname={uname!r} "
+        f"chat_uname={chat_uname!r} wl={wl_clean} bl={bl_clean}",
+        flush=True,
+    )
 
     if wl_clean:
-        in_white = peer in wl_clean or chat in wl_clean or uname in wl_clean
+        in_white = any(w in event_ids for w in wl_clean)
         if not in_white:
             print(f"[FILTER] {label} skip: not in whitelist", flush=True)
             return False
 
     if bl_clean:
-        in_black = peer in bl_clean or chat in bl_clean or uname in bl_clean
+        in_black = any(b in event_ids for b in bl_clean)
         if in_black:
-            print(f"[FILTER] {label} skip: blacklist hit uname={uname!r} chat={chat}", flush=True)
+            print(
+                f"[FILTER] {label} skip: blacklist hit "
+                f"uname={uname!r} chat_uname={chat_uname!r} chat={chat}",
+                flush=True,
+            )
             return False
 
     return True
