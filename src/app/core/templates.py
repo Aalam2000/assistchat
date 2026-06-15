@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from autoi18n import Translator
 from src.app.core.config import BASE_DIR
 from src.app.core.config import TEMPLATES_DIR
+from src.app.core.geo import is_google_auth_enabled
 
 # Инициализация шаблонов и переводчика
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -43,7 +44,12 @@ def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) 
     lang_header = tr.detect_browser_lang(request.headers.get("accept-language", ""))
     lang = lang_cookie or lang_header or "ru"
 
-    ctx = {**ctx, "request": request, "page_key": page_key}
+    ctx = {
+        **ctx,
+        "request": request,
+        "page_key": page_key,
+        "google_auth_enabled": is_google_auth_enabled(request),
+    }
     rendered = templates.get_template(template_name).render(ctx)
     translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
     return HTMLResponse(content=_inject_en_button(translated, lang))

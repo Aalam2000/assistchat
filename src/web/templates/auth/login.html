@@ -26,10 +26,12 @@
           <button type="submit" class="btn primary">Войти</button>
         </div>
 
+        {% if google_auth_enabled %}
         <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
           Войти через Google
         </button>
+        {% endif %}
 
         <p class="switch-link">
           Нет аккаунта? <a href="#" id="switch-to-register">Зарегистрируйтесь</a>
@@ -58,10 +60,12 @@
           <button type="submit" class="btn primary">Зарегистрироваться</button>
         </div>
 
+        {% if google_auth_enabled %}
         <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
           Войти через Google
         </button>
+        {% endif %}
 
         <p class="switch-link">
           Уже есть аккаунт? <a href="#" id="switch-to-login">Войти</a>

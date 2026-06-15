@@ -4,7 +4,7 @@ src/app/routes/auth_routes.py - Маршруты авторизации: рег�
 import os
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session as SASession
 
 from src.app.core.auth import get_current_user
 from src.app.core.db import get_db
+from src.app.core.geo import is_google_auth_enabled
 from src.models.user import User, RoleEnum
 
 router = APIRouter()
@@ -52,6 +53,8 @@ def _redirect_uri(path: str = "/auth/google/callback") -> str:
 
 @router.get("/auth/google", include_in_schema=False)
 async def auth_google(request: Request):
+    if not is_google_auth_enabled(request):
+        raise HTTPException(status_code=404)
     request.session.clear()
     request.session["next"] = request.headers.get("referer", "/")
     return await oauth.google.authorize_redirect(request, _redirect_uri())
@@ -60,6 +63,8 @@ async def auth_google(request: Request):
 @router.get("/auth/google/callback", include_in_schema=False)
 async def auth_google_callback(request: Request, db: SASession = Depends(get_db)):
     """Callback от Google OAuth → создаёт или восстанавливает пользователя."""
+    if not is_google_auth_enabled(request):
+        raise HTTPException(status_code=404)
     token = await oauth.google.authorize_access_token(request)
     claims = await oauth.google.userinfo(token=token)
     email = claims.get("email")

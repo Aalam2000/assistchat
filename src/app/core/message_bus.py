@@ -30,7 +30,6 @@ class MessageEvent:
     peer_type: str            # "private" | "group" | "channel" | "chat"
     chat_id: int | None       # ID чата (None для private = peer_id)
     sender_username: str | None
-    chat_username: str | None = None  # @username группы/канала (None для лички)
 
     # Сообщение
     msg_id: int | None
@@ -42,6 +41,7 @@ class MessageEvent:
     # Человекочитаемые названия (для форматирования уведомлений)
     source_label: str | None = None   # название ресурса-источника (как в интерфейсе)
     chat_name: str | None = None      # название группы/канала (None для личок)
+    chat_username: str | None = None  # @username группы/канала (None для лички)
 
     # Сырые данные (для будущих расширений)
     raw: dict[str, Any] = field(default_factory=dict)
