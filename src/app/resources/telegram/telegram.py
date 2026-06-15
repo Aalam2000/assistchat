@@ -212,9 +212,8 @@ class TelegramWorker:
                     if is_bot:
                         return
 
-                    # Дедупликация альбомов: из группы пропускаем все фото,
-                    # кроме первого с текстом (caption); если ни у кого нет текста —
-                    # пропускаем дубли после первого.
+                    # Дедупликация альбомов: обрабатываем только первое фото,
+                    # текст подписи будет получен через download_album.
                     grouped_id = getattr(getattr(event, "message", None), "grouped_id", None)
                     if grouped_id is not None:
                         now = time.monotonic()
@@ -223,16 +222,9 @@ class TelegramWorker:
                             g: v for g, v in self._seen_groups.items()
                             if now - v[0] < 60
                         }
-                        this_has_text = bool((event.raw_text or "").strip())
                         if grouped_id in self._seen_groups:
-                            _, had_text = self._seen_groups[grouped_id]
-                            if had_text or not this_has_text:
-                                # уже видели с текстом, ИЛИ у этого тоже нет текста
-                                return
-                            # предыдущее было без текста, это — с текстом: пропускаем
-                            self._seen_groups[grouped_id] = (self._seen_groups[grouped_id][0], True)
-                        else:
-                            self._seen_groups[grouped_id] = (now, this_has_text)
+                            return  # уже обработали первое фото этого альбома
+                        self._seen_groups[grouped_id] = (now, False)
 
                     # 3. Получаем название группы/канала
                     chat_name: str | None = None
@@ -331,10 +323,10 @@ class TelegramWorker:
         from_chat_id: int,
         msg_id: int,
         grouped_id: int | None = None,
-    ) -> list[bytes]:
-        """Скачать все фото альбома (по grouped_id) или одно фото."""
+    ) -> tuple[list[bytes], str]:
+        """Скачать все фото альбома. Возвращает (байты фото, текст подписи)."""
         if not self.client:
-            return []
+            return [], ""
         try:
             if grouped_id:
                 nearby = await self.client.get_messages(
@@ -352,16 +344,20 @@ class TelegramWorker:
                 album_msgs = [m for m in (msgs or []) if m]
 
             results: list[bytes] = []
+            caption = ""
             for msg in album_msgs:
+                # Текст подписи — берём из первого сообщения где он есть
+                if not caption:
+                    caption = (getattr(msg, "message", None) or "").strip()
                 if getattr(msg, "photo", None) or getattr(msg, "document", None):
                     data = await self.client.download_media(msg, bytes)
                     if data:
                         results.append(data)
             self._log(f"download_album grouped_id={grouped_id} → {len(results)} files")
-            return results
+            return results, caption
         except Exception as e:
             self._log(f"download_album error: {e!r}")
-            return []
+            return [], ""
 
     async def forward_message(self, to_peer: int, from_chat_id: int, msg_id: int) -> bool:
         """Переслать оригинальное сообщение (с медиа) через Telethon."""

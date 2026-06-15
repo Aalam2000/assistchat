@@ -115,7 +115,6 @@ class TelegramBotWorker:
                 items.append(InputMediaPhoto(
                     media=BufferedInputFile(data, filename=f"photo_{i}.jpg"),
                     caption=caption if i == 0 else None,
-                    parse_mode="Markdown",
                 ))
             await self.bot.send_media_group(chat_id=chat_id, media=items)
             return True

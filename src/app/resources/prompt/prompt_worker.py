@@ -480,13 +480,15 @@ class PromptWorker:
                             bot_worker = _bot_reg.get(bot_rid)
                             if tg_worker and bot_worker:
                                 grouped_id = (event.raw or {}).get("grouped_id")
-                                photos = await tg_worker.download_album(
+                                photos, album_caption = await tg_worker.download_album(
                                     from_chat_id=event.chat_id,
                                     msg_id=event.msg_id,
                                     grouped_id=grouped_id,
                                 )
                                 if photos:
-                                    caption = f"{header}\n\n{incoming_text}" if incoming_text else header
+                                    # Используем текст из download_album (там подпись точно есть)
+                                    final_text = album_caption or incoming_text
+                                    caption = f"{header}\n\n{final_text}" if final_text else header
                                     sent_as_media = await bot_worker.send_media_group(
                                         owner_tg_id, photos, caption
                                     )
