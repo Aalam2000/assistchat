@@ -45,11 +45,25 @@ def get_examples(prompt_meta: Dict[str, Any] | None) -> List[Dict[str, str]]:
     for item in ex:
         if not isinstance(item, dict):
             continue
-        q = (item.get("q") or "").strip()
-        a = (item.get("a") or "").strip()
+        q = (item.get("q") or item.get("user") or "").strip()
+        a = (item.get("a") or item.get("assistant") or "").strip()
         if q or a:
             out.append({"q": q, "a": a})
     return out
+
+
+def format_examples_block(examples: List[Dict[str, str]]) -> str:
+    if not examples:
+        return ""
+    lines: List[str] = ["EXAMPLES:"]
+    for i, ex in enumerate(examples, start=1):
+        q = (ex.get("q") or "").strip()
+        a = (ex.get("a") or "").strip()
+        if q:
+            lines.append(f"{i}. Q: {q}")
+        if a:
+            lines.append(f"   A: {a}")
+    return "\n".join(lines)
 
 
 def build_system_prompt(
@@ -81,15 +95,8 @@ def build_system_prompt(
         if dc:
             parts.append("KNOWLEDGE (from Google Drive):\n" + dc)
 
-    if examples:
-        lines: List[str] = ["EXAMPLES:"]
-        for i, ex in enumerate(examples, start=1):
-            q = (ex.get("q") or "").strip()
-            a = (ex.get("a") or "").strip()
-            if q:
-                lines.append(f"{i}. Q: {q}")
-            if a:
-                lines.append(f"   A: {a}")
-        parts.append("\n".join(lines))
+    examples_block = format_examples_block(examples)
+    if examples_block:
+        parts.append(examples_block)
 
     return "\n\n".join([x for x in parts if x]).strip()

@@ -15,11 +15,14 @@ PROMPT-воркер.
 from __future__ import annotations
 
 import asyncio
+import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.app.core.db import SessionLocal
 from src.app.core.message_bus import MessageEvent, bus
+from src.app.core.prompt_runtime import format_examples_block, get_examples
 from src.models.resource import Resource
 from src.models.user import User
 
@@ -128,6 +131,108 @@ def _passes_filters(event: MessageEvent, filters: dict, label: str = "") -> bool
             return False
 
     return True
+
+
+def _coerce_match(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "1", "да")
+    return bool(value)
+
+
+def _extract_ai_match(response: str) -> bool | None:
+    """
+    Извлекает match из JSON-ответа AI-классификации.
+    None — если JSON с полем match не найден (пайплайн продолжается).
+    """
+    text = (response or "").strip()
+    if not text:
+        return None
+
+    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    candidates: list[str] = [text]
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        for end in range(start, len(text)):
+            ch = text[end]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    fragment = text[start : end + 1]
+                    if "match" in fragment:
+                        candidates.append(fragment)
+                    break
+        start = text.find("{", start + 1)
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            obj = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and "match" in obj:
+            return _coerce_match(obj["match"])
+
+    return None
+
+
+def _is_deliverable_notify_text(text: str) -> bool:
+    """Можно ли отправить AI-текст хозяину (не пусто, не SKIP, не JSON-классификация)."""
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return False
+    if re.fullmatch(r"SKIP\.?", cleaned, re.IGNORECASE):
+        return False
+    if _extract_ai_match(cleaned) is not None:
+        return False
+    return True
+
+
+def _listen_source_rids(sources: dict | None) -> list[str]:
+    """Источники входящих сообщений. Бот из промпта — только выход, не вход."""
+    sources = sources or {}
+    session_rid = sources.get("telegram_session_rid")
+    if session_rid:
+        return [str(session_rid)]
+    return []
+
+
+def _message_link(event: MessageEvent) -> str | None:
+    """Ссылка на оригинальное сообщение в Telegram (если можно построить)."""
+    msg_id = event.msg_id
+    if not msg_id:
+        return None
+
+    chat_username = _norm_filter_entry(event.chat_username or "")
+    if chat_username and not chat_username.lstrip("-").isdigit():
+        return f"https://t.me/{chat_username}/{msg_id}"
+
+    chat_id = event.chat_id
+    if chat_id is not None:
+        chat_str = str(chat_id)
+        if chat_str.startswith("-100"):
+            return f"https://t.me/c/{chat_str[4:]}/{msg_id}"
+
+    if event.peer_type == "private":
+        uname = _norm_filter_entry(event.sender_username or "")
+        if uname and not uname.lstrip("-").isdigit() and " " not in uname:
+            return f"https://t.me/{uname}/{msg_id}"
+        if event.peer_id:
+            return f"tg://openmessage?user_id={event.peer_id}&message_id={msg_id}"
+
+    return None
 
 
 async def _get_api_key_value(api_keys_resource_id: str, api_key_field: str, user_id) -> str | None:
@@ -367,6 +472,10 @@ class PromptWorker:
         if context_file:
             full_system += f"\n\n--- ФАЙЛ КОНТЕКСТА ---\n{context_file}"
 
+        examples_block = format_examples_block(get_examples({"prompt": prompt_cfg}))
+        if examples_block:
+            full_system += f"\n\n--- ПРИМЕРЫ ---\n{examples_block}"
+
         # Входящее сообщение
         incoming_text = event.text or f"[{event.msg_type}]"
 
@@ -381,6 +490,9 @@ class PromptWorker:
         elif event.peer_id:
             source_parts.append(f"id{event.peer_id}")
         source_info = ", ".join(source_parts) if source_parts else event.source_type
+        message_link = _message_link(event)
+        if message_link:
+            source_info = f"{source_info}\n🔗 {message_link}"
 
         # Накопленный диалог (используется в AI-шагах)
         accumulated: list[dict] = [
@@ -457,15 +569,22 @@ class PromptWorker:
                     return
 
                 if action == "notify_owner":
-                    notification = (
-                        f"📌 *{label}*\n"
-                        f"{source_info}\n"
-                        f"Сообщение: {incoming_text}\n\n"
-                        f"💡 {response}"
-                    )
-                    await _notify_owner(bot_rid, owner_tg_id, notification)
-                    _log(label, rid, f"notified owner tg_id={owner_tg_id}")
-                # action == "continue" → следующий шаг
+                    if not _is_deliverable_notify_text(response):
+                        _log(label, rid, f"step[{i}] {step_name} ai notify_owner: skip undeliverable")
+                    else:
+                        notification = (
+                            f"📌 *{label}*\n"
+                            f"{source_info}\n"
+                            f"Сообщение: {incoming_text}\n\n"
+                            f"💡 {response}"
+                        )
+                        await _notify_owner(bot_rid, owner_tg_id, notification)
+                        _log(label, rid, f"notified owner tg_id={owner_tg_id}")
+                elif action == "continue":
+                    match_result = _extract_ai_match(response)
+                    if match_result is False:
+                        _log(label, rid, f"step[{i}] {step_name} ai: match=false → stop pipeline")
+                        return
 
             # ── ТИП 3: УВЕДОМИТЬ ХОЗЯИНА ────────────────────────────────────
             elif step_type == "notify":
@@ -535,11 +654,11 @@ class PromptWorker:
                         system=step_system,
                         messages=accumulated,
                     )
-                    if response:
+                    if response and _is_deliverable_notify_text(response):
                         await _notify_owner(bot_rid, owner_tg_id, response)
                         _log(label, rid, f"step[{i}] {step_name} notify ai_formatted → owner={owner_tg_id}")
                     else:
-                        _log(label, rid, f"step[{i}] {step_name} notify ai_formatted: empty response")
+                        _log(label, rid, f"step[{i}] {step_name} notify ai_formatted: skip undeliverable")
 
             else:
                 _log(label, rid, f"step[{i}] {step_name}: unknown type={step_type!r}, skip")
@@ -573,22 +692,21 @@ class PromptWorker:
                 meta = r.meta_json or {}
                 sources = meta.get("sources") or {}
                 session_rid = sources.get("telegram_session_rid")
-                bot_rid = sources.get("telegram_bot_rid")
             finally:
                 db.close()
 
-            if not session_rid and not bot_rid:
+            if not session_rid:
                 await self._set_state(
                     phase="error",
-                    code="prompt_no_sources",
-                    message="Не выбран ни один источник",
+                    code="prompt_no_session",
+                    message="Не выбрана Telegram-сессия для прослушивания",
                 )
-                _log(label, rid, "error: no sources")
+                _log(label, rid, "error: no telegram session")
                 await asyncio.sleep(10)
                 continue
 
-            # Подписываемся на источники
-            for src_rid in filter(None, [session_rid, bot_rid]):
+            listen_rids = _listen_source_rids(sources)
+            for src_rid in listen_rids:
                 await bus.subscribe(src_rid, self._on_message)
                 self._subscribed_rids.append(src_rid)
 
