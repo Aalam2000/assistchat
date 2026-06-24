@@ -19,27 +19,25 @@ from src.models.resource import Resource
 def resolve_tg_creds(
     db: SASession, meta: dict[str, Any]
 ) -> tuple[int, str, str] | None:
-    creds = dict(meta.get("creds") or {})
-    app_id = creds.get("app_id")
-    app_hash = (creds.get("app_hash") or "").strip()
-    string_session = (creds.get("string_session") or "").strip()
-
-    if (not app_id or not app_hash or not string_session) and meta.get(
-        "telegram_session_rid"
+    sources = meta.get("sources") or {}
+    sid_raw = sources.get("telegram_session_rid")
+    if not sid_raw:
+        return None
+    try:
+        sid = UUID(str(sid_raw))
+    except Exception:
+        return None
+    row = db.get(Resource, sid)
+    if (
+        not row
+        or row.provider != "telegram"
+        or not isinstance(row.meta_json, dict)
     ):
-        try:
-            sid = UUID(str(meta["telegram_session_rid"]))
-        except Exception:
-            sid = None
-        if sid:
-            row = db.get(Resource, sid)
-            if row and isinstance(row.meta_json, dict):
-                linked = (row.meta_json.get("creds") or {})
-                app_id = app_id or linked.get("app_id")
-                app_hash = app_hash or (linked.get("app_hash") or "").strip()
-                ss = (linked.get("string_session") or "").strip()
-                string_session = string_session or ss
-
+        return None
+    linked = row.meta_json.get("creds") or {}
+    app_id = linked.get("app_id")
+    app_hash = (linked.get("app_hash") or "").strip()
+    string_session = (linked.get("string_session") or "").strip()
     try:
         app_id_int = int(app_id)
     except Exception:
@@ -47,6 +45,27 @@ def resolve_tg_creds(
     if not app_hash or not string_session:
         return None
     return app_id_int, app_hash, string_session
+
+
+def resolve_bot_token(db: SASession, meta: dict[str, Any]) -> str | None:
+    sources = meta.get("sources") or {}
+    bid_raw = sources.get("telegram_bot_rid")
+    if not bid_raw:
+        return None
+    try:
+        bid = UUID(str(bid_raw))
+    except Exception:
+        return None
+    row = db.get(Resource, bid)
+    if (
+        not row
+        or row.provider != "telegram_bot"
+        or not isinstance(row.meta_json, dict)
+    ):
+        return None
+    token = (row.meta_json.get("creds") or {}).get("bot_token") or ""
+    token = str(token).strip()
+    return token or None
 
 
 def _link(username: str | None, chat_id: int | None) -> str | None:

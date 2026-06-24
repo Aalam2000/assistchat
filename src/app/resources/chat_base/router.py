@@ -94,7 +94,7 @@ async def save_chat_base(
 
     old = normalize_meta(row.meta_json)
     merged = normalize_meta({**old, **incoming_raw})
-    for section in ("filters", "creds", "owner", "run"):
+    for section in ("filters", "owner", "run", "sources"):
         if isinstance(incoming_raw.get(section), dict):
             merged[section] = {**old.get(section, {}), **incoming_raw[section]}
     if "queries" in incoming_raw:

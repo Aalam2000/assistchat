@@ -18,16 +18,13 @@ def default_meta() -> dict[str, Any]:
             "min_members": 3000,
             "last_post_max_hours": 24,
         },
-        "creds": {
-            "app_id": None,
-            "app_hash": None,
-            "string_session": None,
-            "bot_token": None,
+        "sources": {
+            "telegram_session_rid": None,
+            "telegram_bot_rid": None,
         },
         "owner": {
             "telegram_user_id": None,
         },
-        "telegram_session_rid": None,
         "blacklist": [],
         "accepted": {
             "telegram": [],
@@ -47,7 +44,7 @@ def normalize_meta(raw: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(raw, dict):
         return base
     out = copy.deepcopy(base)
-    for key in ("platform", "topic", "telegram_session_rid"):
+    for key in ("platform", "topic"):
         if raw.get(key) is not None:
             out[key] = raw[key]
     if isinstance(raw.get("queries"), list):
@@ -56,8 +53,13 @@ def normalize_meta(raw: dict[str, Any] | None) -> dict[str, Any]:
         ]
     if isinstance(raw.get("filters"), dict):
         out["filters"].update(raw["filters"])
-    if isinstance(raw.get("creds"), dict):
-        out["creds"].update(raw["creds"])
+    if isinstance(raw.get("sources"), dict):
+        out["sources"].update(raw["sources"])
+    # legacy: telegram_session_rid на верхнем уровне
+    if raw.get("telegram_session_rid") and not out["sources"].get(
+        "telegram_session_rid"
+    ):
+        out["sources"]["telegram_session_rid"] = raw["telegram_session_rid"]
     if isinstance(raw.get("owner"), dict):
         out["owner"].update(raw["owner"])
     if isinstance(raw.get("blacklist"), list):

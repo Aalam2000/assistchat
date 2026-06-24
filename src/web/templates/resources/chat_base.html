@@ -46,38 +46,32 @@
 
     <hr style="margin:18px 0;opacity:.2">
 
-    <h3 style="font-size:15px">Telegram-сессия (поиск)</h3>
-    <div class="mt-8">
-      <label for="cbSessionRid">Или выберите ресурс telegram</label>
-      <select id="cbSessionRid" style="width:100%;margin-bottom:8px">
-        <option value="">— свои creds ниже —</option>
-      </select>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <h3 style="margin:0 0 10px;font-size:15px">📡 Источники</h3>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
-        <label for="cbAppId">API ID</label>
-        <input id="cbAppId" type="number" style="width:100%">
+        <label for="cbSession">Telegram сессия</label>
+        <select id="cbSession" style="width:100%">
+          <option value="">— не выбрано —</option>
+        </select>
       </div>
       <div>
-        <label for="cbAppHash">API Hash</label>
-        <input id="cbAppHash" type="password" style="width:100%">
+        <label for="cbBot">Telegram Bot</label>
+        <select id="cbBot" style="width:100%">
+          <option value="">— не выбрано —</option>
+        </select>
       </div>
-    </div>
-    <div class="mt-8">
-      <label for="cbStringSession">StringSession</label>
-      <textarea id="cbStringSession" rows="2" style="width:100%"></textarea>
     </div>
 
     <hr style="margin:18px 0;opacity:.2">
 
-    <h3 style="font-size:15px">Свой бот (карточки Принять/Пропустить)</h3>
+    <h3 style="margin:0 0 10px;font-size:15px">👤 Хозяин</h3>
     <div class="mt-8">
-      <label for="cbBotToken">Bot token</label>
-      <input id="cbBotToken" type="password" style="width:100%;margin-bottom:8px">
-    </div>
-    <div>
       <label for="cbOwnerId">Telegram User ID владельца</label>
       <input id="cbOwnerId" type="number" placeholder="123456789" style="width:100%">
+      <p class="mono" style="opacity:.6;font-size:12px;margin-top:4px">
+        Узнать ID: <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>
+      </p>
     </div>
 
     <hr style="margin:18px 0;opacity:.2">

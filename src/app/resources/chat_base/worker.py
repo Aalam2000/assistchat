@@ -15,6 +15,7 @@ from src.app.resources.chat_base.meta import (
 from src.app.resources.chat_base.notifier import notifier
 from src.app.resources.chat_base.filters import passes_filters
 from src.app.resources.chat_base.search import (
+    resolve_bot_token,
     resolve_tg_creds,
     search_by_name_queries,
 )
@@ -52,13 +53,12 @@ async def _run_search_impl(rid: str, *, pause_sec: float) -> dict[str, Any]:
         creds = resolve_tg_creds(db, meta)
         if not creds:
             meta["run"]["status"] = "error"
-            meta["run"]["message"] = "Нет Telegram-сессии"
+            meta["run"]["message"] = "Выберите ресурс Telegram-сессии"
             row.meta_json = meta
             db.commit()
             return {"ok": False, "error": "NO_SESSION"}
 
-        bot_token = (meta.get("creds") or {}).get("bot_token") or ""
-        bot_token = str(bot_token).strip()
+        bot_token = resolve_bot_token(db, meta)
         owner_raw = (meta.get("owner") or {}).get("telegram_user_id")
         try:
             owner_id = int(owner_raw)
@@ -67,7 +67,7 @@ async def _run_search_impl(rid: str, *, pause_sec: float) -> dict[str, Any]:
         if not bot_token or not owner_id:
             meta["run"]["status"] = "error"
             meta["run"]["message"] = (
-                "Укажите bot_token и telegram_user_id владельца"
+                "Выберите Telegram Bot и укажите User ID владельца"
             )
             row.meta_json = meta
             db.commit()
@@ -141,9 +141,10 @@ async def _run_search_impl(rid: str, *, pause_sec: float) -> dict[str, Any]:
             row.meta_json = meta
             db.commit()
 
-            bot_token = str(
-                (meta.get("creds") or {}).get("bot_token") or ""
-            ).strip()
+            bot_token = resolve_bot_token(db, meta)
+            if not bot_token:
+                skipped += 1
+                continue
             owner_id = int((meta.get("owner") or {}).get("telegram_user_id"))
             await notifier.send_candidate(
                 resource_id=rid,
