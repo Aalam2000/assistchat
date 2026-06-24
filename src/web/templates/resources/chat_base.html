@@ -1,0 +1,92 @@
+<!-- src/web/templates/resources/chat_base.html -->
+{% extends "base.html" %}
+{% block title %}База чатов | AssistChat{% endblock %}
+
+{% block content %}
+<div class="page">
+  <section class="tile">
+    <div class="tile-title">База чатов</div>
+    <p class="tile-desc">Поиск групп Telegram по названию. Одна тема — одна база.</p>
+
+    <div class="actions">
+      <button id="btnSave" class="btn primary">Сохранить</button>
+      <button id="btnAssist" class="btn">Помощник: ключи</button>
+      <button id="btnRun" class="btn">Искать</button>
+      <button id="btnResetQueries" class="btn">Сбросить прогон</button>
+    </div>
+
+    <div id="cbMsg" style="display:none;padding:8px 12px;border-radius:6px;margin:10px 0;font-size:14px"></div>
+    <div class="mono mt-4" id="cbStatus">СТАТУС: —</div>
+
+    <div class="mt-12">
+      <label for="cbLabel">Название базы (тема)</label>
+      <input id="cbLabel" type="text" style="width:100%;margin-bottom:12px">
+    </div>
+
+    <div class="mt-12">
+      <label for="cbTopic">Описание темы</label>
+      <input id="cbTopic" type="text" placeholder="заказы программистам" style="width:100%;margin-bottom:12px">
+    </div>
+
+    <div class="mt-12">
+      <label for="cbQueries">Поисковые запросы (по одному на строку)</label>
+      <textarea id="cbQueries" rows="6" style="width:100%"></textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div>
+        <label for="cbMinMembers">Мин. участников</label>
+        <input id="cbMinMembers" type="number" value="3000" style="width:100%">
+      </div>
+      <div>
+        <label for="cbLastPostHours">Последний пост не старше (часов)</label>
+        <input id="cbLastPostHours" type="number" value="24" style="width:100%">
+      </div>
+    </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <h3 style="font-size:15px">Telegram-сессия (поиск)</h3>
+    <div class="mt-8">
+      <label for="cbSessionRid">Или выберите ресурс telegram</label>
+      <select id="cbSessionRid" style="width:100%;margin-bottom:8px">
+        <option value="">— свои creds ниже —</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label for="cbAppId">API ID</label>
+        <input id="cbAppId" type="number" style="width:100%">
+      </div>
+      <div>
+        <label for="cbAppHash">API Hash</label>
+        <input id="cbAppHash" type="password" style="width:100%">
+      </div>
+    </div>
+    <div class="mt-8">
+      <label for="cbStringSession">StringSession</label>
+      <textarea id="cbStringSession" rows="2" style="width:100%"></textarea>
+    </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <h3 style="font-size:15px">Свой бот (карточки Принять/Пропустить)</h3>
+    <div class="mt-8">
+      <label for="cbBotToken">Bot token</label>
+      <input id="cbBotToken" type="password" style="width:100%;margin-bottom:8px">
+    </div>
+    <div>
+      <label for="cbOwnerId">Telegram User ID владельца</label>
+      <input id="cbOwnerId" type="number" placeholder="123456789" style="width:100%">
+    </div>
+
+    <hr style="margin:18px 0;opacity:.2">
+
+    <h3 style="font-size:15px">Принятые группы</h3>
+    <div id="cbAccepted" class="mono mt-8" style="font-size:13px">—</div>
+  </section>
+</div>
+
+<script>const CHAT_BASE_RID = "{{ rid }}";</script>
+<script src="/static/js/chat_base.js"></script>
+{% endblock %}

@@ -1,0 +1,8 @@
+# src/app/resources/chat_base/settings.yaml
+name: "База чатов"
+title: "База чатов"
+description: "Поиск групп и каналов по названию (Telegram). Одна тема — одна база."
+
+schema:
+  version: 2
+  groups: []
