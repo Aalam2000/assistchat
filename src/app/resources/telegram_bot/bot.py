@@ -176,8 +176,12 @@ class TelegramBotWorker:
                     if self._stop.is_set():
                         return
 
-                    # Пересланные сообщения — не обрабатываем (пользователь сам переслал что-то в бота)
-                    if getattr(message, "forward_origin", None) or getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None):
+                    # Пересланные сообщения — не обрабатываем
+                    if (
+                        getattr(message, "forward_origin", None)
+                        or getattr(message, "forward_from", None)
+                        or getattr(message, "forward_from_chat", None)
+                    ):
                         return
 
                     chat = message.chat
@@ -231,6 +235,19 @@ class TelegramBotWorker:
                     )
                     await bus.publish(rid_str, evt)
 
+                @self.dp.callback_query(
+                    lambda cq: (cq.data or "").startswith("cb:")
+                )
+                async def on_chat_base_callback(
+                    cq: types.CallbackQuery,
+                ) -> None:
+                    from src.app.resources.chat_base.notifier import (
+                        route_callback_query,
+                    )
+
+                    self._log(f"chat_base callback data={cq.data!r}")
+                    await route_callback_query(cq)
+
                 # Проверяем токен (getMe)
                 me = await self.bot.get_me()
                 self._log(f"authorized as @{me.username} (id={me.id})")
@@ -242,7 +259,11 @@ class TelegramBotWorker:
                 await self.dp.start_polling(
                     self.bot,
                     handle_signals=False,
-                    allowed_updates=["message", "edited_message"],
+                    allowed_updates=[
+                        "message",
+                        "edited_message",
+                        "callback_query",
+                    ],
                 )
 
             except asyncio.CancelledError:

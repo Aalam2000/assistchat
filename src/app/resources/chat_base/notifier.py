@@ -1,11 +1,11 @@
 # src/app/resources/chat_base/notifier.py
 from __future__ import annotations
 
-import asyncio
+import logging
 from typing import Any
 from uuid import UUID
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import (
@@ -22,6 +22,14 @@ from src.app.resources.chat_base.meta import (
     resolve_pending,
 )
 from src.models.resource import Resource
+
+from src.app.resources.chat_base.callback_data import (
+    build_callback_data,
+    parse_callback_data,
+    parse_callback_data_legacy,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _format_card(candidate: dict[str, Any]) -> str:
@@ -44,28 +52,44 @@ def _format_card(candidate: dict[str, Any]) -> str:
     ).strip()
 
 
-def _keyboard(pending_id: str) -> InlineKeyboardMarkup:
+def _keyboard(chat_base_rid: str, pending_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="Принять", callback_data=f"cb:a:{pending_id}"
+                    text="Принять",
+                    callback_data=build_callback_data(
+                        "a", chat_base_rid, pending_id
+                    ),
                 ),
                 InlineKeyboardButton(
-                    text="Пропустить", callback_data=f"cb:s:{pending_id}"
+                    text="Пропустить",
+                    callback_data=build_callback_data(
+                        "s", chat_base_rid, pending_id
+                    ),
                 ),
             ]
         ]
     )
 
 
-class ChatBaseNotifier:
-    """Собственный бот ресурса chat_base: карточки и callback accept/skip."""
+def _find_resource_by_pending(
+    db, pending_id: str
+) -> tuple[Resource | None, dict[str, Any] | None]:
+    rows = (
+        db.query(Resource)
+        .filter(Resource.provider == "chat_base")
+        .all()
+    )
+    for row in rows:
+        meta = normalize_meta(row.meta_json)
+        if pending_id in (meta.get("pending") or {}):
+            return row, meta
+    return None, None
 
-    def __init__(self) -> None:
-        self._tasks: dict[str, asyncio.Task] = {}
-        self._bots: dict[str, Bot] = {}
-        self._dispatchers: dict[str, Dispatcher] = {}
+
+class ChatBaseNotifier:
+    """Отправка карточек через Bot API; callback — в telegram_bot botworker."""
 
     async def send_candidate(
         self,
@@ -76,89 +100,88 @@ class ChatBaseNotifier:
         pending_id: str,
         candidate: dict[str, Any],
     ) -> None:
-        await self.ensure_polling(resource_id, bot_token)
-        bot = self._bots[resource_id]
-        await bot.send_message(
-            owner_id,
-            _format_card(candidate),
-            reply_markup=_keyboard(pending_id),
-            parse_mode=ParseMode.HTML,
-        )
-
-    async def ensure_polling(self, resource_id: str, bot_token: str) -> None:
-        rid = str(resource_id)
-        if rid in self._tasks and not self._tasks[rid].done():
-            return
-
         bot = Bot(
             token=bot_token,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
-        dp = Dispatcher()
-        self._bots[rid] = bot
-        self._dispatchers[rid] = dp
-
-        @dp.callback_query(F.data.startswith("cb:"))
-        async def on_callback(cq: CallbackQuery) -> None:
-            await _handle_callback(cq, rid)
-
-        async def _poll() -> None:
-            try:
-                await dp.start_polling(bot, handle_signals=False)
-            except asyncio.CancelledError:
-                pass
-            finally:
-                try:
-                    await bot.session.close()
-                except Exception:
-                    pass
-
-        self._tasks[rid] = asyncio.create_task(_poll())
-
-    async def stop(self, resource_id: str) -> None:
-        rid = str(resource_id)
-        task = self._tasks.pop(rid, None)
-        dp = self._dispatchers.pop(rid, None)
-        bot = self._bots.pop(rid, None)
-        if dp:
-            try:
-                await dp.stop_polling()
-            except Exception:
-                pass
-        if task:
-            task.cancel()
-            try:
-                await task
-            except Exception:
-                pass
-        if bot:
-            try:
-                await bot.session.close()
-            except Exception:
-                pass
+        try:
+            await bot.send_message(
+                owner_id,
+                _format_card(candidate),
+                reply_markup=_keyboard(str(resource_id), pending_id),
+                parse_mode=ParseMode.HTML,
+            )
+            logger.info(
+                "chat_base card sent rid=%s pending=%s owner=%s eid=%s",
+                resource_id,
+                pending_id,
+                owner_id,
+                candidate.get("external_id"),
+            )
+        finally:
+            await bot.session.close()
 
 
-async def _handle_callback(cq: CallbackQuery, bound_rid: str) -> None:
+async def route_callback_query(cq: CallbackQuery) -> None:
     data = cq.data or ""
-    parts = data.split(":")
-    if len(parts) != 3 or parts[0] != "cb":
-        await cq.answer("Неверные данные")
-        return
-    action, pending_id = parts[1], parts[2]
-    if action not in ("a", "s"):
-        await cq.answer("Неизвестное действие")
+    parsed = parse_callback_data(data)
+    if parsed:
+        action, cb_rid, pending_id = parsed
+        await _handle_callback(cq, cb_rid, action, pending_id)
         return
 
+    legacy = parse_callback_data_legacy(data)
+    if legacy:
+        action, pending_id = legacy
+        db = SessionLocal()
+        try:
+            row, meta = _find_resource_by_pending(db, pending_id)
+            if not row or meta is None:
+                logger.warning(
+                    "chat_base callback legacy pending not found pending=%s",
+                    pending_id,
+                )
+                await cq.answer("Кандидат уже обработан")
+                return
+            await _handle_callback(
+                cq, str(row.id), action, pending_id, meta_prefetched=meta
+            )
+        finally:
+            db.close()
+        return
+
+    logger.warning("chat_base callback bad data=%r", data)
+    await cq.answer("Неверные данные")
+
+
+async def _handle_callback(
+    cq: CallbackQuery,
+    chat_base_rid: str,
+    action: str,
+    pending_id: str,
+    *,
+    meta_prefetched: dict[str, Any] | None = None,
+) -> None:
     msg = "Готово"
     db = SessionLocal()
     try:
-        row = db.get(Resource, UUID(bound_rid))
+        row = db.get(Resource, UUID(chat_base_rid))
         if not row or row.provider != "chat_base":
+            logger.warning(
+                "chat_base callback resource missing rid=%s pending=%s",
+                chat_base_rid,
+                pending_id,
+            )
             await cq.answer("Ресурс не найден")
             return
-        meta = normalize_meta(row.meta_json)
+        meta = meta_prefetched or normalize_meta(row.meta_json)
         candidate = resolve_pending(meta, pending_id)
         if not candidate:
+            logger.info(
+                "chat_base callback pending gone rid=%s pending=%s",
+                chat_base_rid,
+                pending_id,
+            )
             await cq.answer("Кандидат уже обработан")
             return
         platform = str(
@@ -167,21 +190,45 @@ async def _handle_callback(cq: CallbackQuery, bound_rid: str) -> None:
         if action == "a":
             ok = accept_candidate(meta, candidate, platform)
             msg = "Принято" if ok else "Лимит 200 или дубликат"
+            logger.info(
+                "chat_base accept rid=%s pending=%s eid=%s ok=%s accepted=%s",
+                chat_base_rid,
+                pending_id,
+                candidate.get("external_id"),
+                ok,
+                len((meta.get("accepted") or {}).get(platform) or []),
+            )
         else:
             reject_candidate(meta, candidate)
             msg = "Пропущено"
+            logger.info(
+                "chat_base skip rid=%s pending=%s eid=%s",
+                chat_base_rid,
+                pending_id,
+                candidate.get("external_id"),
+            )
         row.meta_json = meta
         db.add(row)
         db.commit()
+    except Exception:
+        logger.exception(
+            "chat_base callback failed rid=%s pending=%s action=%s",
+            chat_base_rid,
+            pending_id,
+            action,
+        )
+        await cq.answer("Ошибка сохранения")
+        return
     finally:
         db.close()
 
     try:
         if cq.message:
             suffix = "✅ принято" if action == "a" else "❌ пропущено"
-            await cq.message.edit_text(f"{cq.message.text}\n\n— {suffix}")
-    except Exception:
-        pass
+            base = cq.message.text or cq.message.caption or ""
+            await cq.message.edit_text(f"{base}\n\n— {suffix}")
+    except Exception as e:
+        logger.warning("chat_base callback edit_text failed: %r", e)
     await cq.answer(msg)
 
 

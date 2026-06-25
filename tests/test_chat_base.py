@@ -15,6 +15,11 @@ from src.app.resources.chat_base.meta import (
     reject_candidate,
 )
 from src.app.resources.chat_base.filters import GroupCandidate, passes_filters
+from src.app.resources.chat_base.callback_data import (
+    build_callback_data,
+    parse_callback_data,
+    parse_callback_data_legacy,
+)
 from src.app.resources.chat_base.run_control import (
     clear_stop,
     is_running,
@@ -141,3 +146,15 @@ def test_normalize_meta_keeps_accepted_and_ai():
     meta = normalize_meta(raw)
     assert meta["accepted"]["telegram"][0]["external_id"] == "@x"
     assert meta["ai"]["model"] == "gpt-4o-mini"
+
+
+def test_chat_base_callback_data():
+    rid = "550e8400-e29b-41d4-a716-446655440000"
+    pid = "abc123def456"
+    data = build_callback_data("a", rid, pid)
+    assert len(data) <= 64
+    assert parse_callback_data(data) == ("a", rid, pid)
+    assert parse_callback_data_legacy("cb:s:oldpending12") == (
+        "s",
+        "oldpending12",
+    )
