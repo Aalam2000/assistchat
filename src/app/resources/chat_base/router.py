@@ -122,12 +122,7 @@ async def assist_queries(
     topic = (payload.get("topic") or meta.get("topic") or "").strip()
     if topic:
         meta["topic"] = topic
-    suggested = suggest_queries(topic)
-    existing = {q.lower() for q in (meta.get("queries") or [])}
-    for q in suggested:
-        if q.lower() not in existing:
-            meta.setdefault("queries", []).append(q)
-            existing.add(q.lower())
+    meta["queries"] = suggest_queries(topic)
     row.meta_json = meta
     db.add(row)
     db.commit()

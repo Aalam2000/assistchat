@@ -146,6 +146,10 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#btnAssist").onclick = async () => {
         try {
             const topic = ($("#cbTopic").value || "").trim();
+            if (!topic) {
+                showMsg("Сначала укажите описание темы", false);
+                return;
+            }
             const r = await fetch(`/api/chat_base/${rid}/assist`, {
                 method: "POST",
                 credentials: "same-origin",
@@ -155,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await r.json();
             if (!r.ok) throw new Error("assist error");
             $("#cbQueries").value = (data.queries || []).join("\n");
-            showMsg("Ключи добавлены", true);
+            showMsg("Поисковые запросы обновлены", true);
         } catch (e) {
             showMsg(String(e.message || e), false);
         }
