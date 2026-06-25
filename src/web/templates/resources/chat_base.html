@@ -28,6 +28,30 @@
       <input id="cbTopic" type="text" placeholder="заказы программистам" style="width:100%;margin-bottom:12px">
     </div>
 
+    <hr style="margin:18px 0;opacity:.2">
+
+    <h3 style="margin:0 0 10px;font-size:15px">🤖 AI (для помощника)</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label for="cbApiKeysRes">Ресурс API Keys</label>
+        <select id="cbApiKeysRes" style="width:100%">
+          <option value="">— выберите ресурс —</option>
+        </select>
+      </div>
+      <div>
+        <label for="cbApiKeyField">Ключ</label>
+        <select id="cbApiKeyField" style="width:100%" disabled>
+          <option value="">— сначала ресурс —</option>
+        </select>
+      </div>
+      <div>
+        <label for="cbModel">Модель</label>
+        <select id="cbModel" style="width:100%" disabled>
+          <option value="">— сначала ключ —</option>
+        </select>
+      </div>
+    </div>
+
     <div class="mt-12">
       <label for="cbQueries">Поисковые запросы (по одному на строку)</label>
       <textarea id="cbQueries" rows="6" style="width:100%"></textarea>

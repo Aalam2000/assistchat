@@ -1,5 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
+from src.app.resources.chat_base.assist import (
+    build_assist_user_message,
+    parse_queries_from_ai,
+)
 from src.app.resources.chat_base.meta import (
     MAX_GROUPS_PER_PLATFORM,
     accept_candidate,
@@ -8,15 +12,27 @@ from src.app.resources.chat_base.meta import (
     is_blocked,
     normalize_meta,
     reject_candidate,
-    suggest_queries,
 )
 from src.app.resources.chat_base.filters import GroupCandidate, passes_filters
 
 
-def test_suggest_queries_from_topic():
-    qs = suggest_queries("программист")
-    assert "программист" in qs
-    assert len(qs) >= 3
+def test_build_assist_user_message():
+    msg = build_assist_user_message("ФРИЛАНСЕР ПАЙТОН", "Заказы программисту")
+    assert "ФРИЛАНСЕР ПАЙТОН" in msg
+    assert "Заказы программисту" in msg
+
+
+def test_parse_queries_from_ai():
+    raw = """
+1. python freelance
+- developer jobs
+• авиамоделизм
+#tag
+@username
+python freelance
+"""
+    qs = parse_queries_from_ai(raw)
+    assert qs == ["python freelance", "developer jobs", "авиамоделизм"]
 
 
 def test_accept_respects_limit():
@@ -69,8 +85,10 @@ def test_passes_filters_members_and_freshness():
     assert reason == "stale_last_post"
 
 
-def test_normalize_meta_keeps_accepted():
+def test_normalize_meta_keeps_accepted_and_ai():
     raw = default_meta()
     raw["accepted"]["telegram"] = [{"external_id": "@x", "title": "X"}]
+    raw["ai"]["model"] = "gpt-4o-mini"
     meta = normalize_meta(raw)
     assert meta["accepted"]["telegram"][0]["external_id"] == "@x"
+    assert meta["ai"]["model"] == "gpt-4o-mini"

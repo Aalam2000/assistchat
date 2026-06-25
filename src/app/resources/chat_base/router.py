@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session as SASession
 
 from src.app.core.auth import get_current_user
 from src.app.core.db import get_db
+from src.app.resources.chat_base.assist import generate_queries_ai
 from src.app.resources.chat_base.meta import (
     default_meta,
     normalize_meta,
-    suggest_queries,
 )
 from src.app.resources.chat_base.worker import is_running, run_search
 from src.models.resource import Resource
@@ -94,7 +94,7 @@ async def save_chat_base(
 
     old = normalize_meta(row.meta_json)
     merged = normalize_meta({**old, **incoming_raw})
-    for section in ("filters", "owner", "run", "sources"):
+    for section in ("filters", "owner", "run", "sources", "ai"):
         if isinstance(incoming_raw.get(section), dict):
             merged[section] = {**old.get(section, {}), **incoming_raw[section]}
     if "queries" in incoming_raw:
@@ -119,14 +119,28 @@ async def assist_queries(
 ):
     row = _get_owned(db, user, rid)
     meta = normalize_meta(row.meta_json)
+    label = (payload.get("label") or row.label or "").strip()
     topic = (payload.get("topic") or meta.get("topic") or "").strip()
+    if label:
+        row.label = label
     if topic:
         meta["topic"] = topic
-    meta["queries"] = suggest_queries(topic)
+
+    queries, err = await generate_queries_ai(
+        db,
+        user_id=user.id,
+        label=label,
+        topic=topic,
+        ai_cfg=meta.get("ai") or {},
+    )
+    if err:
+        return {"ok": False, "error": err}
+
+    meta["queries"] = queries
     row.meta_json = meta
     db.add(row)
     db.commit()
-    return {"ok": True, "queries": meta.get("queries") or []}
+    return {"ok": True, "queries": queries}
 
 
 @router.post("/{rid}/run")

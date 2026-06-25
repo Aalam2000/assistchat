@@ -25,6 +25,11 @@ def default_meta() -> dict[str, Any]:
         "owner": {
             "telegram_user_id": None,
         },
+        "ai": {
+            "api_keys_resource_id": None,
+            "api_key_field": None,
+            "model": None,
+        },
         "blacklist": [],
         "accepted": {
             "telegram": [],
@@ -62,6 +67,8 @@ def normalize_meta(raw: dict[str, Any] | None) -> dict[str, Any]:
         out["sources"]["telegram_session_rid"] = raw["telegram_session_rid"]
     if isinstance(raw.get("owner"), dict):
         out["owner"].update(raw["owner"])
+    if isinstance(raw.get("ai"), dict):
+        out["ai"].update(raw["ai"])
     if isinstance(raw.get("blacklist"), list):
         out["blacklist"] = [str(x) for x in raw["blacklist"] if x]
     if isinstance(raw.get("accepted"), dict):
@@ -142,24 +149,3 @@ def reject_candidate(meta: dict[str, Any], candidate: dict[str, Any]) -> None:
     if eid not in bl:
         bl.append(eid)
     meta["blacklist"] = bl
-
-
-def suggest_queries(topic: str) -> list[str]:
-    t = (topic or "").strip()
-    if not t:
-        return []
-    seen: set[str] = set()
-    out: list[str] = []
-    for q in (
-        t,
-        f"{t} jobs",
-        f"{t} freelance",
-        f"{t} work",
-        f"работа {t}",
-        f"заказы {t}",
-    ):
-        q = q.strip()
-        if q and q.lower() not in seen:
-            seen.add(q.lower())
-            out.append(q)
-    return out
