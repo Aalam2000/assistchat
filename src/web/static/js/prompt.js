@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const chkChannels    = $("#chkChannels");
     const txtWhitelist   = $("#txtWhitelist");
     const txtBlacklist   = $("#txtBlacklist");
+    const selChatBase    = $("#selChatBase");
+    const btnImportChatBase = $("#btnImportChatBase");
     const selApiKeysRes  = $("#selApiKeysResource");
     const selApiKeyField = $("#selApiKeyField");
     const selModel       = $("#selModel");
@@ -306,6 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const sessions = items.filter(x => x.provider === "telegram");
         const bots     = items.filter(x => x.provider === "telegram_bot");
         const apiKeys  = items.filter(x => x.provider === "api_keys");
+        const chatBases = items.filter(x => x.provider === "chat_base");
 
         // Сессии
         selSession.innerHTML = '<option value="">— не выбрано —</option>';
@@ -336,6 +339,16 @@ document.addEventListener("DOMContentLoaded", () => {
             o.dataset.creds    = JSON.stringify(Object.keys((k.meta || {}).creds || {}));
             selApiKeysRes.appendChild(o);
         });
+
+        if (selChatBase) {
+            selChatBase.innerHTML = '<option value="">— выберите базу —</option>';
+            chatBases.forEach((cb) => {
+                const o = document.createElement("option");
+                o.value = cb.id;
+                o.textContent = cb.label || cb.id;
+                selChatBase.appendChild(o);
+            });
+        }
     }
 
     // ── динамика: ресурс ключей → список ключей ───────────────────────────
@@ -775,6 +788,35 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
     }
+
+    btnImportChatBase?.addEventListener("click", async () => {
+        const cbId = selChatBase?.value;
+        if (!cbId) {
+            showMsg("Выберите базу чатов", false);
+            return;
+        }
+        try {
+            const r = await fetch(`/api/prompt/${id}/import-chat-base`, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_base_rid: cbId }),
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) {
+                throw new Error(data.error || "import failed");
+            }
+            txtWhitelist.value = listToText(data.whitelist || []);
+            chkGroups.checked = true;
+            chkChannels.checked = true;
+            showMsg(
+                `Добавлено ${data.added}, всего в списке: ${data.total}. Сохраните.`,
+                true
+            );
+        } catch (e) {
+            showMsg(String(e.message || e), false);
+        }
+    });
 
     // ── инициализация ─────────────────────────────────────────────────────
     (async () => {

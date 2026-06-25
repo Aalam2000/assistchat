@@ -139,6 +139,18 @@ def test_passes_filters_members_and_freshness():
     assert reason == "stale_last_post"
 
 
+def test_accepted_whitelist_entries():
+    from src.app.resources.chat_base.export import accepted_whitelist_entries
+
+    meta = default_meta()
+    meta["accepted"]["telegram"] = [
+        {"external_id": "@foo", "title": "Foo"},
+        {"external_id": "@foo", "title": "dup"},
+        {"link": "https://t.me/bar", "title": "Bar"},
+    ]
+    assert accepted_whitelist_entries(meta) == ["@foo", "@bar"]
+
+
 def test_normalize_meta_keeps_accepted_and_ai():
     raw = default_meta()
     raw["accepted"]["telegram"] = [{"external_id": "@x", "title": "X"}]

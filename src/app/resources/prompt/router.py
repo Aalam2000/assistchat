@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session as SASession
 
 from src.app.core.auth import get_current_user
 from src.app.core.db import get_db
+from src.app.resources.chat_base.export import accepted_whitelist_entries
+from src.app.resources.chat_base.meta import normalize_meta as normalize_chat_base_meta
 from src.models.resource import Resource
 
 router = APIRouter(prefix="/api/prompt", tags=["prompt"])
@@ -250,4 +252,60 @@ async def prompt_status(
         "phase": row.phase,
         "last_error_code": row.last_error_code,
         "error_message": row.error_message,
+    }
+
+
+@router.post("/{rid}/import-chat-base")
+async def import_chat_base_whitelist(
+    rid: str,
+    payload: dict = Body(default={}),
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """Добавить принятые группы/каналы из chat_base в whitelist промпта."""
+    rid_uuid = _uuid(rid)
+    row = db.query(Resource).filter(Resource.id == rid_uuid).first()
+    if not row or row.user_id != user.id or row.provider != "prompt":
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+
+    cb_raw = payload.get("chat_base_rid")
+    if not cb_raw:
+        return {"ok": False, "error": "NO_CHAT_BASE"}
+    cb_row = db.query(Resource).filter(Resource.id == _uuid(str(cb_raw))).first()
+    if (
+        not cb_row
+        or cb_row.user_id != user.id
+        or cb_row.provider != "chat_base"
+    ):
+        raise HTTPException(status_code=404, detail="CHAT_BASE_NOT_FOUND")
+
+    entries = accepted_whitelist_entries(normalize_chat_base_meta(cb_row.meta_json))
+    if not entries:
+        return {"ok": False, "error": "NO_ACCEPTED_GROUPS"}
+
+    meta = row.meta_json or _default_meta()
+    filters = dict(meta.get("filters") or _default_meta()["filters"])
+    wl = [str(x).strip() for x in (filters.get("whitelist") or []) if str(x).strip()]
+    seen = {w.lower() for w in wl}
+    added = 0
+    for entry in entries:
+        if entry.lower() in seen:
+            continue
+        seen.add(entry.lower())
+        wl.append(entry)
+        added += 1
+
+    filters["whitelist"] = wl
+    filters["reply_groups"] = True
+    filters["reply_channels"] = True
+    meta["filters"] = filters
+    row.meta_json = meta
+    db.add(row)
+    db.commit()
+
+    return {
+        "ok": True,
+        "added": added,
+        "total": len(wl),
+        "whitelist": wl,
     }
