@@ -16,10 +16,14 @@ from src.app.resources.chat_base.meta import (
 from src.app.resources.chat_base.filters import GroupCandidate, passes_filters
 
 
-def test_build_assist_user_message():
-    msg = build_assist_user_message("ФРИЛАНСЕР ПАЙТОН", "Заказы программисту")
-    assert "ФРИЛАНСЕР ПАЙТОН" in msg
-    assert "Заказы программисту" in msg
+def test_build_assist_user_message_en_default():
+    msg = build_assist_user_message("ФРИЛАНС ПАЙТОН", "Заказы программисту")
+    assert "только на английском" in msg.lower()
+
+
+def test_build_assist_user_message_ru_explicit():
+    msg = build_assist_user_message("База", "Группы на русском про python")
+    assert "только на английском" not in msg.lower()
 
 
 def test_parse_queries_from_ai():

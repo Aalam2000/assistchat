@@ -15,21 +15,49 @@ ASSIST_SYSTEM = """\
 Правила:
 - 15–25 фраз, по одной на строку, без нумерации и пояснений
 - Коротко: 1-2 слова, не предложения
-- Языки берешь из темы. Если нет - EN.
-- Используешь Синонимы
-- Без дубликатов и без мусора вроде «заказы Заказы программисту»
+- Язык фраз:
+  * по умолчанию — только EN (латиница, английские слова)
+  * другой язык — ТОЛЬКО если в названии или описании ЯВНО указан
+    (примеры: «на русском», «RU», «English», «Azərbaycan»)
+  * кириллица в названии/описании сама по себе — НЕ указание языка
+  * если язык не указан явно — все фразы на EN
+- Используешь синонимы и термины ниши (freelance, developer, python…)
+- Без дубликатов и без склеивания всего описания с jobs/freelance
 - Только фразы для поиска названий групп, не хештеги и не @username\
 """
+
+_EXPLICIT_LANG = re.compile(
+    r"(?i)\b("
+    r"english|en\b|anglais|"
+    r"russian|ru\b|русск\w*|по-русски|"
+    r"azərbaycan|azerbaijan|az\b|"
+    r"deutsch|german|de\b|"
+    r"français|french|fr\b|"
+    r"türk\w*|turkish|tr\b|"
+    r"español|spanish|es\b|"
+    r"украин\w*|ukrainian|ua\b"
+    r")\b"
+)
+
+
+def _language_explicit(label: str, topic: str) -> bool:
+    return bool(_EXPLICIT_LANG.search(f"{label} {topic}"))
 
 
 def build_assist_user_message(label: str, topic: str) -> str:
     name = (label or "").strip() or "—"
     desc = (topic or "").strip() or "—"
-    return (
+    msg = (
         f"Вот тебе:\n"
         f"Название базы: {name}\n"
         f"Описание темы: {desc}"
     )
+    if not _language_explicit(name, desc):
+        msg += (
+            "\n\nЯзык не указан явно. "
+            "Все поисковые фразы — только на английском (EN)."
+        )
+    return msg
 
 
 def parse_queries_from_ai(text: str) -> list[str]:
@@ -116,7 +144,7 @@ async def generate_queries_ai(
             provider=provider,
             api_key=api_key,
             model=str(model),
-            temperature=0.4,
+            temperature=0.2,
         )
         result = await chat(
             cfg=cfg,
