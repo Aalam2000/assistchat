@@ -61,6 +61,29 @@ async def create_chat_base(
     return {"ok": True, "id": str(r.id)}
 
 
+@router.get("/list")
+async def list_chat_bases(
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    rows = (
+        db.query(Resource)
+        .filter(Resource.user_id == user.id, Resource.provider == "chat_base")
+        .order_by(Resource.label)
+        .all()
+    )
+    items = []
+    for row in rows:
+        meta = normalize_meta(row.meta_json)
+        accepted = (meta.get("accepted") or {}).get("telegram") or []
+        items.append({
+            "id": str(row.id),
+            "label": row.label or "База чатов",
+            "accepted_count": len(accepted),
+        })
+    return {"ok": True, "items": items}
+
+
 @router.get("/{rid}")
 async def get_chat_base(
     rid: str,

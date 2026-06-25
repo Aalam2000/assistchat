@@ -34,6 +34,7 @@ def _default_meta() -> dict:
         "sources": {
             "telegram_session_rid": None,
             "telegram_bot_rid": None,
+            "chat_base_rid": None,
         },
         "owner": {
             "telegram_user_id": None,
@@ -299,6 +300,9 @@ async def import_chat_base_whitelist(
     filters["reply_groups"] = True
     filters["reply_channels"] = True
     meta["filters"] = filters
+    sources = dict(meta.get("sources") or {})
+    sources["chat_base_rid"] = str(cb_row.id)
+    meta["sources"] = sources
     row.meta_json = meta
     db.add(row)
     db.commit()

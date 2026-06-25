@@ -298,6 +298,39 @@ document.addEventListener("DOMContentLoaded", () => {
         renderExamples();
     });
 
+    // ── базы чатов (отдельный API) ───────────────────────────────────────
+    async function loadChatBases(selectedId) {
+        if (!selChatBase) return;
+        selChatBase.innerHTML = '<option value="">— загрузка —</option>';
+        try {
+            const r = await fetch("/api/chat_base/list", {
+                credentials: "same-origin",
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) throw new Error("list failed");
+            const bases = data.items || [];
+            if (!bases.length) {
+                selChatBase.innerHTML =
+                    '<option value="">— нет баз чатов —</option>';
+                return;
+            }
+            selChatBase.innerHTML =
+                '<option value="">— выберите базу —</option>';
+            bases.forEach((cb) => {
+                const o = document.createElement("option");
+                o.value = cb.id;
+                const n = cb.accepted_count || 0;
+                o.textContent = `${cb.label || cb.id} (${n} групп)`;
+                selChatBase.appendChild(o);
+            });
+            if (selectedId) selChatBase.value = selectedId;
+        } catch (e) {
+            selChatBase.innerHTML =
+                '<option value="">— ошибка загрузки —</option>';
+            console.error("[prompt] loadChatBases:", e);
+        }
+    }
+
     // ── загрузка ресурсов пользователя ────────────────────────────────────
     async function loadUserResources() {
         const r = await fetch("/api/providers/resources/list", { credentials: "same-origin" });
@@ -308,7 +341,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const sessions = items.filter(x => x.provider === "telegram");
         const bots     = items.filter(x => x.provider === "telegram_bot");
         const apiKeys  = items.filter(x => x.provider === "api_keys");
-        const chatBases = items.filter(x => x.provider === "chat_base");
 
         // Сессии
         selSession.innerHTML = '<option value="">— не выбрано —</option>';
@@ -339,16 +371,6 @@ document.addEventListener("DOMContentLoaded", () => {
             o.dataset.creds    = JSON.stringify(Object.keys((k.meta || {}).creds || {}));
             selApiKeysRes.appendChild(o);
         });
-
-        if (selChatBase) {
-            selChatBase.innerHTML = '<option value="">— выберите базу —</option>';
-            chatBases.forEach((cb) => {
-                const o = document.createElement("option");
-                o.value = cb.id;
-                o.textContent = cb.label || cb.id;
-                selChatBase.appendChild(o);
-            });
-        }
     }
 
     // ── динамика: ресурс ключей → список ключей ───────────────────────────
@@ -478,7 +500,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error("load failed");
 
-        const item = (data.items || []).find(x => x.id === id);
+        const item = (data.items || []).find(
+            (x) => String(x.id) === String(id)
+        );
         if (!item) throw new Error("resource not found");
 
         const meta     = item.meta || item.meta_json || {};
@@ -493,6 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Источники (ждём пока options загружены)
         selSession.value = sources.telegram_session_rid || "";
         selBot.value     = sources.telegram_bot_rid || "";
+        await loadChatBases(sources.chat_base_rid || "");
 
         // Хозяин
         ownerTgId.value = owner.telegram_user_id || "";
@@ -557,6 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
             sources: {
                 telegram_session_rid: selSession.value || null,
                 telegram_bot_rid:     selBot.value     || null,
+                chat_base_rid:        selChatBase?.value || null,
             },
             owner: {
                 telegram_user_id: ownerTgId.value ? parseInt(ownerTgId.value) : null,
@@ -804,11 +830,16 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const data = await r.json();
             if (!r.ok || !data.ok) {
-                throw new Error(data.error || "import failed");
+                const err = data.error || "import failed";
+                if (err === "NO_ACCEPTED_GROUPS") {
+                    throw new Error("В базе нет принятых групп");
+                }
+                throw new Error(err);
             }
             txtWhitelist.value = listToText(data.whitelist || []);
             chkGroups.checked = true;
             chkChannels.checked = true;
+            if (selChatBase) selChatBase.value = cbId;
             showMsg(
                 `Добавлено ${data.added}, всего в списке: ${data.total}. Сохраните.`,
                 true

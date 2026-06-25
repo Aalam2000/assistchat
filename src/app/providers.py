@@ -236,7 +236,7 @@ async def user_resources_list(db: Session = Depends(get_db), user=Depends(get_cu
     try:
         rows = db.query(Resource).filter(Resource.user_id == user.id).all()
         items = [{
-            "id": r.id,
+            "id": str(r.id),
             "provider": r.provider,
             "label": r.label,
             "status": r.status,
