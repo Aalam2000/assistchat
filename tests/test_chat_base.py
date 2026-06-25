@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from src.app.resources.chat_base.assist import (
     build_assist_user_message,
+    detect_languages,
     parse_queries_from_ai,
 )
 from src.app.resources.chat_base.meta import (
@@ -23,6 +24,27 @@ def test_build_assist_user_message_en_default():
 
 def test_build_assist_user_message_ru_explicit():
     msg = build_assist_user_message("База", "Группы на русском про python")
+    assert "только на английском" not in msg.lower()
+    assert "RU" in msg
+    assert "кириллица" in msg.lower()
+
+
+def test_detect_languages_multi():
+    langs = detect_languages(
+        "ФРИЛАНСЕР ПАЙТОН",
+        "Заказы программисту. EN, RU, AZ",
+    )
+    assert langs == ["EN", "RU", "AZ"]
+
+
+def test_build_assist_user_message_multi_lang():
+    msg = build_assist_user_message(
+        "ФРИЛАНСЕР ПАЙТОН",
+        "Заказы программисту. EN, RU, AZ",
+    )
+    assert "EN, RU, AZ" in msg
+    assert "КАЖДОМ" in msg
+    assert "не только EN" in msg
     assert "только на английском" not in msg.lower()
 
 

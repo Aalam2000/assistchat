@@ -17,8 +17,10 @@ ASSIST_SYSTEM = """\
 - Коротко: 1-2 слова, не предложения
 - Язык фраз:
   * по умолчанию — только EN (латиница, английские слова)
-  * другой язык — ТОЛЬКО если в названии или описании ЯВНО указан
-    (примеры: «на русском», «RU», «English», «Azərbaycan»)
+  * если в названии/описании явно указан один язык — все фразы на нём
+  * если указано несколько языков (EN, RU, AZ …) — фразы на КАЖДОМ языке,
+    примерно поровну; не своди всё к одному языку
+  * явное указание: коды EN/RU/AZ, слова «на русском», «English», «Azərbaycan»…
   * кириллица в названии/описании сама по себе — НЕ указание языка
   * если язык не указан явно — все фразы на EN
 - Используешь синонимы и термины ниши (freelance, developer, python…)
@@ -26,22 +28,75 @@ ASSIST_SYSTEM = """\
 - Только фразы для поиска названий групп, не хештеги и не @username\
 """
 
-_EXPLICIT_LANG = re.compile(
-    r"(?i)\b("
-    r"english|en\b|anglais|"
-    r"russian|ru\b|русск\w*|по-русски|"
-    r"azərbaycan|azerbaijan|az\b|"
-    r"deutsch|german|de\b|"
-    r"français|french|fr\b|"
-    r"türk\w*|turkish|tr\b|"
-    r"español|spanish|es\b|"
-    r"украин\w*|ukrainian|ua\b"
-    r")\b"
+_LANG_CODES = re.compile(
+    r"(?i)\b(en|ru|az|de|fr|tr|es|ua|uk)\b"
 )
 
+_LANG_NAME_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(?i)\b(english|anglais)\b"), "EN"),
+    (re.compile(r"(?i)\b(russian|русск\w*|по-русски)\b"), "RU"),
+    (re.compile(r"(?i)\b(azərbaycan|azerbaijan)\b"), "AZ"),
+    (re.compile(r"(?i)\b(deutsch|german)\b"), "DE"),
+    (re.compile(r"(?i)\b(français|french)\b"), "FR"),
+    (re.compile(r"(?i)\b(türk\w*|turkish)\b"), "TR"),
+    (re.compile(r"(?i)\b(español|spanish)\b"), "ES"),
+    (re.compile(r"(?i)\b(украин\w*|ukrainian)\b"), "UA"),
+]
 
-def _language_explicit(label: str, topic: str) -> bool:
-    return bool(_EXPLICIT_LANG.search(f"{label} {topic}"))
+_CODE_TO_LABEL = {
+    "EN": "английском (EN, лatinицей)",
+    "RU": "русском (RU, кириллица)",
+    "AZ": "азербайджанском (AZ, лatinицей)",
+    "DE": "немецком (DE)",
+    "FR": "французском (FR)",
+    "TR": "турецком (TR)",
+    "ES": "испанском (ES)",
+    "UA": "украинском (UA, кириллица)",
+    "UK": "украинском (UA, кириллица)",
+}
+
+
+def detect_languages(label: str, topic: str) -> list[str]:
+    text = f"{label} {topic}"
+    seen: set[str] = set()
+    out: list[str] = []
+
+    def add(code: str) -> None:
+        norm = "UA" if code == "UK" else code
+        if norm not in seen:
+            seen.add(norm)
+            out.append(norm)
+
+    for m in _LANG_CODES.finditer(text):
+        add(m.group(1).upper())
+
+    for pattern, code in _LANG_NAME_PATTERNS:
+        if pattern.search(text):
+            add(code)
+
+    return out
+
+
+def _language_instruction(languages: list[str]) -> str:
+    if not languages:
+        return (
+            "Язык не указан явно. "
+            "Все поисковые фразы — только на английском (EN)."
+        )
+    if len(languages) == 1:
+        code = languages[0]
+        label = _CODE_TO_LABEL.get(code, code)
+        return f"Указан язык: {code}. Все фразы — только на {label}."
+    labels = ", ".join(languages)
+    details = "; ".join(
+        f"{code} — {_CODE_TO_LABEL.get(code, code)}"
+        for code in languages
+    )
+    return (
+        f"Указаны языки: {labels}. "
+        f"Фразы на КАЖДОМ из них, примерно поровну (не только EN). "
+        f"Правила: {details}."
+    )
 
 
 def build_assist_user_message(label: str, topic: str) -> str:
@@ -50,13 +105,9 @@ def build_assist_user_message(label: str, topic: str) -> str:
     msg = (
         f"Вот тебе:\n"
         f"Название базы: {name}\n"
-        f"Описание темы: {desc}"
+        f"Описание темы: {desc}\n\n"
+        f"{_language_instruction(detect_languages(name, desc))}"
     )
-    if not _language_explicit(name, desc):
-        msg += (
-            "\n\nЯзык не указан явно. "
-            "Все поисковые фразы — только на английском (EN)."
-        )
     return msg
 
 
