@@ -6,13 +6,15 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session as SASession
 
 from src.app.core.auth import get_current_user
 from src.app.core.db import get_db
 from src.app.resources.chat_base.export import accepted_whitelist_entries
 from src.app.resources.chat_base.meta import normalize_meta as normalize_chat_base_meta
+from src.app.resources.prompt.backscan import is_running as backscan_is_running
+from src.app.resources.prompt.backscan import run_backscan
 from src.models.resource import Resource
 
 router = APIRouter(prefix="/api/prompt", tags=["prompt"])
@@ -57,6 +59,13 @@ def _default_meta() -> dict:
             "context_file": None,
             "steps": [],
             "examples": [],
+        },
+        "backscan": {
+            "days": 7,
+            "status": None,
+            "message": None,
+            "processed": 0,
+            "last_run_at": None,
         },
     }
 
@@ -245,6 +254,9 @@ async def prompt_status(
     if not row or row.user_id != user.id or row.provider != "prompt":
         raise HTTPException(status_code=404, detail="NOT_FOUND")
 
+    meta = row.meta_json or {}
+    backscan = meta.get("backscan") or {}
+
     return {
         "ok": True,
         "resource_status": row.status,
@@ -253,7 +265,32 @@ async def prompt_status(
         "phase": row.phase,
         "last_error_code": row.last_error_code,
         "error_message": row.error_message,
+        "backscan_running": backscan_is_running(str(row.id)),
+        "backscan": backscan,
     }
+
+
+@router.post("/{rid}/backscan")
+async def start_backscan(
+    rid: str,
+    background_tasks: BackgroundTasks,
+    payload: dict = Body(default={}),
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    rid_uuid = _uuid(rid)
+    row = db.query(Resource).filter(Resource.id == rid_uuid).first()
+    if not row or row.user_id != user.id or row.provider != "prompt":
+        raise HTTPException(status_code=404, detail="NOT_FOUND")
+    if backscan_is_running(str(row.id)):
+        return {"ok": False, "error": "ALREADY_RUNNING"}
+    try:
+        days = int(payload.get("days") or 7)
+    except Exception:
+        days = 7
+    days = max(1, min(days, 30))
+    background_tasks.add_task(run_backscan, str(row.id), days=days)
+    return {"ok": True, "message": "backscan_started", "days": days}
 
 
 @router.post("/{rid}/import-chat-base")

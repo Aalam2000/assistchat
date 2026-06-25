@@ -16,6 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const txtBlacklist   = $("#txtBlacklist");
     const selChatBase    = $("#selChatBase");
     const btnImportChatBase = $("#btnImportChatBase");
+    const inpBackscanDays = $("#inpBackscanDays");
+    const btnBackscan = $("#btnBackscan");
+    const backscanStatus = $("#backscanStatus");
     const selApiKeysRes  = $("#selApiKeysResource");
     const selApiKeyField = $("#selApiKeyField");
     const selModel       = $("#selModel");
@@ -572,6 +575,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 ai_instruction: s.instruction || "", ai_action: action };
         });
         _examples = JSON.parse(JSON.stringify(prompt.examples || []));
+        const backscan = meta.backscan || {};
+        if (inpBackscanDays && backscan.days) {
+            inpBackscanDays.value = backscan.days;
+        }
+        renderBackscanStatus(backscan, false);
         renderSteps();
         renderExamples();
     }
@@ -624,6 +632,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!r.ok || !data.ok) throw new Error(data.error || "save failed");
     }
 
+    function renderBackscanStatus(scan, running) {
+        if (!backscanStatus) return;
+        const st = running ? "running" : (scan?.status || "—");
+        const msg = scan?.message || "";
+        const n = scan?.processed ?? "";
+        backscanStatus.textContent = `Прогон: ${st}${msg ? ` | ${msg}` : ""}${n !== "" ? ` | msgs=${n}` : ""}`;
+    }
+
     async function loadResStatus() {
         try {
             const r = await fetch(`/api/prompt/${id}/status`, { credentials: "same-origin" });
@@ -637,6 +653,11 @@ document.addEventListener("DOMContentLoaded", () => {
             resStatus.textContent = `РЕСУРС: ${status}${phase} ${icon}`;
             btnToggle.textContent = status === "active" ? "💡 Остановить" : "💡 Включить";
             btnToggle.dataset.enabled = status === "active" ? "1" : "0";
+            renderBackscanStatus(data.backscan || {}, data.backscan_running);
+            if (!data.backscan_running && backscanPollTimer) {
+                clearInterval(backscanPollTimer);
+                backscanPollTimer = null;
+            }
 
             if (data.error_message) showMsg(data.error_message, false);
         } catch {
@@ -844,6 +865,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 `Добавлено ${data.added}, всего в списке: ${data.total}. Сохраните.`,
                 true
             );
+        } catch (e) {
+            showMsg(String(e.message || e), false);
+        }
+    });
+
+    let backscanPollTimer = null;
+
+    btnBackscan?.addEventListener("click", async () => {
+        const days = parseInt(inpBackscanDays?.value || "7", 10) || 7;
+        try {
+            await saveResource();
+            const r = await fetch(`/api/prompt/${id}/backscan`, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ days }),
+            });
+            const data = await r.json();
+            if (!r.ok || !data.ok) throw new Error(data.error || "backscan failed");
+            showMsg(`Прогон истории за ${days} дн. запущен`, true);
+            if (backscanPollTimer) clearInterval(backscanPollTimer);
+            backscanPollTimer = setInterval(loadResStatus, 3000);
+            await loadResStatus();
         } catch (e) {
             showMsg(String(e.message || e), false);
         }

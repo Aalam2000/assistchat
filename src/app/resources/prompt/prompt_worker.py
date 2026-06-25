@@ -402,9 +402,16 @@ class PromptWorker:
         if self._stop.is_set():
             return
         async with self._semaphore:
-            await self._process(event)
+            await self.process_event(event)
 
-    async def _process(self, event: MessageEvent) -> None:  # noqa: C901
+    async def process_event(
+        self, event: MessageEvent, *, ignore_status: bool = False
+    ) -> None:
+        await self._process(event, ignore_status=ignore_status)
+
+    async def _process(
+        self, event: MessageEvent, *, ignore_status: bool = False
+    ) -> None:  # noqa: C901
         rid = self._rid()
         label = self._label()
 
@@ -412,10 +419,12 @@ class PromptWorker:
         db = SessionLocal()
         try:
             r = db.get(Resource, self.resource.id)
-            if not r or r.status != "active":
+            if not r:
+                return
+            if not ignore_status and r.status != "active":
                 return
             u = db.get(User, r.user_id) if r.user_id else None
-            if not u or not getattr(u, "bot_enabled", False):
+            if not ignore_status and (not u or not getattr(u, "bot_enabled", False)):
                 return
             meta = r.meta_json or {}
             user_id = r.user_id
