@@ -12,6 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const selApiKeysRes = $("#cbApiKeysRes");
     const selApiKeyField = $("#cbApiKeyField");
     const selModel = $("#cbModel");
+    const btnRun = $("#btnRun");
+
+    let searchRunning = false;
+    let statusPollTimer = null;
 
     const DEFAULT_MODELS = {
         "creds.openai_api_key": "gpt-4o-mini",
@@ -34,6 +38,40 @@ document.addEventListener("DOMContentLoaded", () => {
         "creds.mistral_api_key": "Mistral",
         "creds.xai_api_key": "xAI Grok",
     };
+
+    function updateRunButton(running) {
+        searchRunning = !!running;
+        if (!btnRun) return;
+        if (searchRunning) {
+            btnRun.textContent = "Остановить";
+            btnRun.classList.remove("primary");
+            btnRun.style.background = "rgba(200,0,0,.25)";
+            btnRun.style.borderColor = "rgba(200,0,0,.5)";
+        } else {
+            btnRun.textContent = "Искать";
+            btnRun.classList.remove("primary");
+            btnRun.style.background = "";
+            btnRun.style.borderColor = "";
+        }
+    }
+
+    function startStatusPoll() {
+        if (statusPollTimer) return;
+        statusPollTimer = setInterval(async () => {
+            try {
+                await loadResource();
+                if (!searchRunning) stopStatusPoll();
+            } catch (_) {
+                stopStatusPoll();
+            }
+        }, 2000);
+    }
+
+    function stopStatusPoll() {
+        if (!statusPollTimer) return;
+        clearInterval(statusPollTimer);
+        statusPollTimer = null;
+    }
 
     function showMsg(text, ok) {
         if (!msgBox) return;
@@ -126,6 +164,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const run = meta.run || {};
         statusEl.textContent = `СТАТУС: ${run.status || data.phase || "—"} | ${run.message || ""}`;
+        updateRunButton(data.running);
+        if (data.running) startStatusPoll();
+        else stopStatusPoll();
         renderAccepted(meta);
     }
 
@@ -293,6 +334,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     $("#btnRun").onclick = async () => {
         try {
+            if (searchRunning) {
+                const r = await fetch(`/api/chat_base/${rid}/stop`, {
+                    method: "POST",
+                    credentials: "same-origin",
+                });
+                const data = await r.json();
+                if (!r.ok || !data.ok) throw new Error(data.error || "stop error");
+                showMsg("Останавливаем поиск…", true);
+                startStatusPoll();
+                return;
+            }
             await saveResource();
             const r = await fetch(`/api/chat_base/${rid}/run`, {
                 method: "POST",
@@ -300,8 +352,10 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const data = await r.json();
             if (!r.ok || !data.ok) throw new Error(data.error || "run error");
+            updateRunButton(true);
             showMsg("Поиск запущен — смотри бота", true);
-            setTimeout(loadResource, 2000);
+            startStatusPoll();
+            setTimeout(loadResource, 1000);
         } catch (e) {
             showMsg(String(e.message || e), false);
         }

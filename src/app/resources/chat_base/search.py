@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from sqlalchemy.orm import Session as SASession
@@ -119,13 +119,17 @@ async def search_by_name_queries(
     queries: list[str],
     *,
     pause_sec: float = 3.0,
-) -> list[GroupCandidate]:
+    should_stop: Callable[[], bool] | None = None,
+) -> tuple[list[GroupCandidate], list[str]]:
     app_id, app_hash, string_session = creds
     client = TelegramClient(StringSession(string_session), app_id, app_hash)
     found: dict[str, GroupCandidate] = {}
+    completed: list[str] = []
     await client.connect()
     try:
         for query in queries:
+            if should_stop and should_stop():
+                break
             q = (query or "").strip()
             if not q:
                 continue
@@ -137,6 +141,8 @@ async def search_by_name_queries(
 
             chats = list(getattr(result, "chats", []) or [])
             for chat in chats:
+                if should_stop and should_stop():
+                    break
                 if not isinstance(chat, (Channel, Chat)):
                     continue
                 title = getattr(chat, "title", None) or ""
@@ -167,7 +173,10 @@ async def search_by_name_queries(
                     week_message_count=week_count,
                     query=q,
                 )
+            completed.append(q)
+            if should_stop and should_stop():
+                break
             await asyncio.sleep(pause_sec)
     finally:
         await client.disconnect()
-    return list(found.values())
+    return list(found.values()), completed

@@ -21,6 +21,7 @@ from src.app.resources.chat_base.meta import (
     normalize_meta,
 )
 from src.app.resources.chat_base.worker import is_running, run_search
+from src.app.resources.chat_base.run_control import request_stop
 from src.models.resource import Resource
 
 router = APIRouter(prefix="/api/chat_base", tags=["chat_base"])
@@ -158,7 +159,20 @@ async def start_run(
     db.commit()
 
     background_tasks.add_task(run_search, str(row.id))
-    return {"ok": True, "message": "run_started"}
+    return {"ok": True, "message": "run_started", "running": True}
+
+
+@router.post("/{rid}/stop")
+async def stop_run(
+    rid: str,
+    db: SASession = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    row = _get_owned(db, user, rid)
+    if not is_running(str(row.id)):
+        return {"ok": False, "error": "NOT_RUNNING"}
+    request_stop(str(row.id))
+    return {"ok": True, "message": "stop_requested", "running": True}
 
 
 @router.post("/{rid}/reset-queries")

@@ -15,6 +15,29 @@ from src.app.resources.chat_base.meta import (
     reject_candidate,
 )
 from src.app.resources.chat_base.filters import GroupCandidate, passes_filters
+from src.app.resources.chat_base.run_control import (
+    clear_stop,
+    is_running,
+    mark_running,
+    request_stop,
+    unmark_running,
+)
+
+
+def test_request_stop_when_not_running():
+    assert request_stop("nonexistent-rid") is False
+    assert not is_running("nonexistent-rid")
+
+
+def test_request_stop_when_running():
+    rid = "test-rid-stop"
+    mark_running(rid)
+    try:
+        assert is_running(rid)
+        assert request_stop(rid) is True
+    finally:
+        unmark_running(rid)
+        clear_stop(rid)
 
 
 def test_build_assist_user_message_en_default():
