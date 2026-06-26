@@ -107,6 +107,32 @@ services:
     networks:
       - assistchat_net
 
+  i18nworker:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: assistchat-api-local
+    env_file:
+      - .env.dev
+      - .env.secrets
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - "./:/app"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    working_dir: /app
+    command:
+      - python
+      - -u
+      - -m
+      - src.app.modules.i18n.worker_entry
+    restart: unless-stopped
+    networks:
+      - assistchat_net
+
 volumes:
   assistchat_db:
     external: true
