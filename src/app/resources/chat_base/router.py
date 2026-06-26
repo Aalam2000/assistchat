@@ -174,6 +174,13 @@ async def start_run(
     db: SASession = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    from src.app.modules.bot.guard import BotInactive, require_bot_active
+
+    try:
+        require_bot_active(user.id, db)
+    except BotInactive:
+        return {"ok": False, "error": "BOT_DISABLED"}
+
     row = _get_owned(db, user, rid)
     if is_running(str(row.id)):
         return {"ok": False, "error": "ALREADY_RUNNING"}

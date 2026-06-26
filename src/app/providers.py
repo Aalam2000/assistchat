@@ -1,6 +1,6 @@
 """
 src/app/providers.py — динамическая загрузка всех провайдеров AssistChat.
-Используется BotManager и FastAPI для импорта router и worker классов.
+Используется botworker и guard bot_enabled для импорта router и worker классов.
 """
 
 import os

@@ -91,7 +91,11 @@ async def main() -> None:
                 running_tg.add(rid)
                 sig_tg[rid] = _conf_sig(desired_tg[rid])
             except Exception as e:
-                print(f"[BOT_WORKER] telegram start error rid={rid}: {e!r}", flush=True)
+                from src.app.modules.bot.guard import BotInactive
+                if isinstance(e, BotInactive):
+                    print(f"[BOT_WORKER] skip telegram rid={rid}: bot inactive", flush=True)
+                else:
+                    print(f"[BOT_WORKER] telegram start error rid={rid}: {e!r}", flush=True)
                 running_tg.discard(rid)
                 sig_tg.pop(rid, None)
 
@@ -131,7 +135,11 @@ async def main() -> None:
                 running_bot.add(rid)
                 sig_bot[rid] = _conf_sig(desired_bot[rid])
             except Exception as e:
-                print(f"[BOT_WORKER] telegram_bot start error rid={rid}: {e!r}", flush=True)
+                from src.app.modules.bot.guard import BotInactive
+                if isinstance(e, BotInactive):
+                    print(f"[BOT_WORKER] skip telegram_bot rid={rid}: bot inactive", flush=True)
+                else:
+                    print(f"[BOT_WORKER] telegram_bot start error rid={rid}: {e!r}", flush=True)
                 running_bot.discard(rid)
                 sig_bot.pop(rid, None)
 
@@ -171,7 +179,11 @@ async def main() -> None:
                 running_prompt.add(rid)
                 sig_prompt[rid] = _conf_sig(desired_prompt[rid])
             except Exception as e:
-                print(f"[BOT_WORKER] prompt start error rid={rid}: {e!r}", flush=True)
+                from src.app.modules.bot.guard import BotInactive
+                if isinstance(e, BotInactive):
+                    print(f"[BOT_WORKER] skip prompt rid={rid}: bot inactive", flush=True)
+                else:
+                    print(f"[BOT_WORKER] prompt start error rid={rid}: {e!r}", flush=True)
                 running_prompt.discard(rid)
                 sig_prompt.pop(rid, None)
 

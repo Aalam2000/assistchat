@@ -74,12 +74,15 @@ async function loadBotStatus() {
     const out = document.getElementById("bot-summary");
     const btn = document.getElementById("btn-bot-toggle");
     try {
-        const r = await fetch("/api/bot/status", {credentials: "same-origin"});
+        const r = await fetch("/api/bot/state", {credentials: "same-origin"});
         const data = await r.json();
         if (!r.ok || !data.ok) throw new Error("BAD_STATUS");
 
         const enabled = !!data.bot_enabled;
-        out.textContent = `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
+        const running = Number(data.running_count || 0);
+        out.textContent = enabled
+            ? `БОТ: 🟢 разрешён, работает ${running}`
+            : "БОТ: 🔴 выключен";
         btn.textContent = enabled ? "Выключить" : "Включить";
         btn.dataset.state = enabled ? "on" : "off";
     } catch (e) {
@@ -103,14 +106,17 @@ async function toggleBot() {
         if (!r.ok || !data.ok) throw new Error("TOGGLE_FAILED");
 
         const enabled = !!data.bot_enabled;
+        const running = Number(data.running_count || 0);
         out.textContent = enabled
-            ? "БОТ включён. Активированы фоновые процессы."
-            : "БОТ выключен. Все процессы остановлены.";
+            ? `БОТ включён. Работает процессов: ${running}.`
+            : "БОТ выключен. Все процессы будут остановлены.";
         btn.textContent = enabled ? "Выключить" : "Включить";
         btn.dataset.state = enabled ? "on" : "off";
 
-        document.getElementById("bot-summary").textContent =
-            `БОТ: ${enabled ? "🟢 активен" : "🔴 выключен"}`;
+        document.getElementById("bot-summary").textContent = enabled
+            ? `БОТ: 🟢 разрешён, работает ${running}`
+            : "БОТ: 🔴 выключен";
+        await loadBotStatus();
     } catch (e) {
         out.textContent = "Ошибка переключения.";
         console.error("[profile] toggleBot error:", e);

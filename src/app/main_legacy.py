@@ -1041,28 +1041,15 @@ async def api_preflight(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return JSONResponse({"ok": False}, status_code=401)
-    return bot_manager.preflight(user.id)
-
-
-@app.post("/api/bot/start")
-async def api_bot_start(request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-    return await bot_manager.start(user.id)
-
-
-@app.post("/api/bot/stop")
-async def api_bot_stop(request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-    return await bot_manager.stop(user.id)
+    return {"ok": True, "bot_enabled": bool(user.bot_enabled)}
 
 
 @app.get("/api/bot/status")
-async def api_bot_status():
-    return {"ok": True, "running": len(getattr(bot_manager, "workers", {}))}
+async def api_bot_status(request: Request, db: SASession = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return JSONResponse({"ok": False}, status_code=401)
+    return {"ok": True, "bot_enabled": bool(user.bot_enabled)}
 
 
 @app.get("/resources/zoom/{rid}", response_class=HTMLResponse)

@@ -37,6 +37,22 @@ async def run_search(
     if is_running(rid):
         return {"ok": False, "error": "ALREADY_RUNNING"}
 
+    db = SessionLocal()
+    try:
+        row = db.get(Resource, UUID(rid))
+        if not row:
+            return {"ok": False, "error": "NOT_FOUND"}
+        from src.app.modules.bot.guard import require_bot_active
+
+        require_bot_active(row.user_id, db)
+    except Exception as exc:
+        from src.app.modules.bot.guard import BotInactive
+        if isinstance(exc, BotInactive):
+            return {"ok": False, "error": "BOT_DISABLED"}
+        raise
+    finally:
+        db.close()
+
     clear_stop(rid)
     mark_running(rid)
     try:
@@ -47,7 +63,19 @@ async def run_search(
 
 
 def _should_stop(rid: str) -> bool:
-    return is_stop_requested(rid)
+    if is_stop_requested(rid):
+        return True
+    from src.app.modules.bot.guard import is_bot_active
+    from uuid import UUID
+
+    db = SessionLocal()
+    try:
+        row = db.get(Resource, UUID(rid))
+        if not row:
+            return True
+        return not is_bot_active(row.user_id, db)
+    finally:
+        db.close()
 
 
 def _finish_run(

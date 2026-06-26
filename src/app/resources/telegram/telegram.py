@@ -386,6 +386,9 @@ class SessionRegistry:
         self._lock = asyncio.Lock()
 
     async def ensure_started(self, resource: Resource) -> TelegramWorker:
+        from src.app.modules.bot.guard import require_resource_bot_active
+
+        require_resource_bot_active(resource)
         async with self._lock:
             rid = str(resource.id)
             w = self._workers.get(rid)
