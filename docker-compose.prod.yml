@@ -54,6 +54,26 @@ services:
       DB_PORT: "5432"
     volumes:
       - assistchat_uploads:/app/uploads
+      - ./translations:/app/translations
+    restart: unless-stopped
+
+  i18nworker:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: assistchat-api-local
+    env_file:
+      - .env.prod
+      - .env.secrets
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./translations:/app/translations
+    command: python -u -m src.app.modules.i18n.worker_entry
     restart: unless-stopped
 
   botworker:
@@ -76,6 +96,7 @@ services:
       PYTHONUNBUFFERED: "1"
     volumes:
       - assistchat_uploads:/app/uploads
+      - ./translations:/app/translations
     command: python -m src.app.modules.bot.worker_entry
     restart: unless-stopped
 
