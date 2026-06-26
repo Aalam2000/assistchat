@@ -1,15 +1,13 @@
 # src/app/web_routes.py
-from fastapi import APIRouter, Request, Depends
-from src.app.core.templates import render_i18n, set_lang_en, set_lang_ru
-from sqlalchemy import inspect, text
-from src.app.core.db import engine, get_db
-from src.app.core.auth import get_current_user, require_admin
-from src.app.core.templates import render_i18n
-from src.models.user import User
-from fastapi import Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session as SASession
 
+from src.app.core.auth import get_current_user, require_admin
+from src.app.core.db import engine, get_db
+from src.app.core.templates import render_i18n, set_lang
+from src.models.user import User
 router = APIRouter()
 
 # -----------------------------------------------------------------------------
@@ -116,13 +114,9 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
 # -----------------------------------------------------------------------------
 # 🌐 Переключение языка интерфейса
 # -----------------------------------------------------------------------------
-@router.get("/set-lang/en")
-def switch_lang_en(request: Request):
-    return set_lang_en(request)
-
-@router.get("/set-lang/ru")
-def switch_lang_ru(request: Request):
-    return set_lang_ru(request)
+@router.get("/set-lang/{lang}")
+def switch_lang(lang: str, request: Request):
+    return set_lang(request, lang)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Публичные страницы

@@ -11,7 +11,7 @@ from src.app import providers
 from src.app.core.config import SESSION_SECRET, STATIC_DIR
 from src.app.core.middleware import _authflow_trace
 from src.app.core.geo import is_google_auth_enabled
-from src.app.core.templates import templates, render_i18n, _get_lang, tr, _inject_en_button
+from src.app.core.templates import render_i18n, templates
 from src.app.modules.bot.router import router as bot_router
 from src.app.modules.qr.router import router as qr_router
 from src.app.routes.auth_routes import router as auth_router
@@ -83,15 +83,15 @@ def render_any_html(request: Request, full_path: str = ""):
     if ".." in path or path.startswith("/"):
         return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
+    page_key = path[:-5].replace("/", "_")
     try:
-        rendered = templates.get_template(path).render(
-            request=request,
-            google_auth_enabled=is_google_auth_enabled(request),
-        )
+        templates.get_template(path)
     except Exception:
         return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
-    lang = _get_lang(request)
-    page_key = path[:-5].replace("/", "_")
-    translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
-    return HTMLResponse(content=_inject_en_button(translated, lang))
+    return render_i18n(
+        path,
+        request,
+        page_key,
+        {"google_auth_enabled": is_google_auth_enabled(request)},
+    )
