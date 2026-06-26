@@ -96,42 +96,4 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("author-modal").classList.remove("hidden");
         });
     }
-
-    // ───────────────────────────────────────────────
-    // Мои подключения
-    async function loadUserConnections() {
-        const tbody = document.getElementById("svc-tbody");
-        if (!tbody) return;
-
-        tbody.innerHTML = `<tr><td colspan="3">Загрузка...</td></tr>`;
-
-        try {
-            const resp = await fetch("/api/providers/resources/list", {credentials: "same-origin"});
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const data = await resp.json();
-            const items = data.items || [];
-
-            tbody.innerHTML = "";
-
-            if (items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3">Нет подключений</td></tr>`;
-                return;
-            }
-
-            for (const it of items) {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-          <td>${it.provider ?? ""}</td>
-          <td>${it.label ?? ""}</td>
-          <td>${it.status ?? ""}</td>
-        `;
-                tbody.appendChild(tr);
-            }
-        } catch (err) {
-            console.error("[svc] loadUserConnections error:", err);
-            tbody.innerHTML = `<tr><td colspan="3">Ошибка загрузки</td></tr>`;
-        }
-    }
-
-    loadUserConnections();
 });
