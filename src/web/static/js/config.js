@@ -43,7 +43,7 @@ window.APP_CONFIG = {
     }
 
     function getCurrentLang(supported) {
-        const fromCookie = getCookie(COOKIE_NAME);
+        const fromCookie = getCookie(COOKIE_NAME) || getCookie("lang");
         if (supported.includes(fromCookie)) return fromCookie;
 
         const browserLang = String(navigator.language || "").trim().toLowerCase();
@@ -73,6 +73,7 @@ window.APP_CONFIG = {
             if (!supported.includes(newLang)) return;
 
             setCookie(COOKIE_NAME, newLang);
+            setCookie("lang", newLang);
             document.documentElement.setAttribute("lang", newLang);
             window.location.reload();
         });

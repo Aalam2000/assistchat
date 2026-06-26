@@ -299,7 +299,7 @@ label > input[type="radio"] + span {
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 6px 10px;
-    margin-left: 8px;
+    flex-shrink: 0;
 }
 
 .lang-switcher__label {

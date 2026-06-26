@@ -47,7 +47,11 @@ def get_supported_ui_languages() -> list[str]:
 
 
 def get_ui_lang(request: Request) -> str:
-    lang = (request.cookies.get("ui_lang") or "").strip().lower()
+    lang = (
+        request.cookies.get("ui_lang")
+        or request.cookies.get("lang")  # legacy cookie
+        or ""
+    ).strip().lower()
     supported = set(get_supported_ui_languages())
     if lang in supported:
         return lang
