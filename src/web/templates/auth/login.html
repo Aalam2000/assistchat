@@ -1,10 +1,10 @@
 <!-- src/app/templates/auth/login.html -->
-<div id="login-modal" class="modal hidden">
+<div id="login-modal" class="modal hidden" translate="no">
   <link href="/static/css/base-auth-modal.css" rel="stylesheet"/>
 
   <div class="modal__content">
     <div class="modal__header">
-      <button class="modal__close" onclick="document.getElementById('login-modal').classList.add('hidden')">×</button>
+      <button type="button" class="modal__close" data-close-modal="login-modal">×</button>
     </div>
 
     <h2 class="welcome-title">Добро пожаловать в bona-plus</h2>
@@ -27,7 +27,7 @@
         </div>
 
         {% if google_auth_enabled %}
-        <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
+        <button type="button" class="google-btn" data-href="/auth/google">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
           Войти через Google
         </button>
@@ -61,7 +61,7 @@
         </div>
 
         {% if google_auth_enabled %}
-        <button type="button" class="google-btn" onclick="window.location.href='/auth/google'">
+        <button type="button" class="google-btn" data-href="/auth/google">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
           Войти через Google
         </button>

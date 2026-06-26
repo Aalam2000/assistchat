@@ -1,19 +1,14 @@
 <!-- src/web/templates/ai.html -->
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <title>AI-ассистент | assistchat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="/static/css/base.css" rel="stylesheet" />
-  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-</head>
-<body>
-  <main class="wrap">
-    <div class="card">
-      <h1>🤖 AI-ассистент для Telegram: поиск чатов и мониторинг заказов</h1>
+{% extends "base.html" %}
+{% block title %}AI-ассистент | assistchat{% endblock %}
 
-      <h2>🚀 Как это работает</h2>
+{% block content %}
+<div class="page">
+  <section class="tile">
+    <div class="tile-title">🤖 AI-ассистент для Telegram: поиск чатов и мониторинг заказов</div>
+
+    <div class="section-body">
+      <h3>🚀 Как это работает</h3>
       <ul>
         <li><b>База чатов</b> — по вашей теме подбирает группы и каналы в Telegram (поиск по названию, фильтры по активности и размеру).</li>
         <li><b>Отбор в боте</b> — каждый кандидат приходит карточкой: «Принять» или «Пропустить». Принятые попадают в вашу базу.</li>
@@ -23,7 +18,7 @@
         <li><b>Прогон истории</b> — можно за один раз проанализировать сообщения в чатах за последние N дней.</li>
       </ul>
 
-      <h2>🎯 Что вы получаете</h2>
+      <h3>🎯 Что вы получаете</h3>
       <ul>
         <li><b>Готовый список площадок</b> по теме — без ручного перебора сотен чатов.</li>
         <li><b>Только ваши чаты</b> — мониторинг там, где вы сами решили остаться.</li>
@@ -31,22 +26,18 @@
         <li><b>И онлайн, и задним числом</b> — и новые сообщения, и архив за несколько дней.</li>
       </ul>
 
-      <h2>💡 Для кого</h2>
+      <h3>💡 Для кого</h3>
       <ul>
         <li>Фрилансеры и команды, ищущие заказы в Telegram.</li>
         <li>Нишевые сообщества: вакансии, услуги, объявления, B2B-лиды.</li>
         <li>Малый бизнес, которому нужен «радар» по группам без сидения в чатах 24/7.</li>
       </ul>
 
-      <p class="subtitle">
+      <p class="tile-desc">
         Модуль в активной разработке и тестировании на реальных темах (фриланс, заказы, нишевые группы).
         Сейчас — Telegram; другие мессенджеры — в планах.
       </p>
-
-      <div style="margin-top:16px">
-        <a class="btn" href="/profile">Назад</a>
-      </div>
     </div>
-  </main>
-</body>
-</html>
+  </section>
+</div>
+{% endblock %}

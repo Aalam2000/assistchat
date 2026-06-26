@@ -9,9 +9,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from src.app import providers
 from src.app.core.config import SESSION_SECRET, STATIC_DIR
+from src.app.core.db import SessionLocal
 from src.app.core.middleware import _authflow_trace
-from src.app.core.geo import is_google_auth_enabled
-from src.app.core.templates import render_i18n, templates
+from src.app.core.templates import build_page_context, render_i18n, template_to_page_key, templates
 from src.app.modules.bot.router import router as bot_router
 from src.app.modules.qr.router import router as qr_router
 from src.app.routes.auth_routes import router as auth_router
@@ -83,15 +83,12 @@ def render_any_html(request: Request, full_path: str = ""):
     if ".." in path or path.startswith("/"):
         return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
-    page_key = path[:-5].replace("/", "_")
+    page_key = template_to_page_key(path)
     try:
         templates.get_template(path)
     except Exception:
         return render_i18n("404.html", request, "404", {"error_message": "Извините, такой страницы нет."})
 
-    return render_i18n(
-        path,
-        request,
-        page_key,
-        {"google_auth_enabled": is_google_auth_enabled(request)},
-    )
+    with SessionLocal() as db:
+        ctx = build_page_context(request, db)
+    return render_i18n(path, request, page_key, ctx)

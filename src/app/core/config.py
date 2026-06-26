@@ -1,9 +1,7 @@
 """
 src/app/core/config.py — базовые параметры конфигурации приложения.
-Содержит пути, секреты и глобальные константы, используемые во всех модулях.
 """
 
-import json
 import os
 from pathlib import Path
 from passlib.context import CryptContext
@@ -37,21 +35,9 @@ SQLALCHEMY_DATABASE_URL = db.DATABASE_URL
 PROJECT_ROOT = BASE_DIR.parent
 TRANSLATIONS_DIR = PROJECT_ROOT / "translations"
 
-_DEFAULT_I18N_LANG_LABELS = {
-    "ru": "Русский",
-    "en": "English",
-    "az": "Azərbaycan",
-    "tr": "Türkçe",
-}
-
-
-def get_i18n_lang_labels() -> dict[str, str]:
-    raw = os.getenv("AUTO_I18N_LANG_LABELS", "").strip()
-    if raw:
-        try:
-            data = json.loads(raw)
-            if isinstance(data, dict):
-                return {str(k).lower(): str(v) for k, v in data.items()}
-        except json.JSONDecodeError:
-            pass
-    return dict(_DEFAULT_I18N_LANG_LABELS)
+SOURCE_LANG = os.getenv("SOURCE_LANG", "ru")
+AUTO_I18N_TARGET_LANGS = [
+    item.strip()
+    for item in os.getenv("AUTO_I18N_TARGET_LANGS", "en").split(",")
+    if item.strip()
+]

@@ -3,10 +3,11 @@ from unittest.mock import patch
 from starlette.requests import Request
 
 from src.app.core.templates import (
-    _get_lang,
-    _inject_lang_switcher,
-    available_langs,
-    set_lang,
+    build_page_context,
+    get_supported_ui_languages,
+    get_ui_lang,
+    render_i18n,
+    template_to_page_key,
     tr,
 )
 
@@ -30,40 +31,36 @@ def _request(
     )
 
 
-def test_available_langs_includes_source_and_targets():
-    with patch.object(tr, "source_lang", "ru"), patch.object(tr, "target_langs", ["en", "az"]):
-        assert available_langs() == ["ru", "en", "az"]
+def test_template_to_page_key():
+    assert template_to_page_key("index.html") == "index"
+    assert template_to_page_key("resources/telegram.html") == "resource_telegram"
 
 
-def test_get_lang_from_cookie():
-    req = _request(cookies={"lang": "en"})
-    with patch("src.app.core.templates.available_langs", return_value=["ru", "en"]):
-        assert _get_lang(req) == "en"
+def test_get_ui_lang_from_cookie():
+    req = _request(cookies={"ui_lang": "en"})
+    with patch("src.app.core.templates.get_supported_ui_languages", return_value=["ru", "en"]):
+        assert get_ui_lang(req) == "en"
 
 
-def test_get_lang_falls_back_to_source():
-    req = _request(cookies={"lang": "de"})
-    with patch("src.app.core.templates.available_langs", return_value=["ru", "en"]):
-        assert _get_lang(req) == "ru"
+def test_get_ui_lang_falls_back_to_source():
+    req = _request(cookies={"ui_lang": "de"})
+    with patch("src.app.core.templates.get_supported_ui_languages", return_value=["ru", "en"]):
+        assert get_ui_lang(req) == "ru"
 
 
-def test_inject_lang_switcher_lists_configured_langs():
-    html = "<html><body></body></html>"
-    with patch("src.app.core.templates.available_langs", return_value=["ru", "en", "az"]):
-        with patch("src.app.core.templates.lang_label", side_effect=lambda code: code.upper()):
-            out = _inject_lang_switcher(html, "ru")
-
-    assert 'id="i18n-switcher"' in out
-    assert "/set-lang/ru" in out
-    assert "/set-lang/en" in out
-    assert "/set-lang/az" in out
-    assert 'class="active"' in out
+def test_render_i18n_skips_translation_for_source_lang():
+    req = _request(cookies={"ui_lang": "ru"})
+    ctx = build_page_context(req)
+    with patch.object(tr, "translate_html") as translate_mock:
+        resp = render_i18n("index.html", req, "index", ctx)
+    translate_mock.assert_not_called()
+    assert "langSwitch" in resp.body.decode()
 
 
-def test_set_lang_rejects_unknown_lang():
-    req = _request(headers={"referer": "/"})
-    with patch("src.app.core.templates.available_langs", return_value=["ru", "en"]):
-        resp = set_lang(req, "xx")
-
-    assert resp.status_code == 303
-    assert resp.headers["set-cookie"].startswith("lang=ru")
+def test_render_i18n_translates_non_source_lang():
+    req = _request(cookies={"ui_lang": "en"})
+    ctx = build_page_context(req)
+    with patch.object(tr, "translate_html", return_value="<html>EN</html>") as translate_mock:
+        resp = render_i18n("index.html", req, "index", ctx)
+    translate_mock.assert_called_once()
+    assert resp.body.decode() == "<html>EN</html>"

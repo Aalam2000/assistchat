@@ -1,39 +1,33 @@
 <!-- src/web/templates/qr.html -->
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <title>QR + Logo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="/static/css/base.css" rel="stylesheet" />
-  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-</head>
-<body>
-  <main class="wrap">
-    <div class="card">
-      <h1 style="margin:0 0 8px">QR с логотипом</h1>
-      <p class="subtitle">Текст/URL для QR и логотип (PNG/TIFF). На выходе — ZIP с PNG и PDF.</p>
+{% extends "base.html" %}
+{% block title %}QR + Logo | assistchat{% endblock %}
 
-      <div class="row">
-        <div>
-          <label for="qrText">Текст / URL</label>
-          <input id="qrText" type="text" placeholder="https://amarant.world" />
-        </div>
-        <div>
-          <label for="logoFile">Логотип (PNG/TIFF)</label>
-          <input id="logoFile" type="file" accept="image/png,image/tiff" />
-        </div>
-      </div>
+{% block content %}
+<div class="page">
+  <section class="tile">
+    <div class="tile-title">QR с логотипом</div>
+    <p class="tile-desc">Текст/URL для QR и логотип (PNG/TIFF). На выходе — ZIP с PNG и PDF.</p>
 
-      <div class="actions">
-        <button id="btnCreate" class="btn primary">СОЗДАТЬ</button>
-        <a class="btn" href="/profile">Назад</a>
-      </div>
-
-      <div id="status" class="subtitle mt-12"></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+      <label>
+        Текст / URL
+        <input id="qrText" type="text" placeholder="https://amarant.world" />
+      </label>
+      <label>
+        Логотип (PNG/TIFF)
+        <input id="logoFile" type="file" accept="image/png,image/tiff" />
+      </label>
     </div>
-  </main>
 
-  <script type="module" src="/static/js/qr.js"></script>
-</body>
-</html>
+    <div class="actions mt-12">
+      <button id="btnCreate" class="btn primary">СОЗДАТЬ</button>
+    </div>
+
+    <div id="status" class="mono mt-8"></div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="/static/js/qr.js"></script>
+{% endblock %}

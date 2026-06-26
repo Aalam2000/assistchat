@@ -8,30 +8,73 @@ window.APP_CONFIG = {
     }
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-    const switcher = document.getElementById("i18n-switcher");
-    const btn = document.getElementById("i18n-switcher-btn");
-    const menu = document.getElementById("i18n-switcher-menu");
-    const waitModal = document.getElementById("lang-wait");
+(function () {
+    const COOKIE_NAME = "ui_lang";
 
-    if (!switcher || !btn || !menu) return;
-
-    btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const open = menu.classList.toggle("hidden");
-        btn.setAttribute("aria-expanded", open ? "false" : "true");
-    });
-
-    document.addEventListener("click", () => {
-        menu.classList.add("hidden");
-        btn.setAttribute("aria-expanded", "false");
-    });
-
-    menu.querySelectorAll("a[data-lang]").forEach((link) => {
-        link.addEventListener("click", () => {
-            if (waitModal) {
-                waitModal.classList.remove("hidden");
+    function getCookie(name) {
+        const prefix = name + "=";
+        const cookies = document.cookie.split(";").map((v) => v.trim());
+        for (const c of cookies) {
+            if (c.startsWith(prefix)) {
+                return decodeURIComponent(c.slice(prefix.length));
             }
+        }
+        return "";
+    }
+
+    function setCookie(name, value, days = 365) {
+        const expires = new Date(Date.now() + days * 86400000).toUTCString();
+        document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+    }
+
+    function getSupportedLanguages() {
+        const dataEl = document.getElementById("app-languages-data");
+        if (!dataEl) return ["ru"];
+
+        try {
+            const parsed = JSON.parse(dataEl.textContent || "[]");
+            return Array.isArray(parsed)
+                ? parsed.map((v) => String(v).trim().toLowerCase()).filter(Boolean)
+                : ["ru"];
+        } catch (e) {
+            console.error("Failed to parse app languages", e);
+            return ["ru"];
+        }
+    }
+
+    function getCurrentLang(supported) {
+        const fromCookie = getCookie(COOKIE_NAME);
+        if (supported.includes(fromCookie)) return fromCookie;
+
+        const browserLang = String(navigator.language || "").trim().toLowerCase();
+        if (supported.includes(browserLang)) return browserLang;
+
+        const browserBaseLang = browserLang.split("-")[0];
+        if (supported.includes(browserBaseLang)) return browserBaseLang;
+
+        const htmlLang = (document.documentElement.getAttribute("lang") || "").toLowerCase();
+        if (supported.includes(htmlLang)) return htmlLang;
+
+        return supported[0] || "ru";
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const select = document.getElementById("langSwitch");
+        if (!select) return;
+
+        const supported = getSupportedLanguages();
+        const currentLang = getCurrentLang(supported);
+
+        select.value = currentLang;
+        document.documentElement.setAttribute("lang", currentLang);
+
+        select.addEventListener("change", () => {
+            const newLang = String(select.value || "").trim().toLowerCase();
+            if (!supported.includes(newLang)) return;
+
+            setCookie(COOKIE_NAME, newLang);
+            document.documentElement.setAttribute("lang", newLang);
+            window.location.reload();
         });
     });
-});
+})();

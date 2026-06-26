@@ -14,10 +14,7 @@
         <div class="hero-text">
             <h2>Добро пожаловать в AssistChat</h2>
             <p>Ваш умный ассистент для бизнеса и общения</p>
-            <button class="btn primary btn-login"
-                    onclick="document.getElementById('login-modal').classList.remove('hidden')">
-                Попробовать сейчас
-            </button>
+            <button type="button" class="btn primary btn-login">Попробовать сейчас</button>
         </div>
         <div class="hero-image">
             <img src="/static/img/robot_attention.png" alt="Робот">
@@ -150,10 +147,7 @@
                     {% else %}
                     <p class="subtitle">
                         Чтобы пользоваться генератором QR-кодов,
-                        <a href="javascript:void(0)" class="btn btn-login"
-                           onclick="document.getElementById('login-modal').classList.remove('hidden')">
-                            войдите в аккаунт
-                        </a>.
+                        <a href="javascript:void(0)" class="btn btn-login">войдите в аккаунт</a>.
                     </p>
                     {% endif %}
                 </div>

@@ -1,10 +1,30 @@
-// src/app/static/js/auth.js
+// src/web/static/js/auth.js
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
   const registerForm = document.getElementById("register-form");
   const logoutBtn = document.getElementById("logout-btn");
+  const loginModal = document.getElementById("login-modal");
 
-  // переключение форм
+  document.querySelectorAll(".btn-login").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      loginModal?.classList.remove("hidden");
+    });
+  });
+
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-close-modal");
+      document.getElementById(id)?.classList.add("hidden");
+    });
+  });
+
+  document.querySelectorAll(".google-btn[data-href]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      window.location.href = btn.getAttribute("data-href");
+    });
+  });
+
   const loginPanel = document.getElementById("tab-login");
   const registerPanel = document.getElementById("tab-register");
   document.getElementById("switch-to-register")?.addEventListener("click", (e) => {
@@ -18,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loginPanel.classList.add("active");
   });
 
-  // вход
   loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const err = document.getElementById("login-error");
@@ -37,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // регистрация
   registerForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const err = document.getElementById("register-error");
@@ -59,7 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // выход
   logoutBtn?.addEventListener("click", async () => {
     try {
       const r = await fetch(window.APP_CONFIG.endpoints.logout, {

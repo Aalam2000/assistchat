@@ -1,120 +1,116 @@
 """
 src/app/core/templates.py — шаблоны Jinja2 и post-render i18n (auto-i18n-lib).
+Схема как в cargodb: render → ru as-is, иначе translate_html.
 """
 
+import json
 import os
 
 from autoi18n import Translator
 from fastapi import Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from src.app.core.config import (
+    AUTO_I18N_TARGET_LANGS,
+    SOURCE_LANG,
     TEMPLATES_DIR,
     TRANSLATIONS_DIR,
-    get_i18n_lang_labels,
 )
 from src.app.core.geo import is_google_auth_enabled
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates.env.filters["tojson"] = lambda value: json.dumps(value, ensure_ascii=False)
 
 tr = Translator(
     cache_dir=str(TRANSLATIONS_DIR),
-    source_lang=os.getenv("SOURCE_LANG", "ru"),
-    target_langs=os.getenv("AUTO_I18N_TARGET_LANGS", "en"),
+    source_lang=SOURCE_LANG,
     api_key=os.getenv("OPENAI_API_KEY", "local-no-key"),
 )
 
 
-def available_langs() -> list[str]:
+def template_to_page_key(template_name: str) -> str:
+    """Имя страницы для кэша переводов (совместимо с существующими *.en.json)."""
+    if template_name.startswith("resources/"):
+        provider = template_name.split("/")[1].replace(".html", "")
+        return f"resource_{provider}"
+    return template_name.replace(".html", "").replace("/", "_")
+
+
+def get_supported_ui_languages() -> list[str]:
     langs = [tr.source_lang]
-    for lang in tr.target_langs:
-        if lang not in langs:
-            langs.append(lang)
+    for code in AUTO_I18N_TARGET_LANGS:
+        normalized = str(code).strip().lower()
+        if normalized and normalized not in langs:
+            langs.append(normalized)
     return langs
 
 
-def lang_label(lang: str) -> str:
-    labels = get_i18n_lang_labels()
-    normalized = (lang or "").lower()
-    return labels.get(normalized, normalized.upper() or tr.source_lang.upper())
-
-
-def _get_lang(request: Request) -> str:
-    """Язык: cookie → Accept-Language → source_lang."""
-    allowed = set(available_langs())
-
-    cookie = (request.cookies.get("lang") or "").lower()
-    if cookie in allowed:
-        return cookie
-
-    browser = tr.detect_browser_lang(request.headers.get("accept-language", ""))
-    if browser in allowed:
-        return browser
-
+def get_ui_lang(request: Request) -> str:
+    lang = (request.cookies.get("ui_lang") or "").strip().lower()
+    supported = set(get_supported_ui_languages())
+    if lang in supported:
+        return lang
     return tr.source_lang
 
 
-def _inject_lang_switcher(html: str, current_lang: str) -> str:
-    """Выпадающий переключатель языков из настроек (SOURCE_LANG + AUTO_I18N_TARGET_LANGS)."""
-    if 'id="i18n-switcher"' in html:
-        return html
+def build_page_context(request: Request, db=None, **extra) -> dict:
+    user = extra.pop("user", None)
+    if user is None and db is not None:
+        from src.app.core.auth import get_current_user
 
-    langs = available_langs()
-    if len(langs) <= 1:
-        return html
+        user = get_current_user(request, db)
 
-    cur = (current_lang or tr.source_lang).lower()
-    items = []
-    for lang in langs:
-        label = lang_label(lang)
-        active = ' class="active"' if lang == cur else ""
-        items.append(
-            f'<li role="option"{active}>'
-            f'<a href="/set-lang/{lang}" data-lang="{lang}">{label}</a>'
-            f"</li>"
-        )
+    role = None
+    if user is not None:
+        raw_role = getattr(user, "role", None)
+        role = raw_role.value if hasattr(raw_role, "value") else str(raw_role)
 
-    switcher = (
-        '<div id="i18n-switcher" class="i18n-switcher">'
-        f'<button type="button" id="i18n-switcher-btn" '
-        f'aria-haspopup="listbox" aria-expanded="false" aria-label="Language">'
-        f"{lang_label(cur)}"
-        "</button>"
-        f'<ul id="i18n-switcher-menu" class="i18n-switcher-menu hidden" role="listbox">'
-        + "".join(items)
-        + "</ul></div>"
-    )
-
-    marker = "</body>"
-    idx = html.lower().rfind(marker)
-    if idx == -1:
-        return html + switcher
-    return html[:idx] + switcher + html[idx:]
-
-
-def render_i18n(template_name: str, request: Request, page_key: str, ctx: dict) -> HTMLResponse:
-    """Рендер шаблона + post-render перевод + переключатель языков."""
-    lang = _get_lang(request)
+    ui_lang = get_ui_lang(request)
     ctx = {
+        "user": user,
+        "username": user.username if user else extra.get("username"),
+        "role": role if user else extra.get("role"),
+        "app_languages": get_supported_ui_languages(),
+        "current_ui_lang": ui_lang,
+        "lang": ui_lang,
+    }
+    ctx.update(extra)
+    return ctx
+
+
+def render_i18n(
+    template_name: str,
+    request: Request,
+    page_key: str,
+    ctx: dict,
+    status: int = 200,
+) -> HTMLResponse:
+    merged = {
         **ctx,
         "request": request,
         "page_key": page_key,
-        "lang": lang,
         "google_auth_enabled": is_google_auth_enabled(request),
     }
-    rendered = templates.get_template(template_name).render(ctx)
-    translated = tr.translate_html(rendered, target_lang=lang, page_name=page_key)
-    return HTMLResponse(content=_inject_lang_switcher(translated, lang))
+    if "app_languages" not in merged:
+        merged["app_languages"] = get_supported_ui_languages()
+    if "current_ui_lang" not in merged:
+        merged["current_ui_lang"] = get_ui_lang(request)
+    if "lang" not in merged:
+        merged["lang"] = merged["current_ui_lang"]
 
+    html = templates.get_template(template_name).render(merged)
+    target_lang = merged["current_ui_lang"]
 
-def set_lang(request: Request, lang: str) -> RedirectResponse:
-    """Устанавливает cookie lang и возвращает на referer."""
-    normalized = (lang or "").lower()
-    if normalized not in available_langs():
-        normalized = tr.source_lang
+    if target_lang == tr.source_lang:
+        return HTMLResponse(content=html, status_code=status)
 
-    ref = request.headers.get("referer") or "/"
-    resp = RedirectResponse(url=ref, status_code=303)
-    resp.set_cookie("lang", normalized, httponly=True, samesite="lax")
-    return resp
+    try:
+        translated = tr.translate_html(
+            html=html,
+            target_lang=target_lang,
+            page_name=page_key,
+        )
+        return HTMLResponse(content=translated, status_code=status)
+    except Exception:
+        return HTMLResponse(content=html, status_code=status)

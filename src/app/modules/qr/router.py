@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session as SASession
 from .QR import generate_qr_with_logo
 from src.app.core.db import get_db
 from src.app.core.auth import get_current_user
-from src.app.core.templates import render_i18n
+from src.app.core.templates import build_page_context, render_i18n
 
 router = APIRouter(tags=["QR"])
 
@@ -17,7 +17,7 @@ async def qr_page(request: Request, db: SASession = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    return render_i18n("qr.html", request, "qr", {"username": user.username})
+    return render_i18n("qr.html", request, "qr", build_page_context(request, db))
 
 
 # ✅ Эндпоинт для превью PNG
