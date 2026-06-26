@@ -1,6 +1,5 @@
 # src/models/user.py
-from sqlalchemy import Column, Integer, String, DateTime, func, Boolean, Enum, Text
-from typing import Optional
+from sqlalchemy import Column, Integer, String, DateTime, func, Boolean, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from enum import Enum as PyEnum
@@ -20,5 +19,4 @@ class User(Base):
     hashed_password = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    openai_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     bot_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

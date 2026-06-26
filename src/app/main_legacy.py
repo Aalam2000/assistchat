@@ -469,66 +469,6 @@ async def api_status(request: Request, db: SASession = Depends(get_db)):
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# PROFILE: OpenAI настройки пользователя
-# ────────────────────────────────────────────────────────────────────────────────
-
-@app.get("/api/profile/openai")
-async def api_profile_openai_get(request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    key = getattr(user, "openai_api_key", None)
-    masked = None
-    if key:
-        masked = (key[:3] + "…" + key[-4:]) if len(key) > 7 else "******"
-
-    # дефолты (пока без хранения отдельных полей)
-    return {
-        "ok": True,
-        "mode": "byok" if key else "managed",
-        "key_masked": masked,
-        "model": "gpt-4o-mini",
-        "history_limit": 20,
-        "voice_enabled": False,
-    }
-
-
-@app.post("/api/profile/openai/test")
-async def api_profile_openai_test(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    mode = (payload.get("mode") or "byok").lower()
-    if mode == "byok":
-        key = (payload.get("key") or "").strip()
-        # минимальная валидация формата, без внешних запросов
-        if not key or not key.startswith("sk-") or len(key) < 20:
-            return JSONResponse({"ok": False, "error": "KEY_FORMAT"}, status_code=400)
-
-    return {"ok": True, "message": "Ок"}
-
-
-@app.post("/api/profile/openai/save")
-async def api_profile_openai_save(payload: dict, request: Request, db: SASession = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return JSONResponse({"ok": False}, status_code=401)
-
-    mode = (payload.get("mode") or "byok").lower()
-    if mode == "byok":
-        user.openai_api_key = (payload.get("key") or "").strip() or None
-    else:
-        # managed-режим — ключ пользователя не храним
-        user.openai_api_key = None
-
-    db.add(user)
-    db.commit()
-    return {"ok": True}
-
-
-# ────────────────────────────────────────────────────────────────────────────────
 # QR: страница
 # ────────────────────────────────────────────────────────────────────────────────
 @app.get("/qr", response_class=HTMLResponse)

@@ -15,7 +15,6 @@ from src.app.core.templates import build_page_context, render_i18n, template_to_
 from src.app.modules.bot.router import router as bot_router
 from src.app.modules.qr.router import router as qr_router
 from src.app.routes.auth_routes import router as auth_router
-from src.app.routes.profile_routes import router as profile_router
 from src.app.web_routes import router as web_router
 
 # -----------------------------------------------------------------------------
@@ -42,7 +41,6 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(qr_router)
 app.include_router(bot_router)
 app.include_router(auth_router)
-app.include_router(profile_router)
 app.include_router(web_router)
 providers.load_all_providers()
 app.include_router(providers.router)

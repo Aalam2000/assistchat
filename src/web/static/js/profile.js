@@ -69,96 +69,6 @@ async function saveProfile() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// OPENAI доступ (режим, ключ, модель, история, голос)
-function syncOpenAIModeVisibility() {
-    const byok = document.getElementById("openai-mode-byok").checked;
-    const keyInput = document.getElementById("openai-key");
-    keyInput.disabled = !byok;
-    keyInput.parentElement.style.opacity = byok ? "1" : ".6";
-}
-
-async function loadOpenAI() {
-    try {
-        const r = await fetch("/api/profile/openai", {credentials: "same-origin"});
-        if (!r.ok) throw new Error(String(r.status));
-        const data = await r.json();
-
-        // режим
-        const mode = (data.mode ?? "byok").toLowerCase();
-        document.getElementById("openai-mode-byok").checked = (mode === "byok");
-        document.getElementById("openai-mode-managed").checked = (mode === "managed");
-        syncOpenAIModeVisibility();
-
-        // поля
-        document.getElementById("openai-key").value = data.key_masked ?? ""; // реальный ключ не показываем
-        document.getElementById("openai-model").value = data.model ?? "gpt-4o-mini";
-        document.getElementById("openai-history").value = String(data.history_limit ?? 20);
-        document.getElementById("openai-voice").checked = !!data.voice_enabled;
-    } catch (e) {
-        document.getElementById("openai-status").textContent = "Ошибка загрузки настроек OpenAI";
-        console.error("[profile] loadOpenAI error:", e);
-    }
-}
-
-async function testOpenAI() {
-    const btn = document.getElementById("btn-openai-test");
-    const out = document.getElementById("openai-status");
-    btn.disabled = true;
-    out.textContent = "Проверка ключа...";
-    try {
-        const payload = {
-            mode: document.getElementById("openai-mode-byok").checked ? "byok" : "managed",
-            key: document.getElementById("openai-key").value.trim() || null,
-            model: document.getElementById("openai-model").value.trim() || "gpt-4o-mini",
-        };
-        const r = await fetch("/api/profile/openai/test", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            credentials: "same-origin",
-            body: JSON.stringify(payload)
-        });
-        const data = await r.json().catch(() => ({}));
-        out.textContent = r.ok
-            ? (data.message || "Ключ валиден")
-            : (data.error || "Ошибка проверки");
-    } catch (e) {
-        out.textContent = "Ошибка проверки";
-        console.error("[profile] testOpenAI error:", e);
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-async function saveOpenAI() {
-    const btn = document.getElementById("btn-openai-save");
-    const out = document.getElementById("openai-status");
-    btn.disabled = true;
-    out.textContent = "Сохранение...";
-    try {
-        const payload = {
-            mode: document.getElementById("openai-mode-byok").checked ? "byok" : "managed",
-            key: document.getElementById("openai-key").value.trim() || null,
-            model: document.getElementById("openai-model").value.trim() || "gpt-4o-mini",
-            history_limit: parseInt(document.getElementById("openai-history").value || "20", 10),
-            voice_enabled: document.getElementById("openai-voice").checked,
-        };
-        const r = await fetch("/api/profile/openai/save", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            credentials: "same-origin",
-            body: JSON.stringify(payload)
-        });
-        out.textContent = r.ok ? "Сохранено" : "Ошибка сохранения";
-    } catch (e) {
-        out.textContent = "Ошибка сохранения";
-        console.error("[profile] saveOpenAI error:", e);
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-
-// ──────────────────────────────────────────────────────────────────────────────
 // БОТ: глобальный статус и переключатель
 async function loadBotStatus() {
     const out = document.getElementById("bot-summary");
@@ -217,14 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // профиль
     loadProfile();
     // document.getElementById("btn-profile-save")?.addEventListener("click", saveProfile);
-
-    // openai
-    loadOpenAI();
-    document.getElementById("openai-mode-byok")?.addEventListener("change", syncOpenAIModeVisibility);
-    document.getElementById("openai-mode-managed")?.addEventListener("change", syncOpenAIModeVisibility);
-    document.getElementById("btn-openai-test")?.addEventListener("click", testOpenAI);
-    document.getElementById("btn-openai-save")?.addEventListener("click", saveOpenAI);
-
 });
 
 
